@@ -45,7 +45,9 @@ export default function BookingSection() {
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <a
-                                    href="#"
+                                    href="https://apps.apple.com/us/app/ushspa/id6771279814"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="flex items-center gap-2 bg-spa-text text-white px-4 py-2.5 rounded-sm hover:bg-spa-cherry transition-colors duration-300 text-sm font-medium"
                                 >
                                     <span className="text-lg">🍎</span>
