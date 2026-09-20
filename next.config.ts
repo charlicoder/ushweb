@@ -40,9 +40,15 @@ const nextConfig: NextConfig = {
       allowedOrigins: [
         "apidev.ushspa.co",
         "www.apidev.ushspa.co",
+        '10.131.22.93'
       ],
     },
   },
+
+  // Allow cross-origin requests to Next.js dev-server resources (/_next/static/*)
+  // from devices on the local network accessing via IP.
+  // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+  allowedDevOrigins: ['10.131.22.93'],
 };
 
 export default nextConfig;

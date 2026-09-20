@@ -19,17 +19,38 @@ function Logo({ size = 40, style }: { size?: number; style?: React.CSSProperties
 
 interface ServiceType { id: string; name: string; }
 interface ServiceData {
-  name: string; image: string; currency: string;
-  base_price: string; service_types: ServiceType[]; duration_minutes: number;
+  id?: string;
+  name: string;
+  image?: string | null;   /* legacy */
+  image1?: string | null;  /* actual API field */
+  currency: string;
+  price?: string;
+  base_price?: string;
+  service_types?: ServiceType[];
+  duration_minutes?: number;  /* legacy */
+  duration?: number;          /* actual API field */
+  name_ar?: string;
 }
-interface BranchData { name: string; branch_id: string; }
+interface BranchData { id?: string; name: string; branch_id?: string; city?: string; address?: string; name_ar?: string; }
 interface ServiceArrangementData {
-  image: string; price: string; currency: string;
-  arrangement_name: string; arrangement_type: string;
+  id?: string;
+  image?: string | null;
+  price?: string;
+  effective_price?: string;
+  currency?: string;
+  arrangement_name?: string;  /* legacy */
+  name?: string;              /* actual API field */
+  arrangement_type: string;
 }
 interface Addon {
-  id: string; name: string; price: string; currency: string;
-  description: string; duration_minutes: number;
+  id?: string;
+  addon_id?: string;
+  name: string;
+  price?: string;
+  currency?: string;
+  description?: string;
+  duration_minutes?: number;  /* legacy */
+  duration?: number;          /* actual API field */
 }
 interface SenderData { name: string; phone_number?: string; }
 interface RecipientData {
@@ -59,6 +80,11 @@ interface DeliveryAddress {
   street?: string;
   building?: string;
   apartment?: string;
+}
+
+interface DigitalProductData {
+  video_url?: string | null;
+  [key: string]: unknown;
 }
 
 interface GiftVoucher {
@@ -91,6 +117,8 @@ interface GiftVoucher {
   delivery_status_label?: string;
   delivery_status_label_ar?: string;
   delivery_address?: DeliveryAddress;
+  /* Digital-specific */
+  digital_product_data?: DigitalProductData | null;
 }
 
 /* ─────────────────────────────── Helpers ────────────────────────────── */
@@ -174,6 +202,9 @@ const KEYFRAMES = `
   @keyframes loadingPulse{
     0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.95)}
   }
+  @keyframes videoFadeIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
+  @keyframes ctaSlideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes skipFadeIn{from{opacity:0}to{opacity:1}}
 
   .petal{position:fixed;border-radius:50% 0 50% 0;pointer-events:none;animation:petalFall linear infinite;}
   .shimmer-bar{
@@ -606,6 +637,199 @@ function GiftRevealPopup({ voucher, onRevealGift }: { voucher: GiftVoucher; onRe
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Digital Video Popup ───────────────── */
+
+function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onContinue: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(false);
+  const [videoEnded, setVideoEnded] = useState(false);
+  const [showSkip, setShowSkip] = useState(false);
+  const [showUnmuteBanner, setShowUnmuteBanner] = useState(false);
+
+  useEffect(() => {
+    // Show skip button after 3s
+    const t = setTimeout(() => setShowSkip(true), 3000);
+
+    // Attempt unmuted autoplay first
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.play().catch(() => {
+        // Browser blocked unmuted autoplay, fall back to muted
+        if (videoRef.current) {
+          videoRef.current.muted = true;
+          setMuted(true);
+          setShowUnmuteBanner(true);
+          videoRef.current.play().catch(() => {});
+        }
+      });
+    }
+
+    return () => clearTimeout(t);
+  }, []);
+
+  function toggleMute() {
+    setMuted(m => {
+      const nextMuted = !m;
+      if (videoRef.current) videoRef.current.muted = nextMuted;
+      if (!nextMuted) setShowUnmuteBanner(false);
+      return nextMuted;
+    });
+  }
+
+  function handleEnded() {
+    setVideoEnded(true);
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 2000,
+      background: '#000',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      animation: 'videoFadeIn 0.6s ease both',
+    }}>
+      {/* Video */}
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        playsInline
+        muted={muted}
+        onEnded={handleEnded}
+        style={{
+          width: '100%', height: '100%',
+          objectFit: 'contain',
+          position: 'absolute', inset: 0,
+        }}
+      />
+
+      {/* Prominent Tap to Unmute Banner */}
+      {showUnmuteBanner && !videoEnded && (
+        <div
+          onClick={() => {
+            if (videoRef.current) {
+              videoRef.current.muted = false;
+              setMuted(false);
+              setShowUnmuteBanner(false);
+            }
+          }}
+          style={{
+            position: 'absolute', top: 24, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 20,
+            background: 'rgba(84, 60, 48, 0.92)', backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(211, 192, 177, 0.5)',
+            borderRadius: 30, padding: '12px 24px',
+            color: '#FFFFFF', fontSize: '0.95rem', fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            animation: 'pulseGlow 2s ease-in-out infinite, fadeIn 0.4s ease',
+            fontFamily: "'Roboto', sans-serif",
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>🔊</span> Tap to Unmute
+        </div>
+      )}
+
+      {/* Dark overlay gradient (bottom) */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '45%',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Top gradient */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: '18%',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* Skip button (top-right) */}
+      {showSkip && !videoEnded && (
+        <button
+          id="gift-video-skip-btn"
+          onClick={() => setVideoEnded(true)}
+          style={{
+            position: 'absolute', top: 20, right: 20, zIndex: 10,
+            background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: 24, padding: '8px 20px',
+            color: '#FFFFFF', fontSize: '0.82rem', fontWeight: 600,
+            cursor: 'pointer', letterSpacing: '0.5px',
+            fontFamily: "'Roboto', sans-serif",
+            animation: 'skipFadeIn 0.5s ease both',
+            transition: 'all 250ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+        >
+          Skip ›
+        </button>
+      )}
+
+      {/* Mute/Unmute toggle (bottom-left) */}
+      {!videoEnded && (
+        <button
+          id="gift-video-mute-btn"
+          onClick={toggleMute}
+          title={muted ? 'Unmute video' : 'Mute video'}
+          style={{
+            position: 'absolute', bottom: videoEnded ? 160 : 30, left: 24, zIndex: 10,
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.3)',
+            color: '#FFFFFF', fontSize: '1.2rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 250ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
+      )}
+
+      {/* CTA after video ends */}
+      {videoEnded && (
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          padding: '32px 28px 48px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          animation: 'ctaSlideUp 0.7s cubic-bezier(0.34,1.56,0.64,1) both',
+        }}>
+          <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Logo size={36} />
+          </div>
+          <p style={{
+            fontFamily: "'Alex Brush', cursive",
+            fontSize: '1.4rem', color: '#D3C0B1', marginBottom: 6, textAlign: 'center',
+          }}>
+            A special message awaits you ✨
+          </p>
+          <button
+            id="gift-video-show-message-btn"
+            onClick={onContinue}
+            style={{
+              width: '100%', maxWidth: 360,
+              padding: '18px 28px', borderRadius: 18, border: 'none',
+              background: '#543C30',
+              color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 700,
+              letterSpacing: '0.5px', cursor: 'pointer',
+              boxShadow: '0 12px 36px rgba(84,60,48,0.5)',
+              fontFamily: "'Roboto', sans-serif",
+              animation: 'pulseGlow 2s ease-in-out infinite',
+              transition: 'all 300ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+          >
+            💌 Show My Message & Gift Pack
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1122,7 +1346,18 @@ function StatusBadge({ status, expired }: { status: string; expired: boolean }) 
 
 /* ─────────────────────────────── App Download CTA ──────────────────── */
 
-function AppCTA({ style }: { style?: React.CSSProperties }) {
+function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate?: string }) {
+  const daysLeft = expireDate
+    ? Math.max(0, Math.ceil((new Date(expireDate).getTime() - Date.now()) / 86400000))
+    : null;
+
+  const urgencyLine =
+    daysLeft === null ? null
+    : daysLeft === 0 ? 'Your gift expires today — book now before it’s too late.'
+    : daysLeft <= 7 ? `Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left — secure your experience before it expires.`
+    : daysLeft <= 30 ? `Your gift is valid for ${daysLeft} more days. Don’t let it go to waste.`
+    : null;
+
   return (
     <div style={{
       margin: '0 0 28px',
@@ -1138,17 +1373,34 @@ function AppCTA({ style }: { style?: React.CSSProperties }) {
     }}>
       <div className="shimmer-bar" />
       <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* Engaging Motivational Marketing-Friendly Title */}
+        <div style={{ fontSize: 32, marginBottom: 10 }}>✨</div>
         <h3 style={{
           fontFamily: "'Lustria', serif",
           color: '#FFFFFF',
-          fontSize: '1.3rem',
+          fontSize: '1.2rem',
           fontWeight: 700,
-          lineHeight: 1.4,
-          marginBottom: 22,
+          lineHeight: 1.5,
+          marginBottom: urgencyLine ? 10 : 20,
         }}>
-          Elevate Your Wellness Journey — Download the USH Spa App
+          Ready to redeem your gift?<br />
+          <span style={{ fontWeight: 400, fontSize: '1rem', color: '#D3C0B1' }}>
+            Download the USH Spa app and book your session in seconds.
+          </span>
         </h3>
+
+        {urgencyLine && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(211,192,177,0.15)',
+            border: '1px solid rgba(211,192,177,0.3)',
+            borderRadius: 30, padding: '8px 18px', marginBottom: 20,
+          }}>
+            <span style={{ fontSize: 14 }}>⏰</span>
+            <span style={{ color: '#D3C0B1', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.3px' }}>
+              {urgencyLine}
+            </span>
+          </div>
+        )}
 
         {/* Download Buttons */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -1192,12 +1444,14 @@ function AppCTA({ style }: { style?: React.CSSProperties }) {
 
 function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
   const expired = isExpired(v.expire_date);
-  const heroImg = v.service_arrangement_data?.image || v.service_data?.image || '';
-  const serviceImg = v.service_data?.image || '';
+  /* Support both image (legacy) and image1 (actual API) */
+  const heroImg = v.service_arrangement_data?.image || v.service_data?.image1 || v.service_data?.image || '';
+  const serviceImg = v.service_data?.image1 || v.service_data?.image || '';
   const sd = v.service_data;
   const ar = v.service_arrangement_data;
   const br = v.branch_data;
-  const [tab, setTab] = useState<'details' | 'addons' | 'info'>('details');
+  /* Support both duration (actual API) and duration_minutes (legacy) */
+  const sdDuration = sd?.duration ?? sd?.duration_minutes ?? 0;
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => { setTimeout(() => setRevealed(true), 100); }, []);
@@ -1338,7 +1592,7 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
       {/* ── Quick Stats Row (No Price) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, margin: '20px 18px 0' }}>
         {[
-          { icon: '⏱', label: 'Duration', value: fmtDuration(v.total_duration || 0) },
+          { icon: '⏱', label: 'Duration', value: fmtDuration(v.total_duration || sdDuration || 0) },
           { icon: '🎁', label: 'Ritual', value: v.service_data?.name ? (v.service_data.name.length > 14 ? v.service_data.name.substring(0, 14) + '…' : v.service_data.name) : 'Special' },
           { icon: '📅', label: 'Valid Until', value: fmtDate(v.expire_date).replace(/,.*/, '') },
         ].map((s, i) => (
@@ -1350,170 +1604,89 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
         ))}
       </div>
 
-      {/* ── Tabs ── */}
-      <div style={{
-        display: 'flex', gap: 0, margin: '20px 18px 0',
-        background: '#FFFFFF', borderRadius: 16, padding: 4,
-        boxShadow: '0 2px 12px rgba(78,39,18,0.06)',
-        border: '1px solid #EBE5DE',
-      }}>
-        {(['details', 'addons', 'info'] as const).map(t => {
-          const labels: Record<string, string> = { details: '🛎 Details', addons: '✨ Add-ons', info: '📋 Info' };
-          const active = tab === t;
-          return (
-            <button key={t} id={`gift-tab-${t}`} onClick={() => setTab(t)} style={{
-              flex: 1, padding: '11px 6px', borderRadius: 12, border: 'none',
-              background: active ? '#4E2712' : 'transparent',
-              color: active ? '#FFFFFF' : '#4E2712',
-              fontWeight: active ? 700 : 400, fontSize: '0.82rem',
-              cursor: 'pointer', transition: 'all 250ms',
-              fontFamily: "'Roboto', sans-serif",
-              boxShadow: active ? '0 4px 14px rgba(78,39,18,0.25)' : 'none',
-            }}>
-              {labels[t]}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Gift Details ── */}
+      <div style={{ margin: '16px 18px 24px', display: 'flex', flexDirection: 'column', gap: 14, animation: 'fadeUp 0.4s ease' }}>
 
-      {/* ── Tab Content (Only Names / Details, No Price) ── */}
-      <div style={{ margin: '16px 18px 24px', animation: 'fadeUp 0.4s ease' }}>
-        {tab === 'details' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {sd && (
-              <div className="detail-card">
-                <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>🧖</span>
-                  <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Service</span>
-                </div>
-                <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'flex-start' }}>
-                  {serviceImg && (
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img src={serviceImg} alt={sd.name} style={{ width: 80, height: 80, borderRadius: 14, objectFit: 'cover', display: 'block' }} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', marginBottom: 6, lineHeight: 1.3 }}>{sd.name}</div>
-                    {sd.service_types?.length > 0 && (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {sd.service_types.map(st => (
-                          <span key={st.id} className="tag">{st.name}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                      <span style={{ fontSize: '0.85rem', color: '#4E2712', opacity: 0.8 }}>⏱ {fmtDuration(sd.duration_minutes)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {ar && (
-              <div className="detail-card">
-                <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>🛋</span>
-                  <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Suite &amp; Arrangement</span>
-                </div>
-                <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'flex-start' }}>
-                  {ar.image && (
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img src={ar.image} alt={ar.arrangement_name} style={{ width: 80, height: 80, borderRadius: 14, objectFit: 'cover', display: 'block' }} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem', marginBottom: 7 }}>{ar.arrangement_name}</div>
-                    <div>
-                      <span className="tag" style={{ background: '#4E2712', color: '#FFFFFF', border: '1px solid #D3C0B1' }}>
-                        {ar.arrangement_type.replace(/_/g, ' ').toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {br && (
-              <div style={{
-                background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
-                border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
-                display: 'flex', alignItems: 'center', gap: 14, animation: 'fadeUp 0.5s 0.3s ease both',
-              }}>
-                <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📍</div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Branch Location</div>
-                  <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{br.name}</div>
-                </div>
-              </div>
-            )}
-            {!!v.extra_time && (
-              <div style={{
-                background: '#FFFFFF',
-                borderRadius: 20, padding: '16px 18px',
-                border: '1px solid #EBE5DE',
-                display: 'flex', alignItems: 'center', gap: 14, animation: 'fadeUp 0.5s 0.4s ease both',
-              }}>
-                <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⏰</div>
-                <div>
-                  <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Bonus Extra Time</div>
-                  <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>
-                    +{fmtDuration(v.extra_time)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'addons' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {v.addons && v.addons.length > 0 ? v.addons.map((a, i) => (
-              <div key={a.id} className="detail-card" style={{ animationDelay: `${i * 0.08}s` }}>
-                <div style={{ padding: '18px 18px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                  <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✨</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', marginBottom: 5 }}>{a.name}</div>
-                    {a.description && <div style={{ color: '#4E2712', opacity: 0.8, fontSize: '0.83rem', lineHeight: 1.55, marginBottom: 8 }}>{a.description}</div>}
-                    <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                      <span style={{ color: '#4E2712', opacity: 0.75, fontSize: '0.8rem' }}>⏱ {fmtDuration(a.duration_minutes)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )) : (
-              <div style={{ textAlign: 'center', padding: '44px 20px', background: '#FFFFFF', borderRadius: 20, border: '1px solid #EBE5DE' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✨</div>
-                <p style={{ color: '#4E2712', fontFamily: "'Lustria', serif" }}>No add-ons included in this gift</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'info' && (
+        {/* Service Name */}
+        {sd && (
           <div className="detail-card">
-            {[
-              { label: 'Template', value: v.gift_template },
-              { label: 'Status', value: v.status?.charAt(0).toUpperCase() + v.status?.slice(1), highlight: true },
-              { label: 'Category', value: v.gift_category?.charAt(0).toUpperCase() + v.gift_category?.slice(1) },
-              { label: 'Total Duration', value: fmtDuration(v.total_duration || 0) },
-              { label: 'Valid Until', value: fmtDate(v.expire_date) },
-              { label: 'Redeemed', value: v.redeemed_at ? fmtDate(v.redeemed_at) : 'Not yet redeemed' },
-              { label: 'Gift Issued', value: fmtDate(v.created_at) },
-            ].map((r, i, arr) => (
-              <div key={r.label} style={{
-                padding: '15px 18px',
-                borderBottom: i < arr.length - 1 ? '1px solid #EBE5DE' : 'none',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-              }}>
-                <span style={{ fontSize: '0.83rem', color: '#4E2712', opacity: 0.75 }}>{r.label}</span>
-                <span style={{
-                  fontFamily: "'Lustria', serif", fontSize: '0.88rem', fontWeight: 700, textAlign: 'right',
-                  color: '#4E2712',
-                }}>
-                  {r.value || '—'}
-                </span>
+            <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>🧖</span>
+              <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Service</span>
+            </div>
+            <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'flex-start' }}>
+              {serviceImg && (
+                <img src={serviceImg} alt={sd.name} style={{ width: 72, height: 72, borderRadius: 14, objectFit: 'cover', display: 'block', flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3 }}>
+                  {sd.name}
+                </div>
+                {sdDuration > 0 && (
+                  <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 6 }}>⏱ {fmtDuration(sdDuration)}</div>
+                )}
               </div>
-            ))}
+            </div>
           </div>
         )}
+
+        {/* Addons */}
+        {v.addons && v.addons.length > 0 && (
+          <div className="detail-card">
+            <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 18 }}>✨</span>
+              <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Add-ons</span>
+            </div>
+            <div style={{ padding: '4px 0' }}>
+              {v.addons.map((a, i) => (
+                <div key={a.addon_id ?? a.id ?? i} style={{
+                  padding: '14px 18px',
+                  borderBottom: i < (v.addons?.length ?? 1) - 1 ? '1px solid #EBE5DE' : 'none',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>✨</div>
+                  <div>
+                    <div style={{ fontFamily: "'Lustria', serif", fontWeight: 600, color: '#4E2712', fontSize: '0.97rem' }}>{a.name}</div>
+                    {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
+                      <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.65, marginTop: 3 }}>⏱ {fmtDuration(a.duration ?? a.duration_minutes ?? 0)}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Extra Time */}
+        {!!v.extra_time && (
+          <div style={{
+            background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
+            border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
+            display: 'flex', alignItems: 'center', gap: 14,
+          }}>
+            <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⏰</div>
+            <div>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Bonus Extra Time</div>
+              <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>+{fmtDuration(v.extra_time)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Branch */}
+        {br && (
+          <div style={{
+            background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
+            border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
+            display: 'flex', alignItems: 'center', gap: 14,
+          }}>
+            <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📍</div>
+            <div>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Branch Location</div>
+              <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{br.name}</div>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* ── Experience Summary Banner (No price) ── */}
@@ -1540,7 +1713,7 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
         </div>
       </div>
 
-      <AppCTA style={{ margin: '0 20px 28px' }} />
+      <AppCTA style={{ margin: '0 20px 28px' }} expireDate={v.expire_date} />
 
       <div style={{ textAlign: 'center', paddingBottom: 48, color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px 48px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
@@ -1557,12 +1730,282 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
   );
 }
 
+/* ─────────────────────────────── Digital Gift Display ──────────────── */
+
+function DigitalGiftDisplay({ v }: { v: GiftVoucher }) {
+  const expired = isExpired(v.expire_date);
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => { setTimeout(() => setRevealed(true), 100); }, []);
+
+  return (
+    <div style={{ background: '#D3C0B2', overflowX: 'hidden', minHeight: '100vh' }}>
+      <FloatingPetals />
+
+      {/* Top Bar */}
+      <div style={{
+        position: 'relative', zIndex: 10,
+        background: '#543C30',
+        padding: '14px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
+      }}>
+        <Logo size={38} />
+        <StatusBadge status={v.status} expired={expired} />
+      </div>
+
+      {/* Expired Banner */}
+      {expired && (
+        <div style={{
+          padding: '16px 24px', background: '#4E2712',
+          borderBottom: '2px solid #D3C0B1',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Lustria', serif" }}>This Gift Voucher Has Expired</div>
+            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2 }}>Expired on {fmtDate(v.expire_date)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Hero Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
+        padding: '48px 24px 56px',
+        textAlign: 'center',
+        position: 'relative', overflow: 'hidden',
+        opacity: revealed ? 1 : 0, transform: revealed ? 'none' : 'translateY(20px)',
+        transition: 'opacity 0.8s ease, transform 0.8s ease',
+      }}>
+        <div className="shimmer-bar" />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{
+            fontSize: 72, marginBottom: 16,
+            display: 'inline-block',
+            animation: 'giftBounce 2.5s ease-in-out infinite',
+          }}>🎁</div>
+          <p style={{ fontFamily: "'Alex Brush', cursive", fontSize: '1.6rem', color: '#D3C0B1', margin: '0 0 8px' }}>
+            {v.gift_template || 'Your Digital Gift'}
+          </p>
+          <h1 style={{
+            fontFamily: "'Lustria', serif",
+            fontSize: 'clamp(1.4rem, 5vw, 2rem)',
+            color: '#FFFFFF', fontWeight: 700, lineHeight: 1.2, margin: '0 0 14px',
+            textShadow: '0 2px 12px rgba(0,0,0,0.35)',
+          }}>
+            Digital Gift Package
+          </h1>
+          <div style={{
+            display: 'inline-block', padding: '6px 20px', borderRadius: 999,
+            background: 'rgba(211,192,177,0.2)', border: '1px solid rgba(211,192,177,0.4)',
+            color: '#D3C0B1', fontSize: '0.8rem', fontWeight: 700, letterSpacing: 1.2,
+          }}>✨ DIGITAL EXPERIENCE</div>
+        </div>
+      </div>
+
+      <div style={{ padding: '20px 18px 48px' }}>
+
+        {/* From / To Card */}
+        <div style={{
+          margin: '-32px 0 20px',
+          background: '#FFFFFF', borderRadius: 24,
+          padding: '26px 22px 22px',
+          boxShadow: '0 16px 48px rgba(78,39,18,0.1)',
+          border: '1px solid #EBE5DE',
+          position: 'relative', zIndex: 5,
+          animation: 'revealSlide 0.7s 0.2s ease both',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 110 }}>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>From</div>
+              <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.sender_data?.name || '—'}</div>
+              {v.sender_data?.phone_number && (
+                <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.sender_data.phone_number}</div>
+              )}
+            </div>
+            <div style={{
+              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+              background: '#543C30',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+              animation: 'float 3s ease-in-out infinite',
+              overflow: 'hidden',
+            }}>
+              <Logo size={36} style={{ borderRadius: '50%' }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 110, textAlign: 'right' }}>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>To</div>
+              <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.recipient_data?.name || '—'}</div>
+              {v.recipient_phone && (
+                <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.recipient_phone}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Gift Message */}
+          {v.gift_message && (
+            <div style={{
+              marginTop: 20, padding: '16px 18px',
+              background: '#EBE5DE',
+              borderRadius: 14, borderLeft: '3.5px solid #4E2712',
+            }}>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 7 }}>✉ Gift Message</div>
+              <p style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: 'italic', lineHeight: 1.65, margin: 0 }}>
+                &ldquo;{v.gift_message}&rdquo;
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Stats Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[
+            { icon: '📅', label: 'Valid Until', value: fmtDate(v.expire_date) },
+            { icon: '⏱', label: 'Duration', value: fmtDuration(v.total_duration || (v.service_data?.duration ?? v.service_data?.duration_minutes) || 0) },
+          ].map((s, i) => (
+            <div key={s.label} className="stat-card" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
+              <div style={{ fontSize: 22, marginBottom: 7 }}>{s.icon}</div>
+              <div style={{ fontSize: '0.66rem', color: '#D3C0B1', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 5, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontFamily: "'Lustria', serif", fontSize: '0.85rem', color: '#4E2712', fontWeight: 700, lineHeight: 1.3 }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Gift Details — Service, Addons, Extra Time, Branch */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+
+          {/* Service */}
+          {v.service_data && (
+            <div className="detail-card">
+              <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>🧖</span>
+                <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Service</span>
+              </div>
+              <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'center' }}>
+                {(v.service_data.image1 || v.service_data.image) && (
+                  <img
+                    src={v.service_data.image1 || v.service_data.image!}
+                    alt={v.service_data.name}
+                    style={{ width: 68, height: 68, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
+                  />
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3 }}>
+                    {v.service_data.name}
+                  </div>
+                  {(v.service_data.duration ?? v.service_data.duration_minutes ?? 0) > 0 && (
+                    <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.65, marginTop: 5 }}>
+                      ⏱ {fmtDuration(v.service_data.duration ?? v.service_data.duration_minutes ?? 0)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Addons */}
+          {v.addons && v.addons.length > 0 && (
+            <div className="detail-card">
+              <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18 }}>✨</span>
+                <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Add-ons</span>
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                {v.addons.map((a, i) => (
+                  <div key={a.addon_id ?? a.id ?? i} style={{
+                    padding: '14px 18px',
+                    borderBottom: i < (v.addons?.length ?? 1) - 1 ? '1px solid #EBE5DE' : 'none',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✨</div>
+                    <div>
+                      <div style={{ fontFamily: "'Lustria', serif", fontWeight: 600, color: '#4E2712', fontSize: '0.97rem' }}>{a.name}</div>
+                      {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
+                        <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.65, marginTop: 2 }}>⏱ {fmtDuration(a.duration ?? a.duration_minutes ?? 0)}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Extra Time */}
+          {!!v.extra_time && (
+            <div style={{
+              background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
+              border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⏰</div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Bonus Extra Time</div>
+                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>+{fmtDuration(v.extra_time)}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Branch */}
+          {v.branch_data && (
+            <div style={{
+              background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
+              border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
+              display: 'flex', alignItems: 'center', gap: 14,
+            }}>
+              <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📍</div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Branch Location</div>
+                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{v.branch_data.name}</div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* Info row */}
+        <div className="detail-card" style={{ marginBottom: 24 }}>
+          {[
+            { label: 'Status', value: v.status?.charAt(0).toUpperCase() + v.status?.slice(1) },
+            { label: 'Valid Until', value: fmtDate(v.expire_date) },
+            { label: 'Redeemed', value: v.redeemed_at ? fmtDate(v.redeemed_at) : 'Not yet redeemed' },
+            { label: 'Gift Issued', value: fmtDate(v.created_at) },
+          ].map((r, i, arr) => (
+            <div key={r.label} style={{
+              padding: '15px 18px',
+              borderBottom: i < arr.length - 1 ? '1px solid #EBE5DE' : 'none',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+            }}>
+              <span style={{ fontSize: '0.83rem', color: '#4E2712', opacity: 0.75 }}>{r.label}</span>
+              <span style={{ fontFamily: "'Lustria', serif", fontSize: '0.88rem', fontWeight: 700, color: '#4E2712', textAlign: 'right' }}>
+                {r.value || '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <AppCTA />
+
+        {/* Footer */}
+        <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+            <Logo size={34} />
+          </div>
+          <p style={{ lineHeight: 1.7 }}>
+            {expired ? '⚠ This voucher has expired' : `Valid until ${fmtDate(v.expire_date)}`}<br />
+            <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>Gift ID: {v.id?.substring(0, 8).toUpperCase()}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────────── Page ──────────────────────────────── */
 
 export default function GiftPage({ params }: { params: Promise<{ public_token: string }> }) {
   const { public_token } = use(params);
 
-  const [phase, setPhase] = useState<'loading' | 'modal' | 'reveal' | 'gift-display'>('loading');
+  const [phase, setPhase] = useState<'loading' | 'modal' | 'digital-video' | 'reveal' | 'gift-display'>('loading');
   const [loading, setLoading] = useState(false);
   const [modalError, setModalError] = useState('');
   const [voucher, setVoucher] = useState<GiftVoucher | null>(null);
@@ -1596,6 +2039,9 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
         if (voucherData?.gift_category === 'physical') {
           setVoucher(voucherData);
           setPhase('reveal');
+        } else if (voucherData?.gift_category === 'digital') {
+          // Digital gifts always need secret code first
+          setPhase('modal');
         } else {
           setPhase('modal');
         }
@@ -1645,6 +2091,15 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
 
       if (voucherData?.gift_category === 'physical') {
         setPhase('reveal');
+      } else if (voucherData?.gift_category === 'digital') {
+        // Check for video in digital_product_data
+        const videoUrl = voucherData.digital_product_data?.video_url;
+        if (videoUrl) {
+          setPhase('digital-video');
+        } else {
+          // No video — go straight to reveal popup
+          setPhase('reveal');
+        }
       } else {
         setPhase('gift-display');
       }
@@ -1673,11 +2128,23 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
             </>
           )}
 
-          {/* Reveal popup (physical) */}
+          {/* Digital video popup */}
+          {phase === 'digital-video' && voucher && (
+            <DigitalVideoPopup
+              videoUrl={voucher.digital_product_data!.video_url!}
+              onContinue={() => setPhase('reveal')}
+            />
+          )}
+
+          {/* Reveal popup (physical + digital) */}
           {phase === 'reveal' && voucher && (
             <>
               <div style={{ filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.25, userSelect: 'none' }}>
-                <PhysicalGiftDisplay v={voucher} />
+                {voucher.gift_category === 'physical'
+                  ? <PhysicalGiftDisplay v={voucher} />
+                  : voucher.gift_category === 'digital'
+                  ? <DigitalGiftDisplay v={voucher} />
+                  : <ServiceGiftDisplay v={voucher} />}
               </div>
               <GiftRevealPopup voucher={voucher} onRevealGift={() => setPhase('gift-display')} />
             </>
@@ -1687,6 +2154,8 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
           {phase === 'gift-display' && voucher && (
             voucher.gift_category === 'physical'
               ? <PhysicalGiftDisplay v={voucher} />
+              : voucher.gift_category === 'digital'
+              ? <DigitalGiftDisplay v={voucher} />
               : <ServiceGiftDisplay v={voucher} />
           )}
         </div>
