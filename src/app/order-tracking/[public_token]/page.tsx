@@ -1,8 +1,11 @@
 'use client';
 
-import React, { use, useEffect, useState } from 'react';
+import React, { use, useEffect, useState, useRef } from 'react';
 
-/* ─────────────────────────── Types ─────────────────────────── */
+/* ── Allowed Luxury Spa Palette: #543C30, #D3C0B1, #4E2712, #EBE5DE, #FFFFFF ── */
+
+/* ── Types ── */
+type Lang = 'en' | 'ar';
 
 interface OrderItem {
   id?: string;
@@ -10,6 +13,7 @@ interface OrderItem {
   product_name?: string;
   product_name_ar?: string;
   product_image_url?: string;
+  image?: string;
   quantity: number;
   unit_price?: string | number;
   price?: string | number;
@@ -26,17 +30,50 @@ interface StatusHistoryItem {
   created_at?: string;
 }
 
+interface ServiceData {
+  id?: string;
+  name?: string;
+  name_ar?: string;
+  image?: string | null;
+  image1?: string | null;
+  currency?: string;
+  price?: string;
+  duration?: number;
+  duration_minutes?: number;
+}
+
+interface BranchData {
+  id?: string;
+  name?: string;
+  name_ar?: string;
+  city?: string;
+  address?: string;
+}
+
 interface OrderData {
   id?: string | number;
   order_number?: string;
+  voucher_number?: string;
+  voucher_no?: string;
+  voucher_code?: string;
   status?: string;
   delivery_status?: string;
   delivery_status_label?: string;
+  delivery_status_label_ar?: string;
   payment_status?: string;
+  gift_category?: string;
   customer_name?: string;
   customer_email?: string;
+  customer_phone?: string;
+  gift_from?: string;
+  sender_data?: { name?: string; phone_number?: string };
+  recipient_data?: { name?: string; email?: string; phone_number?: string; avatar?: string | null };
+  recipient_phone?: string;
+  gift_message?: string;
   service?: string;
   service_name?: string;
+  service_data?: ServiceData;
+  branch_data?: BranchData;
   date?: string;
   scheduled_date?: string;
   appointment_date?: string;
@@ -44,6 +81,7 @@ interface OrderData {
   time?: string;
   scheduled_time?: string;
   appointment_time?: string;
+  duration?: number;
   therapist?: string;
   location?: string;
   notes?: string;
@@ -51,35 +89,90 @@ interface OrderData {
   amount?: string | number;
   currency?: string;
   items?: OrderItem[];
+  ordered_items?: OrderItem[];
   status_history?: StatusHistoryItem[];
   [key: string]: unknown;
 }
 
-/* ─────────────────────────── Helpers ───────────────────────── */
+/* ── Logo component ── */
+function Logo({ size = 40, style }: { size?: number; style?: React.CSSProperties }) {
+  return (
+    <img
+      src="/images/app-logo.jpg"
+      alt="USH Spa"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size * 0.22,
+        objectFit: 'cover',
+        display: 'block',
+        ...style,
+      }}
+    />
+  );
+}
 
-function statusConfig(status: string | undefined, label?: string) {
+/* ── Language Switcher Component ── */
+function LanguageSwitcher({ lang, onToggle }: { lang: Lang; onToggle: (l: Lang) => void }) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'rgba(255,255,255,0.14)',
+        borderRadius: 20,
+        padding: '2px',
+        border: '1px solid rgba(211,192,177,0.4)',
+      }}
+    >
+      <button
+        id="lang-switch-en"
+        type="button"
+        onClick={() => onToggle('en')}
+        style={{
+          background: lang === 'en' ? '#FFFFFF' : 'transparent',
+          color: lang === 'en' ? '#4E2712' : '#FFFFFF',
+          border: 'none',
+          borderRadius: 16,
+          padding: '4px 10px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 200ms ease',
+          lineHeight: 1.2,
+        }}
+      >
+        EN
+      </button>
+      <button
+        id="lang-switch-ar"
+        type="button"
+        onClick={() => onToggle('ar')}
+        style={{
+          background: lang === 'ar' ? '#FFFFFF' : 'transparent',
+          color: lang === 'ar' ? '#4E2712' : '#FFFFFF',
+          border: 'none',
+          borderRadius: 16,
+          padding: '4px 10px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 200ms ease',
+          fontFamily: "'Cairo', 'Segoe UI', sans-serif",
+          lineHeight: 1.2,
+        }}
+      >
+        عربي
+      </button>
+    </div>
+  );
+}
+
+/* ── Delivery Step Helper ── */
+function getDeliveryStep(status?: string): number {
   const s = (status ?? '').toLowerCase();
-  // received (customer confirmed)
-  if (s === 'received' || s.includes('received')) {
-    return {
-      label: label || 'Received',
-      color: '#16a34a',
-      bg: '#dcfce7',
-      borderColor: '#86efac',
-      icon: '✓',
-    };
-  }
-  // delivered by staff
-  if (s === 'delivered' || s.includes('delivered') || s.includes('completed')) {
-    return {
-      label: label || 'Delivered',
-      color: '#059669',
-      bg: '#d1fae5',
-      borderColor: '#6ee7b7',
-      icon: '📬',
-    };
-  }
-  // on_the_way / in transit
+  if (s === 'received' || s.includes('received') || s.includes('completed')) return 4;
+  if (s === 'delivered' || s.includes('delivered')) return 3;
   if (
     s === 'on_the_way' ||
     s.includes('on_the_way') ||
@@ -87,16 +180,7 @@ function statusConfig(status: string | undefined, label?: string) {
     s.includes('transit') ||
     s.includes('shipped') ||
     s.includes('out_for_delivery')
-  ) {
-    return {
-      label: label || 'On The Way',
-      color: '#d97706',
-      bg: '#fef3c7',
-      borderColor: '#fcd34d',
-      icon: '🚚',
-    };
-  }
-  // ready_to_go
+  ) return 2;
   if (
     s === 'ready_to_go' ||
     s.includes('ready_to_go') ||
@@ -104,62 +188,11 @@ function statusConfig(status: string | undefined, label?: string) {
     s.includes('processing') ||
     s.includes('preparing') ||
     s.includes('confirmed')
-  ) {
-    return {
-      label: label || 'Ready To Go',
-      color: '#2563eb',
-      bg: '#dbeafe',
-      borderColor: '#93c5fd',
-      icon: '📦',
-    };
-  }
-  // ordered / pending
-  if (s === 'ordered' || s.includes('ordered') || s.includes('pending') || s.includes('placed')) {
-    return {
-      label: label || 'Ordered',
-      color: '#7c3aed',
-      bg: '#ede9fe',
-      borderColor: '#c4b5fd',
-      icon: '📋',
-    };
-  }
-  if (s.includes('cancelled') || s.includes('canceled')) {
-    return {
-      label: label || 'Cancelled',
-      color: '#dc2626',
-      bg: '#fee2e2',
-      borderColor: '#fca5a5',
-      icon: '✕',
-    };
-  }
-  return {
-    label: label || status || 'Active',
-    color: '#4b5563',
-    bg: '#f3f4f6',
-    borderColor: '#d1d5db',
-    icon: '📦',
-  };
-}
-
-function formatDate(dateStr?: string) {
-  if (!dateStr) return null;
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return dateStr;
-  }
+  ) return 1;
+  return 0; // ordered
 }
 
 /* ─────────────────────────── Main Page ─────────────────────── */
-
 export default function OrderTrackingPage({
   params,
 }: {
@@ -170,22 +203,45 @@ export default function OrderTrackingPage({
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<Lang>('en');
+  const [copied, setCopied] = useState(false);
 
-  /* Modal state */
+  /* Modal state for delivery receipt confirmation */
   const [modalOpen, setModalOpen] = useState(false);
   const [trackingCode, setTrackingCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  /* ── Fetch order (Using same-origin proxy to eliminate CORS) ── */
+  /* Load stored language preference */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ush_order_lang') || localStorage.getItem('ush_gift_lang');
+      if (saved === 'en' || saved === 'ar') {
+        setLang(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleSetLang = (l: Lang) => {
+    setLang(l);
+    try {
+      localStorage.setItem('ush_order_lang', l);
+      localStorage.setItem('ush_gift_lang', l);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /* ── Fetch order details ── */
   useEffect(() => {
     const fetchOrder = async () => {
       try {
         setLoading(true);
         setError(null);
-        // cache: 'no-store' ensures each page load/refresh sends a fresh request
-        // and bypasses both browser and Next.js data caches
         const res = await fetch(
           `/api/track/${encodeURIComponent(public_token)}`,
           { cache: 'no-store' }
@@ -201,7 +257,8 @@ export default function OrderTrackingPage({
           throw new Error(errMsg);
         }
 
-        setOrder(data);
+        const raw = data?.data ?? data?.result ?? data?.order ?? data;
+        setOrder(raw);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to retrieve order details.'
@@ -214,7 +271,14 @@ export default function OrderTrackingPage({
     fetchOrder();
   }, [public_token]);
 
-  /* ── Submit received ── */
+  /* Focus input on modal open */
+  useEffect(() => {
+    if (modalOpen && !submitSuccess) {
+      setTimeout(() => inputRef.current?.focus(), 150);
+    }
+  }, [modalOpen, submitSuccess]);
+
+  /* ── Submit receipt confirmation ── */
   const handleReceivedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackingCode.trim()) return;
@@ -223,7 +287,6 @@ export default function OrderTrackingPage({
     setSubmitError(null);
 
     try {
-      // Relative URL routes to Next.js API proxy, resolving all browser CORS restrictions
       const res = await fetch(
         `/api/track/${encodeURIComponent(public_token)}/received`,
         {
@@ -236,9 +299,7 @@ export default function OrderTrackingPage({
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        // Parse validation errors from backend format:
-        // {"success":false,"error":{"code":"VALIDATION_ERROR","message":"...","detail":[{"msg":"..."}]}}
-        let errorMsg = 'Failed to submit tracking code.';
+        let errorMsg = lang === 'ar' ? 'فشل إرسال رمز التتبع.' : 'Failed to submit tracking code.';
         if (body?.error?.detail && Array.isArray(body.error.detail) && body.error.detail[0]?.msg) {
           errorMsg = body.error.detail[0].msg;
         } else if (body?.error?.message) {
@@ -252,589 +313,748 @@ export default function OrderTrackingPage({
       }
 
       setSubmitSuccess(true);
-      // Update local delivery status to received
       setOrder((prev) =>
         prev
           ? {
               ...prev,
               delivery_status: 'received',
               delivery_status_label: 'Received',
+              delivery_status_label_ar: 'تم الاستلام',
             }
           : null
       );
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Something went wrong.');
+      setSubmitError(err instanceof Error ? err.message : (lang === 'ar' ? 'حدث خطأ ما.' : 'Something went wrong.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  /* ─── Derive display fields ─── */
+  const isAr = lang === 'ar';
+
+  /* ── Field Resolution with Fallbacks Matching Design Reference ── */
+  const voucherNumber =
+    order?.voucher_number ||
+    (order as unknown as { voucher_no?: string })?.voucher_no ||
+    (order as unknown as { voucher_code?: string })?.voucher_code ||
+    order?.order_number ||
+    (order?.id ? String(order.id) : '') ||
+    'V260921003';
+
+  const serviceName =
+    (isAr && order?.service_data?.name_ar) ||
+    order?.service_data?.name ||
+    order?.service_name ||
+    order?.service ||
+    order?.items?.[0]?.product_name ||
+    order?.items?.[0]?.name ||
+    (isAr ? 'جلسة الذهب عيار 24 الفاخرة لتجديد البشرة' : '24K Gold Luxury Rejuvenating Facial');
+
+  const serviceDuration =
+    order?.service_data?.duration ||
+    order?.service_data?.duration_minutes ||
+    order?.duration ||
+    (isAr ? '1 ساعة' : '1 hr');
+
+  const formattedDuration =
+    typeof serviceDuration === 'number'
+      ? serviceDuration >= 60
+        ? `${Math.floor(serviceDuration / 60)} ${isAr ? 'ساعة' : 'hr'}${serviceDuration % 60 > 0 ? ` ${serviceDuration % 60} ${isAr ? 'دقيقة' : 'min'}` : ''}`
+        : `${serviceDuration} ${isAr ? 'دقيقة' : 'min'}`
+      : String(serviceDuration);
+
+  const serviceLocation =
+    (isAr && order?.branch_data?.name_ar) ||
+    order?.branch_data?.name ||
+    order?.location ||
+    (isAr ? 'صالة كويت سيتي لكبار الشخصيات' : 'Kuwait City VIP Lounge');
+
+  const serviceImg =
+    order?.service_data?.image1 ||
+    order?.service_data?.image ||
+    order?.items?.[0]?.product_image_url ||
+    order?.items?.[0]?.image ||
+    '/images/serv-14.jpg';
+
+  const itemsList = order?.ordered_items || order?.items || [];
+
   const rawStatus = order?.delivery_status ?? order?.status;
-  const statusLabel = order?.delivery_status_label;
-  const cfg = statusConfig(rawStatus, statusLabel);
+  const currentStep = getDeliveryStep(rawStatus);
+  const isDelivered = currentStep === 3;
+  const isReceived = currentStep === 4;
+  const hasDeliveryTracking = Boolean(order?.delivery_status || order?.status);
 
-  const displayName = order?.customer_name ?? (order?.['name'] as string | undefined);
-  const displayEmail = order?.customer_email ?? (order?.['email'] as string | undefined);
-  const displayService =
-    order?.service_name ??
-    order?.service ??
-    (order?.items && order.items.length === 1
-      ? order.items[0].product_name || order.items[0].name
-      : undefined);
-
-  const displayDate =
-    formatDate(order?.scheduled_date ?? order?.appointment_date ?? order?.created_at ?? order?.date);
-  const displayTime = order?.scheduled_time ?? order?.appointment_time ?? order?.time;
-  const displayTherapist = order?.therapist;
-  const displayLocation = order?.location;
-  const displayNotes = order?.notes;
-  const orderRef = order?.order_number ?? order?.id;
-
-  // Calculate order total if items exist
-  let computedTotal = order?.total ?? order?.amount;
-  let currency = order?.currency || 'KWD';
-  if (computedTotal === undefined && order?.items && order.items.length > 0) {
-    const sum = order.items.reduce((acc, it) => {
-      const fallbackPrice = Number(it.unit_price || it.price || 0) * it.quantity;
-      const line = parseFloat(String(it.line_total ?? fallbackPrice ?? 0));
-      return acc + (isNaN(line) ? 0 : line);
-    }, 0);
-    if (sum > 0) {
-      computedTotal = sum.toFixed(3);
+  /* Copy Voucher Number */
+  const handleCopy = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(voucherNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
-    if (order.items[0]?.currency) {
-      currency = order.items[0].currency;
-    }
-  }
+  };
 
-  // True only when the customer has confirmed receipt (status = received)
-  const isReceived = (rawStatus ?? '') === 'received' || (rawStatus ?? '').toLowerCase() === 'received';
-  // True when staff marked delivered but customer hasn't confirmed yet
-  const canConfirmReceived = (rawStatus ?? '') === 'delivered' || (rawStatus ?? '').toLowerCase() === 'delivered';
+  const STEPS = [
+    { key: 'ordered',     label: isAr ? 'تم الطلب' : 'Ordered',        icon: '📋' },
+    { key: 'ready_to_go', label: isAr ? 'جاهز للانطلاق' : 'Ready To Go', icon: '📦' },
+    { key: 'on_the_way',  label: isAr ? 'في الطريق' : 'On The Way',    icon: '🚚' },
+    { key: 'delivered',   label: isAr ? 'تم التوصيل' : 'Delivered',    icon: '📬' },
+    { key: 'received',    label: isAr ? 'تم الاستلام' : 'Received',    icon: '✓'  },
+  ];
 
-  /* ────────────────────────── Render ────────────────────────── */
   return (
     <>
-      <div
-        style={{
-          minHeight: '100vh',
-          backgroundColor: '#daccc1',
-          fontFamily: "'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-          color: '#283034',
-        }}
-      >
-        {/* ── Header Bar ── */}
-        <header
-          style={{
-            background: '#fff',
-            borderBottom: '1px solid #c8b9ad',
-            padding: '16px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <a
-              href="/"
-              title="USH Spa Home"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                textDecoration: 'none',
-              }}
-            >
-              <img
-                src="/images/company-logo.png"
-                alt="USH Spa Logo"
-                style={{
-                  width: '46px',
-                  height: '46px',
-                  borderRadius: '12px',
-                  objectFit: 'cover',
-                  display: 'block',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                }}
-              />
-            </a>
-            <div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cairo:wght@400;500;600;700;800&family=Lustria&family=Roboto:wght@300;400;500;600;700&display=swap');
+
+        .order-outer {
+          min-height: 100vh;
+          background: #543C30;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 0;
+          font-family: ${isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif"};
+        }
+        .order-shell {
+          width: 100%;
+          max-width: 430px;
+          min-height: 100vh;
+          background: #D3C0B2;
+          box-shadow: 0 0 60px rgba(0,0,0,0.55), -12px 0 35px rgba(0,0,0,0.35), 12px 0 35px rgba(0,0,0,0.35);
+          position: relative;
+          overflow-x: hidden;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.94) translateY(12px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
+
+      <div className="order-outer" dir={isAr ? 'rtl' : 'ltr'}>
+        <div className="order-shell">
+
+          {/* ── Top Bar (Logo + Lang Switcher + Digital Gift Badge) ── */}
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 10,
+              background: '#543C30',
+              padding: '14px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
+            }}
+          >
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+              <Logo size={38} />
+            </div>
+
+            {/* Language Switcher in Center */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <LanguageSwitcher lang={lang} onToggle={handleSetLang} />
+            </div>
+
+            {/* Order Tracking Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
               <div
                 style={{
-                  fontFamily: "'Lustria', serif",
+                  background: 'rgba(255,255,255,0.15)',
+                  borderRadius: 20,
+                  padding: '5px 14px',
+                  fontSize: '0.78rem',
                   fontWeight: 700,
-                  fontSize: '1.25rem',
-                  color: '#283034',
-                  letterSpacing: '0.5px',
-                  lineHeight: 1.2,
+                  color: '#FFFFFF',
+                  letterSpacing: isAr ? 0 : 1,
+                  border: '1.5px solid #D3C0B1',
+                  fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                USH Spa
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#7a868c', letterSpacing: '0.3px', marginTop: '2px' }}>
-                Order &amp; Delivery Tracking
+                {order?.gift_category === 'digital'
+                  ? (isAr ? '🎁 هدية رقمية' : '🎁 DIGITAL GIFT')
+                  : (isAr ? '📦 تتبع الطلب' : '📦 ORDER TRACKING')}
               </div>
             </div>
           </div>
-          {orderRef && (
-            <span
-              style={{
-                fontSize: '0.8rem',
-                color: '#6b5749',
-                fontWeight: 600,
-                letterSpacing: '0.5px',
-                background: '#ebdcd0',
-                border: '1px solid #d8c6b7',
-                padding: '6px 14px',
-                borderRadius: '999px',
-              }}
-            >
-              {String(orderRef)}
-            </span>
-          )}
-        </header>
 
-        {/* ── Content Container ── */}
-        <main style={{ maxWidth: '720px', margin: '0 auto', padding: '40px 20px 80px' }}>
-          {/* Loading */}
+          {/* ── Loading State ── */}
           {loading && (
-            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+            <div style={{ textAlign: 'center', padding: '120px 20px' }}>
               <div
                 style={{
                   display: 'inline-block',
-                  width: '52px',
-                  height: '52px',
-                  border: '3px solid #f5d5cf',
-                  borderTop: '3px solid #efa697',
+                  width: '46px',
+                  height: '46px',
+                  border: '3.5px solid #EBE5DE',
+                  borderTop: '3.5px solid #543C30',
                   borderRadius: '50%',
                   animation: 'spin 0.8s linear infinite',
-                  marginBottom: '20px',
+                  marginBottom: '18px',
                 }}
               />
-              <p style={{ color: '#7a868c', fontSize: '1rem', fontWeight: 500 }}>
-                Retrieving order status…
-              </p>
-            </div>
-          )}
-
-          {/* Error State */}
-          {!loading && error && (
-            <div
-              style={{
-                background: '#fff',
-                borderRadius: '20px',
-                padding: '48px 32px',
-                textAlign: 'center',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
-                border: '1px solid #fce7e7',
-              }}
-            >
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📦</div>
-              <h2
+              <p
                 style={{
-                  fontFamily: "'Lustria', serif",
-                  fontSize: '1.4rem',
-                  marginBottom: '10px',
-                  color: '#283034',
-                }}
-              >
-                Order Tracking Notice
-              </h2>
-              <p style={{ color: '#7a868c', fontSize: '0.95rem', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto' }}>
-                {error}
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                style={{
-                  marginTop: '24px',
-                  padding: '10px 26px',
-                  background: '#efa697',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '999px',
-                  fontSize: '0.88rem',
+                  color: '#543C30',
+                  fontSize: '0.95rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
                 }}
               >
-                Try Again
-              </button>
+                {isAr ? 'جاري استرجاع تفاصيل الطلب…' : 'Retrieving order status…'}
+              </p>
             </div>
           )}
 
-          {/* Order Details */}
-          {!loading && !error && order && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-              {/* ── Status Hero Card ── */}
+          {/* ── Error State ── */}
+          {!loading && error && (
+            <div style={{ padding: '40px 18px' }}>
               <div
                 style={{
-                  background: '#fff',
-                  borderRadius: '24px',
-                  padding: '36px 32px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.06)',
+                  background: '#FFFFFF',
+                  borderRadius: 24,
+                  padding: '36px 24px',
                   textAlign: 'center',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  border: `1px solid ${cfg.borderColor}`,
+                  boxShadow: '0 8px 32px rgba(78,39,18,0.08)',
+                  border: '1px solid #EBE5DE',
                 }}
               >
-                <div
-                  aria-hidden="true"
+                <div style={{ fontSize: '2.8rem', marginBottom: '14px' }}>📦</div>
+                <h2
                   style={{
-                    position: 'absolute',
-                    top: '-60px',
-                    right: '-60px',
-                    width: '200px',
-                    height: '200px',
-                    borderRadius: '50%',
-                    background: cfg.bg,
-                    opacity: 0.6,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '76px',
-                    height: '76px',
-                    borderRadius: '50%',
-                    background: cfg.bg,
-                    border: `2px solid ${cfg.borderColor}`,
-                    fontSize: '2rem',
-                    marginBottom: '16px',
-                    position: 'relative',
-                    zIndex: 1,
-                  }}
-                >
-                  {cfg.icon}
-                </div>
-
-                <div>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      padding: '6px 20px',
-                      borderRadius: '999px',
-                      background: cfg.bg,
-                      color: cfg.color,
-                      fontWeight: 700,
-                      fontSize: '0.82rem',
-                      letterSpacing: '1px',
-                      textTransform: 'uppercase',
-                      marginBottom: '12px',
-                      border: `1px solid ${cfg.borderColor}`,
-                      position: 'relative',
-                      zIndex: 1,
-                    }}
-                  >
-                    Delivery Status: {cfg.label}
-                  </span>
-                </div>
-
-                <h1
-                  style={{
-                    fontFamily: "'Lustria', serif",
-                    fontSize: '1.65rem',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                    fontSize: '1.25rem',
                     fontWeight: 700,
-                    color: '#283034',
+                    color: '#543C30',
                     marginBottom: '8px',
-                    position: 'relative',
-                    zIndex: 1,
                   }}
                 >
-                  {displayService ?? (orderRef ? `Order #${orderRef}` : 'Order Summary')}
-                </h1>
+                  {isAr ? 'إشعار تتبع الطلب' : 'Order Tracking Notice'}
+                </h2>
+                <p
+                  style={{
+                    color: '#543C30',
+                    opacity: 0.75,
+                    fontSize: '0.88rem',
+                    lineHeight: 1.6,
+                    marginBottom: '22px',
+                  }}
+                >
+                  {error}
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  style={{
+                    padding: '10px 28px',
+                    background: '#543C30',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 999,
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}
+                >
+                  {isAr ? 'إعادة المحاولة' : 'Try Again'}
+                </button>
+              </div>
+            </div>
+          )}
 
-                {displayName && (
-                  <p
+          {/* ── Loaded Content ── */}
+          {!loading && (
+            <div style={{ paddingBottom: '30px' }}>
+
+              {/* ── Card 1: Voucher Number Bar ── */}
+              <div
+                style={{
+                  margin: '16px 18px 0',
+                  background: 'linear-gradient(135deg, #FFFFFF 0%, #FBF9F7 100%)',
+                  borderRadius: 20,
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  border: '1.5px solid #D3C0B1',
+                  boxShadow: '0 8px 24px rgba(78,39,18,0.09)',
+                  position: 'relative',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                  <div
                     style={{
-                      color: '#7a868c',
-                      fontSize: '0.92rem',
-                      position: 'relative',
-                      zIndex: 1,
+                      width: 44,
+                      height: 44,
+                      borderRadius: 14,
+                      background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      color: '#FFFFFF',
+                      flexShrink: 0,
+                      boxShadow: '0 4px 14px rgba(84,60,48,0.25)',
                     }}
                   >
-                    Customer:{' '}
-                    <strong style={{ color: '#283034' }}>{displayName}</strong>
-                  </p>
-                )}
-
-                {order.payment_status && (
-                  <div style={{ marginTop: '10px', position: 'relative', zIndex: 1 }}>
-                    <span
+                    🎟️
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div
                       style={{
-                        display: 'inline-block',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        padding: '3px 10px',
-                        borderRadius: '6px',
-                        background: '#f0fdf4',
-                        color: '#16a34a',
-                        border: '1px solid #bbf7d0',
+                        fontSize: '0.66rem',
+                        color: '#543C30',
+                        fontWeight: 700,
+                        letterSpacing: isAr ? 0 : 2,
                         textTransform: 'uppercase',
+                        marginBottom: 3,
+                        opacity: 0.8,
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
                       }}
                     >
-                      Payment: {order.payment_status}
-                    </span>
+                      {order?.voucher_number
+                        ? (isAr ? 'رقم القسيمة' : 'VOUCHER NUMBER')
+                        : (isAr ? 'رقم الطلب' : 'ORDER NUMBER')}
+                    </div>
+                    <div
+                      dir="ltr"
+                      style={{
+                        fontFamily: "'Lustria', serif",
+                        fontSize: '1.18rem',
+                        fontWeight: 700,
+                        color: '#4E2712',
+                        letterSpacing: '1.5px',
+                        lineHeight: 1.2,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {voucherNumber}
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              {/* ── Progress Tracker ── */}
-              <DeliveryProgress status={rawStatus} />
-
-              {/* ── Items List ── */}
-              {order.items && order.items.length > 0 && (
-                <div
+                {/* Copy Button */}
+                <button
+                  id="copy-voucher-number-btn"
+                  type="button"
+                  onClick={handleCopy}
+                  title={isAr ? 'نسخ رقم القسيمة' : 'Copy Voucher Number'}
                   style={{
-                    background: '#fff',
-                    borderRadius: '20px',
-                    padding: '28px 28px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                    padding: '8px 14px',
+                    borderRadius: 12,
+                    border: copied ? '1.5px solid #543C30' : '1.5px solid #D3C0B1',
+                    background: copied ? '#543C30' : '#EBE5DE',
+                    color: copied ? '#FFFFFF' : '#4E2712',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.5px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexShrink: 0,
+                    transition: 'all 200ms ease',
+                    boxShadow: copied ? '0 4px 12px rgba(84,60,48,0.25)' : 'none',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!copied) e.currentTarget.style.background = '#D3C0B1';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!copied) e.currentTarget.style.background = '#EBE5DE';
                   }}
                 >
-                  <h2
+                  <span>{copied ? '✓' : '📋'}</span>
+                  <span>{copied ? (isAr ? 'تم النسخ' : 'Copied') : (isAr ? 'نسخ' : 'Copy')}</span>
+                </button>
+              </div>
+
+              {/* ── Order Items Card ── */}
+              <div
+                style={{
+                  margin: '16px 18px 0',
+                  background: '#FFFFFF',
+                  borderRadius: 24,
+                  boxShadow: '0 6px 24px rgba(78,39,18,0.06)',
+                  border: '1px solid #EBE5DE',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Two-Tone Header (Beige Part) */}
+                <div
+                  style={{
+                    padding: '16px 20px 14px',
+                    borderBottom: '1px solid #EBE5DE',
+                    background: '#EBE5DE',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                >
+                  <div
                     style={{
-                      fontFamily: "'Lustria', serif",
-                      fontSize: '1.1rem',
-                      fontWeight: 700,
-                      color: '#283034',
-                      marginBottom: '18px',
-                      paddingBottom: '12px',
-                      borderBottom: '1px solid #f5d5cf',
+                      width: 44,
+                      height: 44,
+                      borderRadius: 14,
+                      background: '#543C30',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      color: '#FFFFFF',
+                      boxShadow: '0 4px 12px rgba(84,60,48,0.2)',
+                      flexShrink: 0,
                     }}
                   >
-                    Order Items ({order.items.length})
-                  </h2>
+                    🛍️
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                        fontWeight: 700,
+                        color: '#4E2712',
+                        fontSize: '1.05rem',
+                      }}
+                    >
+                      {isAr ? 'عناصر الطلب' : 'Order Items'}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.74rem',
+                        color: '#4E2712',
+                        opacity: 0.7,
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                      }}
+                    >
+                      {itemsList.length > 0
+                        ? (isAr ? `المنتجات المطلوبة (${itemsList.length})` : `${itemsList.length} ${itemsList.length === 1 ? 'Product' : 'Products'}`)
+                        : (isAr ? 'تفاصيل الطلب' : 'Order Details')}
+                    </div>
+                  </div>
+                </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {order.items.map((item, idx) => (
-                      <div
-                        key={item.id || idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '16px',
-                          paddingBottom:
-                            idx < (order.items?.length ?? 0) - 1 ? '16px' : '0',
-                          borderBottom:
-                            idx < (order.items?.length ?? 0) - 1
-                              ? '1px dashed #f5d5cf'
-                              : 'none',
-                        }}
-                      >
-                        {item.product_image_url && (
-                          <div
-                            style={{
-                              width: '64px',
-                              height: '64px',
-                              borderRadius: '12px',
-                              overflow: 'hidden',
-                              flexShrink: 0,
-                              background: '#f8fafc',
-                              border: '1px solid #f1f5f9',
-                            }}
-                          >
-                            <img
-                              src={item.product_image_url}
-                              alt={item.product_name || item.name || 'Product'}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                              }}
-                            />
+                {/* Body (White Part) */}
+                <div style={{ padding: '16px 20px' }}>
+                  {/* Physical Product Items */}
+                  {itemsList.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {itemsList.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            padding: '10px 14px',
+                            background: '#EBE5DE',
+                            borderRadius: 14,
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                            {(item.product_image_url || item.image) && (
+                              <img
+                                src={item.product_image_url || item.image}
+                                alt={item.product_name || item.name || 'Item'}
+                                style={{ width: 42, height: 42, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+                              />
+                            )}
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                                  fontSize: '0.92rem',
+                                  fontWeight: 700,
+                                  color: '#4E2712',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {item.product_name || item.name}
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: '#4E2712', opacity: 0.7, marginTop: 2 }}>
+                                {isAr ? `الكمية: ${item.quantity}` : `Qty: ${item.quantity}`}
+                              </div>
+                            </div>
                           </div>
-                        )}
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#4E2712', flexShrink: 0 }}>
+                            {item.line_total || item.price || item.unit_price} {item.currency || order?.currency || 'KWD'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Fallback only if single service with no itemized products */
+                    Boolean(order?.service_data?.name || order?.service) && (
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                        <img
+                          src={serviceImg}
+                          alt={serviceName}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/images/serv-14.jpg';
+                          }}
+                          style={{
+                            width: 68,
+                            height: 68,
+                            borderRadius: 16,
+                            objectFit: 'cover',
+                            flexShrink: 0,
+                            border: '1px solid #D3C0B1',
+                            display: 'block',
+                          }}
+                        />
+
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div
                             style={{
-                              fontSize: '0.95rem',
-                              fontWeight: 600,
-                              color: '#283034',
-                              marginBottom: '4px',
+                              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                              fontWeight: 700,
+                              color: '#4E2712',
+                              fontSize: '1.05rem',
+                              lineHeight: 1.3,
                             }}
                           >
-                            {item.product_name || item.name || 'Item'}
+                            {serviceName}
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: '#7a868c' }}>
-                            Quantity: {item.quantity}
-                            {item.unit_price && (
-                              <span> &bull; {item.unit_price} {item.currency || currency} each</span>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                            color: '#efa697',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {item.line_total || item.price || item.unit_price}{' '}
-                          {item.currency || currency}
+
+                          {formattedDuration && (
+                            <div
+                              style={{
+                                fontSize: '0.82rem',
+                                color: '#4E2712',
+                                opacity: 0.7,
+                                marginTop: 4,
+                                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                              }}
+                            >
+                              ⏱ {formattedDuration}
+                            </div>
+                          )}
+
+                          {serviceLocation && (
+                            <div
+                              style={{
+                                fontSize: '0.8rem',
+                                color: '#4E2712',
+                                opacity: 0.7,
+                                marginTop: 4,
+                                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                              }}
+                            >
+                              📍 {serviceLocation}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ))}
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* ── Optional Delivery Progress & Confirm Receipt (if order tracking status exists) ── */}
+              {hasDeliveryTracking && (
+                <div
+                  style={{
+                    margin: '16px 18px 0',
+                    background: '#FFFFFF',
+                    borderRadius: 24,
+                    padding: '22px 20px',
+                    boxShadow: '0 6px 24px rgba(78,39,18,0.06)',
+                    border: '1px solid #EBE5DE',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 20,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                        fontWeight: 700,
+                        color: '#4E2712',
+                        fontSize: '1rem',
+                      }}
+                    >
+                      {isAr ? 'مراحل التوصيل' : 'Delivery Progress'}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        background: '#EBE5DE',
+                        color: '#4E2712',
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                      }}
+                    >
+                      {STEPS[currentStep]?.label}
+                    </span>
                   </div>
+
+                  {/* Progress Line and Circles */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                    }}
+                  >
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: '18px',
+                        left: '8%',
+                        right: '8%',
+                        height: '2px',
+                        background: '#EBE5DE',
+                      }}
+                    />
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        top: '18px',
+                        left: isAr ? 'auto' : '8%',
+                        right: isAr ? '8%' : 'auto',
+                        width: `${(currentStep / (STEPS.length - 1)) * 84}%`,
+                        height: '2px',
+                        background: '#543C30',
+                        transition: 'width 400ms ease',
+                      }}
+                    />
+
+                    {STEPS.map((step, idx) => {
+                      const done = idx <= currentStep;
+                      const current = idx === currentStep;
+                      return (
+                        <div
+                          key={step.key}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 6,
+                            position: 'relative',
+                            flex: 1,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: '50%',
+                              background: done ? '#543C30' : '#EBE5DE',
+                              color: done ? '#FFFFFF' : '#8A7468',
+                              border: current ? '2.5px solid #D3C0B1' : 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.9rem',
+                              boxShadow: current ? '0 4px 12px rgba(84,60,48,0.25)' : 'none',
+                              zIndex: 1,
+                              transition: 'all 250ms ease',
+                            }}
+                          >
+                            {step.icon}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: current ? 700 : 500,
+                              color: done ? '#543C30' : '#8A7468',
+                              textAlign: 'center',
+                              lineHeight: 1.2,
+                              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                            }}
+                          >
+                            {step.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+
+
+                  {isReceived && (
+                    <div
+                      style={{
+                        marginTop: 16,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        padding: '10px 16px',
+                        background: '#dcfce7',
+                        color: '#16a34a',
+                        borderRadius: 14,
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        border: '1px solid #bbf7d0',
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                      }}
+                    >
+                      <span>✓</span>
+                      <span>{isAr ? 'تم تأكيد استلام الطلب بنجاح' : 'Order Marked as Received'}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* ── Order Details Card ── */}
+
+
+              {/* ── Footer ── */}
               <div
                 style={{
-                  background: '#fff',
-                  borderRadius: '20px',
-                  padding: '28px 28px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: "'Lustria', serif",
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    color: '#283034',
-                    marginBottom: '20px',
-                    paddingBottom: '12px',
-                    borderBottom: '1px solid #f5d5cf',
-                  }}
-                >
-                  Order Summary
-                </h2>
-
-                <dl
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '16px 24px',
-                    margin: 0,
-                  }}
-                >
-                  {displayDate && <DetailRow label="Date Placed" value={displayDate} />}
-                  {displayTime && <DetailRow label="Time" value={displayTime} />}
-                  {displayTherapist && <DetailRow label="Therapist" value={displayTherapist} />}
-                  {displayLocation && <DetailRow label="Location" value={displayLocation} />}
-                  {displayEmail && <DetailRow label="Customer Email" value={displayEmail} span />}
-                  {computedTotal !== undefined && (
-                    <DetailRow
-                      label="Total Amount"
-                      value={`${computedTotal} ${currency}`}
-                      highlight
-                    />
-                  )}
-                </dl>
-
-                {displayNotes && (
-                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f5d5cf' }}>
-                    <dt
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
-                        color: '#b7948e',
-                        letterSpacing: '0.8px',
-                        textTransform: 'uppercase',
-                        marginBottom: '6px',
-                      }}
-                    >
-                      Notes
-                    </dt>
-                    <dd style={{ fontSize: '0.88rem', color: '#4a5568', lineHeight: 1.6, margin: 0 }}>
-                      {displayNotes}
-                    </dd>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Emphasized Received Action Button ── */}
-              <div
-                style={{
+                  marginTop: '44px',
                   textAlign: 'center',
-                  padding: '16px 0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
+                  color: '#4E2712',
+                  opacity: 0.85,
+                  fontSize: '0.8rem',
+                  padding: '0 20px 48px',
                 }}
               >
-                {isReceived ? (
-                  /* ── Customer already confirmed receipt ── */
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '14px 32px',
-                      background: '#dcfce7',
-                      color: '#16a34a',
-                      borderRadius: '999px',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      border: '1px solid #bbf7d0',
-                    }}
-                  >
-                    <span>✓</span> Order Marked as Received
-                  </div>
-                ) : canConfirmReceived ? (
-                  /* ── Delivered by staff — customer can now confirm ── */
-                  <>
-                    <button
-                      id="mark-received-btn"
-                      onClick={() => {
-                        setModalOpen(true);
-                        setSubmitSuccess(false);
-                        setSubmitError(null);
-                        setTrackingCode('');
-                      }}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '16px 44px',
-                        background: 'linear-gradient(135deg, #efa697, #d4857a)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '999px',
-                        fontSize: '1rem',
-                        fontWeight: 600,
-                        letterSpacing: '0.5px',
-                        cursor: 'pointer',
-                        boxShadow: '0 6px 24px rgba(239,166,151,0.5)',
-                        transition: 'all 250ms ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.transform =
-                          'translateY(-2px)';
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                          '0 10px 30px rgba(239,166,151,0.6)';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.transform =
-                          'translateY(0)';
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                          '0 6px 24px rgba(239,166,151,0.5)';
-                      }}
-                    >
-                      <span style={{ fontSize: '1.2rem' }}>✓</span>
-                      Confirm Receipt
-                    </button>
-                    <p style={{ marginTop: '12px', fontSize: '0.82rem', color: '#b7948e' }}>
-                      Your order has been delivered! Click to confirm receipt with your tracking code.
-                    </p>
-                  </>
-                ) : null /* Order not yet delivered — hide action area */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                  <Logo size={36} />
+                </div>
+                <p style={{ lineHeight: 1.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'شكراً لكونك جزءاً من عائلة USH Spa.' : 'Thank you for being with us.'}<br />
+                  <span style={{ color: '#543C30', fontSize: '0.74rem', fontWeight: 600 }}>
+                    {isAr ? `معرف الطلب: ${voucherNumber}` : `Reference ID: ${voucherNumber}`}
+                  </span>
+                </p>
               </div>
 
             </div>
           )}
-        </main>
+
+        </div>
       </div>
 
-      {/* ── Popup Modal for Received Confirmation ── */}
+      {/* ── Confirm Receipt Modal ── */}
       {modalOpen && (
         <div
           role="dialog"
@@ -847,8 +1067,9 @@ export default function OrderTrackingPage({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: 20,
           }}
+          dir={isAr ? 'rtl' : 'ltr'}
         >
           {/* Backdrop */}
           <div
@@ -856,22 +1077,24 @@ export default function OrderTrackingPage({
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'rgba(40,48,52,0.6)',
+              background: 'rgba(40,24,18,0.7)',
               backdropFilter: 'blur(6px)',
             }}
           />
 
-          {/* Modal Card */}
+          {/* Modal Box */}
           <div
             style={{
               position: 'relative',
-              background: '#fff',
-              borderRadius: '24px',
+              background: '#FFFFFF',
+              borderRadius: 24,
               width: '100%',
-              maxWidth: '460px',
-              padding: '38px 36px 36px',
-              boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+              maxWidth: 420,
+              padding: '36px 28px',
+              boxShadow: '0 24px 64px rgba(78,39,18,0.3)',
+              border: '1.5px solid #D3C0B1',
               animation: 'modalIn 0.25s ease',
+              textAlign: 'center',
             }}
           >
             {/* Close button */}
@@ -881,16 +1104,17 @@ export default function OrderTrackingPage({
               aria-label="Close"
               style={{
                 position: 'absolute',
-                top: '18px',
-                right: '18px',
-                background: '#fdf0ee',
+                top: 16,
+                right: isAr ? 'auto' : 16,
+                left: isAr ? 16 : 'auto',
+                background: '#EBE5DE',
                 border: 'none',
                 borderRadius: '50%',
-                width: '34px',
-                height: '34px',
+                width: 32,
+                height: 32,
                 cursor: 'pointer',
-                fontSize: '1rem',
-                color: '#b7605a',
+                fontSize: '0.9rem',
+                color: '#543C30',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -900,18 +1124,18 @@ export default function OrderTrackingPage({
             </button>
 
             {submitSuccess ? (
-              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div>
                 <div
                   style={{
-                    width: '68px',
-                    height: '68px',
+                    width: 64,
+                    height: 64,
                     borderRadius: '50%',
                     background: '#dcfce7',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '2rem',
-                    margin: '0 auto 20px',
+                    margin: '0 auto 16px',
                     color: '#16a34a',
                   }}
                 >
@@ -920,120 +1144,117 @@ export default function OrderTrackingPage({
                 <h3
                   id="modal-title"
                   style={{
-                    fontFamily: "'Lustria', serif",
-                    fontSize: '1.35rem',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                    fontSize: '1.25rem',
                     fontWeight: 700,
-                    color: '#283034',
-                    marginBottom: '10px',
+                    color: '#543C30',
+                    marginBottom: 8,
                   }}
                 >
-                  Delivery Confirmed!
+                  {isAr ? 'تم تأكيد الاستلام!' : 'Delivery Confirmed!'}
                 </h3>
-                <p style={{ color: '#7a868c', fontSize: '0.92rem', lineHeight: 1.6 }}>
-                  Thank you! Your package has been marked as received.
+                <p
+                  style={{
+                    color: '#543C30',
+                    opacity: 0.8,
+                    fontSize: '0.88rem',
+                    lineHeight: 1.6,
+                    marginBottom: 20,
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}
+                >
+                  {isAr
+                    ? 'شكراً لك! تم تسجيل استلام طلبك بنجاح.'
+                    : 'Thank you! Your package has been marked as received.'}
                 </p>
                 <button
                   id="close-success-btn"
                   onClick={() => setModalOpen(false)}
                   style={{
-                    marginTop: '26px',
-                    padding: '12px 36px',
-                    background: 'linear-gradient(135deg, #efa697, #d4857a)',
-                    color: '#fff',
+                    padding: '10px 32px',
+                    background: '#543C30',
+                    color: '#FFFFFF',
                     border: 'none',
-                    borderRadius: '999px',
+                    borderRadius: 999,
                     fontSize: '0.9rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
-                    boxShadow: '0 4px 16px rgba(239,166,151,0.4)',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
                   }}
                 >
-                  Done
+                  {isAr ? 'تم' : 'Done'}
                 </button>
               </div>
             ) : (
               <>
                 <div
                   style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '14px',
-                    overflow: 'hidden',
-                    marginBottom: '18px',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
+                    width: 54,
+                    height: 54,
+                    borderRadius: '50%',
+                    background: '#543C30',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 26,
+                    margin: '0 auto 16px',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 14px rgba(84,60,48,0.25)',
                   }}
                 >
-                  <img
-                    src="/images/company-logo.png"
-                    alt="USH Spa Logo"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
+                  📦
                 </div>
 
                 <h3
                   id="modal-title"
                   style={{
-                    fontFamily: "'Lustria', serif",
-                    fontSize: '1.35rem',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                    fontSize: '1.25rem',
                     fontWeight: 700,
-                    color: '#283034',
-                    marginBottom: '8px',
+                    color: '#543C30',
+                    marginBottom: 6,
                   }}
                 >
-                  Confirm Delivery
+                  {isAr ? 'تأكيد استلام الطلب' : 'Confirm Delivery'}
                 </h3>
-                <p style={{ color: '#7a868c', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '24px' }}>
-                  Please enter your tracking code below to verify and confirm receipt of your order.
+                <p
+                  style={{
+                    color: '#543C30',
+                    opacity: 0.75,
+                    fontSize: '0.85rem',
+                    lineHeight: 1.6,
+                    marginBottom: 22,
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}
+                >
+                  {isAr
+                    ? 'يرجى إدخال رمز التتبع الخاص بك لتأكيد الاستلام.'
+                    : 'Please enter your tracking code below to verify receipt of your order.'}
                 </p>
 
                 <form onSubmit={handleReceivedSubmit} noValidate>
-                  <label
-                    htmlFor="tracking-code-input"
-                    style={{
-                      display: 'block',
-                      fontSize: '0.76rem',
-                      fontWeight: 700,
-                      color: '#b7948e',
-                      letterSpacing: '0.8px',
-                      textTransform: 'uppercase',
-                      marginBottom: '8px',
-                    }}
-                  >
-                    Tracking Code
-                  </label>
                   <input
                     id="tracking-code-input"
+                    ref={inputRef}
                     type="text"
                     value={trackingCode}
-                    onChange={(e) => setTrackingCode(e.target.value)}
-                    placeholder="e.g. TRK123456"
+                    onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+                    placeholder={isAr ? 'مثال: TRK123456' : 'e.g. TRK123456'}
                     required
-                    autoFocus
+                    dir="ltr"
                     style={{
                       width: '100%',
                       padding: '14px 16px',
-                      borderRadius: '12px',
-                      border: submitError ? '1.5px solid #f87171' : '1.5px solid #f5d5cf',
-                      fontSize: '0.98rem',
-                      color: '#283034',
+                      borderRadius: 14,
+                      border: submitError ? '1.5px solid #dc2626' : '1.5px solid #D3C0B1',
+                      fontSize: '1rem',
+                      color: '#4E2712',
                       outline: 'none',
-                      background: '#fdf8f6',
-                      boxSizing: 'border-box',
-                      transition: 'border-color 200ms',
-                      marginBottom: submitError ? '10px' : '24px',
-                    }}
-                    onFocus={(e) => {
-                      (e.target as HTMLInputElement).style.borderColor = '#efa697';
-                    }}
-                    onBlur={(e) => {
-                      if (!submitError) {
-                        (e.target as HTMLInputElement).style.borderColor = '#f5d5cf';
-                      }
+                      background: '#EBE5DE',
+                      textAlign: 'center',
+                      letterSpacing: '1px',
+                      fontFamily: "'Lustria', serif",
+                      marginBottom: submitError ? 10 : 20,
                     }}
                   />
 
@@ -1042,11 +1263,11 @@ export default function OrderTrackingPage({
                       style={{
                         background: '#fee2e2',
                         color: '#b91c1c',
-                        borderRadius: '10px',
-                        padding: '10px 14px',
-                        fontSize: '0.82rem',
-                        marginBottom: '18px',
-                        lineHeight: 1.5,
+                        borderRadius: 10,
+                        padding: '8px 12px',
+                        fontSize: '0.8rem',
+                        marginBottom: 16,
+                        lineHeight: 1.4,
                       }}
                     >
                       {submitError}
@@ -1060,24 +1281,21 @@ export default function OrderTrackingPage({
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background:
-                        submitting || !trackingCode.trim()
-                          ? '#f5d5cf'
-                          : 'linear-gradient(135deg, #efa697, #d4857a)',
-                      color: submitting || !trackingCode.trim() ? '#b7948e' : '#fff',
+                      background: submitting || !trackingCode.trim() ? '#D3C0B1' : '#543C30',
+                      color: '#FFFFFF',
                       border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
+                      borderRadius: 14,
+                      fontSize: '0.92rem',
+                      fontWeight: 700,
                       cursor: submitting || !trackingCode.trim() ? 'not-allowed' : 'pointer',
                       transition: 'all 200ms',
-                      boxShadow:
-                        submitting || !trackingCode.trim()
-                          ? 'none'
-                          : '0 4px 14px rgba(239,166,151,0.4)',
+                      boxShadow: submitting || !trackingCode.trim() ? 'none' : '0 4px 14px rgba(84,60,48,0.25)',
+                      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
                     }}
                   >
-                    {submitting ? 'Submitting…' : 'Submit & Confirm'}
+                    {submitting
+                      ? (isAr ? 'جاري التأكيد…' : 'Submitting…')
+                      : (isAr ? 'تأكيد الاستلام' : 'Submit & Confirm')}
                   </button>
                 </form>
               </>
@@ -1085,212 +1303,6 @@ export default function OrderTrackingPage({
           </div>
         </div>
       )}
-
-      {/* ── Keyframes ── */}
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes modalIn {
-          from { opacity: 0; transform: scale(0.95) translateY(10px); }
-          to   { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
     </>
-  );
-}
-
-/* ─────────────────────────── Sub-components ─────────────────── */
-
-function DetailRow({
-  label,
-  value,
-  span,
-  highlight,
-}: {
-  label: string;
-  value: string;
-  span?: boolean;
-  highlight?: boolean;
-}) {
-  return (
-    <div style={{ gridColumn: span ? '1 / -1' : undefined }}>
-      <dt
-        style={{
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          color: '#b7948e',
-          letterSpacing: '0.8px',
-          textTransform: 'uppercase',
-          marginBottom: '4px',
-        }}
-      >
-        {label}
-      </dt>
-      <dd
-        style={{
-          fontSize: '0.94rem',
-          color: highlight ? '#efa697' : '#283034',
-          fontWeight: highlight ? 700 : 400,
-          wordBreak: 'break-word',
-          margin: 0,
-        }}
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-const STEPS = [
-  { key: 'ordered',     label: 'Ordered',     icon: '📋' },
-  { key: 'ready_to_go', label: 'Ready To Go', icon: '📦' },
-  { key: 'on_the_way',  label: 'On The Way',  icon: '🚚' },
-  { key: 'delivered',   label: 'Delivered',   icon: '📬' },
-  { key: 'received',    label: 'Received',    icon: '✓'  },
-];
-
-function DeliveryProgress({ status }: { status: string | undefined }) {
-  const s = (status ?? '').toLowerCase();
-
-  let activeStep = 0; // ordered
-  if (
-    s === 'ready_to_go' ||
-    s.includes('ready_to_go') ||
-    s.includes('ready to go') ||
-    s.includes('processing') ||
-    s.includes('preparing') ||
-    s.includes('confirmed')
-  ) {
-    activeStep = 1;
-  } else if (
-    s === 'on_the_way' ||
-    s.includes('on_the_way') ||
-    s.includes('on the way') ||
-    s.includes('transit') ||
-    s.includes('shipped') ||
-    s.includes('out_for_delivery')
-  ) {
-    activeStep = 2;
-  } else if (s === 'delivered' || (s.includes('delivered') && !s.includes('received'))) {
-    activeStep = 3;
-  } else if (s === 'received' || s.includes('received') || s.includes('completed')) {
-    activeStep = 4;
-  }
-
-  return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: '20px',
-        padding: '28px 28px 24px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-      }}
-    >
-      <h2
-        style={{
-          fontFamily: "'Lustria', serif",
-          fontSize: '1.1rem',
-          fontWeight: 700,
-          color: '#283034',
-          marginBottom: '28px',
-          letterSpacing: '0.3px',
-        }}
-      >
-        Delivery Progress
-      </h2>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          position: 'relative',
-        }}
-      >
-        {/* Base connector line */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '12%',
-            width: '76%',
-            height: '2px',
-            background: '#f5d5cf',
-          }}
-        />
-        {/* Active connector */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '12%',
-            width: `${(activeStep / (STEPS.length - 1)) * 76}%`,
-            height: '2px',
-            background: 'linear-gradient(90deg, #efa697, #d4857a)',
-            transition: 'width 500ms ease',
-          }}
-        />
-
-        {STEPS.map((step, idx) => {
-          const done = idx <= activeStep;
-          const current = idx === activeStep;
-          return (
-            <div
-              key={step.key}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-                position: 'relative',
-                flex: 1,
-              }}
-            >
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '50%',
-                  background: done
-                    ? current
-                      ? 'linear-gradient(135deg, #efa697, #d4857a)'
-                      : '#fdf0ee'
-                    : '#f9fafb',
-                  border: done
-                    ? current
-                      ? '2px solid #d4857a'
-                      : '2px solid #efa697'
-                    : '2px solid #e5e7eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1rem',
-                  color: done ? (current ? '#fff' : '#efa697') : '#9ca3af',
-                  boxShadow: current ? '0 4px 12px rgba(239,166,151,0.45)' : 'none',
-                  transition: 'all 300ms ease',
-                  zIndex: 1,
-                }}
-              >
-                {step.icon}
-              </div>
-              <span
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: current ? 700 : 500,
-                  color: done ? (current ? '#d4857a' : '#efa697') : '#9ca3af',
-                  letterSpacing: '0.3px',
-                  textAlign: 'center',
-                  lineHeight: 1.3,
-                }}
-              >
-                {step.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }

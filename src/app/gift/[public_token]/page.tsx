@@ -89,7 +89,9 @@ interface DigitalProductData {
 
 interface GiftVoucher {
   id: string;
+  voucher_number?: string;
   gift_category: 'service' | 'digital' | 'physical' | string;
+  gift_from?: string | null;
   service_data?: ServiceData;
   branch_data?: BranchData;
   service_arrangement_data?: ServiceArrangementData;
@@ -121,18 +123,32 @@ interface GiftVoucher {
   digital_product_data?: DigitalProductData | null;
 }
 
-/* ─────────────────────────────── Helpers ────────────────────────────── */
+/* ─────────────────────────────── Types & Helpers ────────────────────── */
 
-function fmtDate(d: string) {
+type Lang = 'en' | 'ar';
+
+function getSenderDisplayName(v: GiftVoucher): string {
+  if (v.gift_from && typeof v.gift_from === 'string' && v.gift_from.trim().length > 0) {
+    return v.gift_from.trim();
+  }
+  return v.sender_data?.name || '';
+}
+
+function fmtDate(d: string, lang: Lang = 'en') {
   if (!d) return '';
   try {
-    return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(d).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   } catch { return d; }
 }
 
-function fmtDuration(min: number) {
+function fmtDuration(min: number, lang: Lang = 'en') {
   if (!min) return '—';
   const h = Math.floor(min / 60), m = min % 60;
+  if (lang === 'ar') {
+    if (h === 0) return `${m} دقيقة`;
+    if (m === 0) return `${h} ساعة`;
+    return `${h} ساعة و ${m} دقيقة`;
+  }
   if (h === 0) return `${m} min`;
   if (m === 0) return `${h} hr`;
   return `${h} hr ${m} min`;
@@ -143,10 +159,66 @@ function isExpired(dateStr: string) {
   return new Date(dateStr) < new Date();
 }
 
+/* ── Language Switcher Component ── */
+function LanguageSwitcher({ lang, onToggle }: { lang: Lang; onToggle: (l: Lang) => void }) {
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        background: 'rgba(255,255,255,0.14)',
+        borderRadius: 20,
+        padding: '2px',
+        border: '1px solid rgba(211,192,177,0.4)',
+      }}
+    >
+      <button
+        id="lang-switch-en"
+        type="button"
+        onClick={() => onToggle('en')}
+        style={{
+          background: lang === 'en' ? '#FFFFFF' : 'transparent',
+          color: lang === 'en' ? '#4E2712' : '#FFFFFF',
+          border: 'none',
+          borderRadius: 16,
+          padding: '4px 10px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 200ms ease',
+          lineHeight: 1.2,
+        }}
+      >
+        EN
+      </button>
+      <button
+        id="lang-switch-ar"
+        type="button"
+        onClick={() => onToggle('ar')}
+        style={{
+          background: lang === 'ar' ? '#FFFFFF' : 'transparent',
+          color: lang === 'ar' ? '#4E2712' : '#FFFFFF',
+          border: 'none',
+          borderRadius: 16,
+          padding: '4px 10px',
+          fontSize: '0.72rem',
+          fontWeight: 700,
+          cursor: 'pointer',
+          transition: 'all 200ms ease',
+          fontFamily: "'Cairo', 'Segoe UI', sans-serif",
+          lineHeight: 1.2,
+        }}
+      >
+        عربي
+      </button>
+    </div>
+  );
+}
+
 /* ─────────────────────────────── CSS ───────────────────────────────── */
 
 const KEYFRAMES = `
-  @import url('https://fonts.googleapis.com/css2?family=Lustria&family=Alex+Brush&family=Roboto:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cairo:wght@400;500;600;700;800&family=Lustria&family=Roboto:wght@300;400;500;600;700&display=swap');
 
   .gift-outer{
     min-height:100vh;
@@ -162,9 +234,11 @@ const KEYFRAMES = `
   *{box-sizing:border-box;margin:0;padding:0;}
 
   @keyframes petalFall{
-    0%{transform:translateY(-40px) rotate(0deg) scale(0.8);opacity:0}
-    10%{opacity:0.9}90%{opacity:0.6}
-    100%{transform:translateY(110vh) rotate(420deg) scale(1.1);opacity:0}
+    0%  { transform: translateY(-60px) translateX(0px)   rotate(0deg)   scale(0.7); opacity: 0; }
+    8%  { opacity: 1; }
+    50% { transform: translateY(50vh)  translateX(18px)  rotate(180deg) scale(1);   opacity: 0.85; }
+    92% { opacity: 0.7; }
+    100%{ transform: translateY(115vh) translateX(-10px) rotate(360deg) scale(0.85); opacity: 0; }
   }
   @keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
   @keyframes glow{
@@ -206,7 +280,15 @@ const KEYFRAMES = `
   @keyframes ctaSlideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
   @keyframes skipFadeIn{from{opacity:0}to{opacity:1}}
 
-  .petal{position:fixed;border-radius:50% 0 50% 0;pointer-events:none;animation:petalFall linear infinite;}
+  .petal{
+    position: fixed;
+    pointer-events: none;
+    animation: petalFall linear infinite;
+    border-radius: 22% 22% 22% 22%;
+    object-fit: cover;
+    /* tint to blend with the warm brand palette */
+    filter: sepia(20%) saturate(60%) brightness(0.9);
+  }
   .shimmer-bar{
     position:absolute;inset:0;
     background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,0.2) 50%,transparent 60%);
@@ -241,26 +323,36 @@ const KEYFRAMES = `
   .flip-back{transform:rotateY(180deg);}
 `;
 
-/* ─────────────────────────────── Floating Petals ───────────────────── */
+/* ─────────────────────────────── Floating Logos ────────────────────── */
 
 function FloatingPetals() {
-  const petals = Array.from({ length: 16 }, (_, i) => ({
-    size: 7 + (i % 5) * 5,
-    left: `${(i * 19 + 3) % 100}%`,
-    delay: `${(i * 0.55) % 9}s`,
-    dur: `${8 + (i % 6) * 1.5}s`,
-    opacity: 0.12 + (i % 4) * 0.05,
+  /* 14 logo instances, each with unique size / position / timing */
+  const logos = Array.from({ length: 14 }, (_, i) => ({
+    size:    24 + (i % 6) * 5,               /* 24 – 49 px */
+    left:    `${(i * 17 + 5) % 97}%`,
+    delay:   `${(i * 0.7) % 10}s`,
+    dur:     `${10 + (i % 7) * 2}s`,          /* 10 – 22 s */
+    opacity: 0.08 + (i % 5) * 0.03,          /* 0.08 – 0.20 */
   }));
   return (
     <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-      {petals.map((p, i) => (
-        <div key={i} className="petal" style={{
-          width: p.size, height: p.size,
-          background: `rgba(211, 192, 177, ${p.opacity})`,
-          left: p.left, top: -40,
-          animationDuration: p.dur,
-          animationDelay: p.delay,
-        }} />
+      {logos.map((l, i) => (
+        <img
+          key={i}
+          src="/images/app-logo.jpg"
+          alt=""
+          aria-hidden="true"
+          className="petal"
+          style={{
+            width:  l.size,
+            height: l.size,
+            left:   l.left,
+            top:    -60,
+            opacity: l.opacity,
+            animationDuration: l.dur,
+            animationDelay:    l.delay,
+          }}
+        />
       ))}
     </div>
   );
@@ -268,7 +360,8 @@ function FloatingPetals() {
 
 /* ─────────────────────────────── Loading Screen ────────────────────── */
 
-function GiftLoadingScreen() {
+function GiftLoadingScreen({ lang = 'en' }: { lang?: Lang }) {
+  const isAr = lang === 'ar';
   const [dots, setDots] = useState('');
   useEffect(() => {
     const interval = setInterval(() => {
@@ -309,13 +402,15 @@ function GiftLoadingScreen() {
         </div>
 
         <p style={{
-          fontFamily: "'Lustria', serif",
+          fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
           fontSize: '1.1rem', color: '#FFFFFF', marginBottom: 8,
           animation: 'loadingPulse 1.5s ease-in-out infinite',
         }}>
-          Your gift is loading{dots}
+          {isAr ? `جاري تحميل هديتك${dots}` : `Your gift is loading${dots}`}
         </p>
-        <p style={{ color: '#D3C0B1', opacity: 0.9, fontSize: '0.82rem' }}>Please wait a moment ✨</p>
+        <p style={{ color: '#D3C0B1', opacity: 0.9, fontSize: '0.82rem', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+          {isAr ? 'يرجى الانتظار لحظات ✨' : 'Please wait a moment ✨'}
+        </p>
 
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
@@ -331,12 +426,13 @@ function GiftLoadingScreen() {
 
 /* ─────────────────────────────── Secret Code Modal ─────────────────── */
 
-function SecretModal({ onSubmit, loading, error }: {
-  onSubmit: (code: string) => void; loading: boolean; error: string;
+function SecretModal({ onSubmit, loading, error, lang = 'en', onToggleLang }: {
+  onSubmit: (code: string) => void; loading: boolean; error: string; lang?: Lang; onToggleLang?: (l: Lang) => void;
 }) {
   const [code, setCode] = useState('');
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { setTimeout(() => ref.current?.focus(), 350); }, []);
+  const isAr = lang === 'ar';
 
   return (
     <div style={{
@@ -363,6 +459,12 @@ function SecretModal({ onSubmit, loading, error }: {
         animation: 'scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1)',
         textAlign: 'center',
       }}>
+        {onToggleLang && (
+          <div style={{ position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto' }}>
+            <LanguageSwitcher lang={lang} onToggle={onToggleLang} />
+          </div>
+        )}
+
         <div style={{
           width: 84, height: 84, borderRadius: '50%',
           background: '#543C30',
@@ -376,14 +478,18 @@ function SecretModal({ onSubmit, loading, error }: {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
           <Logo size={44} />
         </div>
-        <p style={{ fontFamily: "'Alex Brush', cursive", fontSize: '1.6rem', color: '#543C30', lineHeight: 1, marginBottom: 8 }}>
-          You have a gift!
+        <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Alex Brush', cursive", fontSize: isAr ? '1.25rem' : '1.6rem', color: '#543C30', lineHeight: 1.2, marginBottom: 8, fontWeight: isAr ? 700 : 400 }}>
+          {isAr ? 'لديك هدية مميزة!' : 'You have a gift!'}
         </p>
-        <h2 style={{ fontFamily: "'Lustria', serif", fontSize: '1.3rem', color: '#543C30', marginBottom: 10 }}>
-          Enter Your Secret Code
+        <h2 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.3rem', color: '#543C30', marginBottom: 10 }}>
+          {isAr ? 'أدخل الرمز السري' : 'Enter Your Secret Code'}
         </h2>
         <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.9rem', marginBottom: 28, lineHeight: 1.7 }}>
-          Your secret code was shared with your gift.<br />Enter it below to unwrap your luxury experience.
+          {isAr ? (
+            <>تمت مشاركة الرمز السري مع هديتك.<br />أدخله أدناه لفتح تجربتك الفاخرة.</>
+          ) : (
+            <>Your secret code was shared with your gift.<br />Enter it below to unwrap your luxury experience.</>
+          )}
         </p>
 
         <input
@@ -393,8 +499,9 @@ function SecretModal({ onSubmit, loading, error }: {
           value={code}
           onChange={e => setCode(e.target.value.toUpperCase())}
           onKeyDown={e => e.key === 'Enter' && code.trim() && onSubmit(code.trim())}
-          placeholder="Enter code…"
+          placeholder={isAr ? 'أدخل الرمز…' : 'Enter code…'}
           maxLength={20}
+          dir="ltr"
           style={{
             width: '100%', padding: '17px 20px',
             borderRadius: 14, fontSize: '1.6rem',
@@ -426,7 +533,7 @@ function SecretModal({ onSubmit, loading, error }: {
             letterSpacing: '1.2px', textTransform: 'uppercase',
             cursor: loading || !code.trim() ? 'not-allowed' : 'pointer',
             boxShadow: loading || !code.trim() ? 'none' : '0 8px 24px rgba(84,60,48,0.3)',
-            transition: 'all 300ms', fontFamily: "'Roboto', sans-serif",
+            transition: 'all 300ms', fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
           }}
           onMouseEnter={e => { if (!loading && code.trim()) { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
           onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
@@ -434,12 +541,14 @@ function SecretModal({ onSubmit, loading, error }: {
           {loading
             ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                 <span style={{ width: 18, height: 18, borderRadius: '50%', border: '2.5px solid #D3C0B1', borderTopColor: '#FFFFFF', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                Unwrapping your gift…
+                {isAr ? 'جاري فتح الهدية…' : 'Unwrapping your gift…'}
               </span>
-            : '✨ Unwrap My Gift'}
+            : (isAr ? '✨ فتح الهدية' : '✨ Unwrap My Gift')}
         </button>
 
-        <p style={{ marginTop: 18, color: '#543C30', opacity: 0.6, fontSize: '0.78rem' }}>🔒 Secured &amp; encrypted</p>
+        <p style={{ marginTop: 18, color: '#543C30', opacity: 0.6, fontSize: '0.78rem' }}>
+          {isAr ? '🔒 آمن ومشفّر بالكامل' : '🔒 Secured & encrypted'}
+        </p>
       </div>
     </div>
   );
@@ -447,22 +556,11 @@ function SecretModal({ onSubmit, loading, error }: {
 
 /* ─────────────────────────────── Gift Reveal Popup ─────────────────── */
 
-type RevealPhase = 'popup' | 'message' | 'surprise-teaser';
-
-function GiftRevealPopup({ voucher, onRevealGift }: { voucher: GiftVoucher; onRevealGift: () => void }) {
-  const [phase, setPhase] = useState<RevealPhase>('popup');
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [showSurprise, setShowSurprise] = useState(false);
-
-  function handleShowMessage() {
-    setIsFlipped(true);
-    setTimeout(() => setPhase('message'), 500);
-  }
-
-  function handleShowSurprise() {
-    setShowSurprise(true);
-    setTimeout(() => setPhase('surprise-teaser'), 300);
-  }
+function GiftRevealPopup({ voucher, onRevealGift, lang = 'en', onToggleLang }: {
+  voucher: GiftVoucher; onRevealGift: () => void; lang?: Lang; onToggleLang?: (l: Lang) => void;
+}) {
+  const isAr = lang === 'ar';
+  const senderDisplayName = getSenderDisplayName(voucher) || (isAr ? 'شخص مميز' : 'Someone Special');
 
   return (
     <div style={{
@@ -497,145 +595,62 @@ function GiftRevealPopup({ voucher, onRevealGift }: { voucher: GiftVoucher; onRe
       }}>
         <div className="shimmer-bar" />
 
-        {/* ── Phase: popup ── */}
-        {phase === 'popup' && (
-          <div style={{ animation: 'slideUp 0.5s ease both' }}>
-            <div style={{
-              fontSize: 76, marginBottom: 20,
-              display: 'inline-block',
-              animation: 'giftBounce 2s ease-in-out infinite',
-            }}>🎁</div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <Logo size={38} />
-            </div>
-
-            <p style={{ fontFamily: "'Alex Brush', cursive", fontSize: '1.4rem', color: '#543C30', opacity: 0.8, marginBottom: 6, lineHeight: 1 }}>
-              from {voucher.sender_data?.name || 'Someone Special'}
-            </p>
-            <h2 style={{ fontFamily: "'Lustria', serif", fontSize: '1.5rem', color: '#543C30', marginBottom: 8, lineHeight: 1.3 }}>
-              You have a special gift! 🌸
-            </h2>
-            <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.88rem', lineHeight: 1.7, marginBottom: 32 }}>
-              Someone cares about you deeply.<br />Tap below to reveal your gift message.
-            </p>
-
-            <button
-              id="gift-show-message-btn"
-              onClick={handleShowMessage}
-              style={{
-                width: '100%', padding: '18px 24px',
-                borderRadius: 18, border: 'none',
-                background: '#543C30',
-                color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 700,
-                letterSpacing: '0.5px', cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(84,60,48,0.35)',
-                animation: 'pulseGlow 2s ease-in-out infinite',
-                fontFamily: "'Roboto', sans-serif",
-                transition: 'all 300ms',
-              }}
-            >
-              💌 Show my Message
-            </button>
+        {onToggleLang && (
+          <div style={{ position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto', zIndex: 5 }}>
+            <LanguageSwitcher lang={lang} onToggle={onToggleLang} />
           </div>
         )}
 
-        {/* ── Phase: message (flip) ── */}
-        {phase === 'message' && (
-          <div style={{ animation: 'slideUp 0.5s ease both' }}>
-            <div className="flip-container" style={{ marginBottom: 24, height: 150 }}>
-              <div className={`flip-card${isFlipped ? ' flipped' : ''}`} style={{ height: 150 }}>
-                <div className="flip-front" style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: '#EBE5DE',
-                  fontSize: 48, border: '1px solid #D3C0B1',
-                }}>💌</div>
-                <div className="flip-back" style={{
-                  background: '#EBE5DE',
-                  borderLeft: '4px solid #543C30',
-                  display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                  padding: '20px 18px',
-                }}>
-                  <div style={{ fontSize: '0.66rem', color: '#543C30', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
-                    ✉ Gift Message
-                  </div>
-                  <p style={{
-                    fontFamily: "'Lustria', serif", fontSize: '1rem',
-                    color: '#543C30', fontStyle: 'italic', lineHeight: 1.7, margin: 0,
-                  }}>
-                    &ldquo;{voucher.gift_message || 'Wishing you joy and warmth!'}&rdquo;
-                  </p>
-                </div>
-              </div>
-            </div>
+        <div style={{ animation: 'slideUp 0.5s ease both' }}>
+          <div style={{
+            fontSize: 76, marginBottom: 20,
+            display: 'inline-block',
+            animation: 'giftBounce 2s ease-in-out infinite',
+          }}>🎁</div>
 
-            <p style={{ color: '#543C30', opacity: 0.8, fontSize: '0.85rem', marginBottom: 8 }}>
-              — with love from <strong style={{ color: '#543C30' }}>{voucher.sender_data?.name || 'Someone Special'}</strong>
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Logo size={38} />
+          </div>
 
-            {!showSurprise ? (
-              <div style={{
-                marginTop: 20, padding: '20px 18px',
-                background: '#EBE5DE',
-                borderRadius: 18, border: '1.5px dashed #D3C0B1',
-                animation: 'fadeUp 0.6s 0.3s ease both',
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🎀</div>
-                <p style={{ fontFamily: "'Lustria', serif", color: '#543C30', fontSize: '0.95rem', marginBottom: 14, lineHeight: 1.5 }}>
-                  You have a special <strong style={{ color: '#543C30' }}>gift package</strong>!<br />
-                  <span style={{ fontSize: '0.82rem', color: '#543C30', opacity: 0.75 }}>Would you like to see it?</span>
-                </p>
-                <button
-                  id="gift-reveal-surprise-btn"
-                  onClick={handleShowSurprise}
-                  style={{
-                    padding: '12px 28px', borderRadius: 12, border: 'none',
-                    background: '#543C30',
-                    color: '#FFFFFF', fontSize: '0.9rem', fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 6px 20px rgba(84,60,48,0.3)',
-                    fontFamily: "'Roboto', sans-serif", transition: 'all 250ms',
-                  }}
-                >
-                  🎁 Yes, show me!
-                </button>
-              </div>
+          <p style={{
+            fontFamily: isAr ? "'Cairo', sans-serif" : "'Alex Brush', cursive",
+            fontSize: isAr ? '1.15rem' : '1.4rem',
+            color: '#543C30', opacity: 0.85, marginBottom: 6, lineHeight: 1.3,
+            fontWeight: isAr ? 600 : 400,
+          }}>
+            {isAr ? `من ${senderDisplayName}` : `from ${senderDisplayName}`}
+          </p>
+          <h2 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.45rem', color: '#543C30', marginBottom: 8, lineHeight: 1.3 }}>
+            {isAr ? 'لديك هدية خاصة! 🌸' : 'You have a special gift! 🌸'}
+          </h2>
+          <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.88rem', lineHeight: 1.7, marginBottom: 32 }}>
+            {isAr ? (
+              <>شخص ما يقدّرك ويهتم بك كثيراً.<br />اضغط أدناه لفتح هديتك الخاصة.</>
             ) : (
-              <div style={{ marginTop: 20, animation: 'fadeIn 0.4s ease' }}>
-                <div style={{ fontSize: 40, animation: 'bounceIn 0.6s ease' }}>🎉</div>
-              </div>
+              <>Someone cares about you deeply.<br />Tap below to open your special gift.</>
             )}
-          </div>
-        )}
+          </p>
 
-        {/* ── Phase: surprise-teaser ── */}
-        {phase === 'surprise-teaser' && (
-          <div style={{ animation: 'slideUp 0.4s ease both' }}>
-            <div style={{ fontSize: 60, marginBottom: 16, animation: 'bounceIn 0.6s ease', display: 'inline-block' }}>🎉</div>
-            <h2 style={{ fontFamily: "'Lustria', serif", fontSize: '1.4rem', color: '#543C30', marginBottom: 8 }}>
-              Get Ready! 🌸
-            </h2>
-            <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 28 }}>
-              Your gift package is about to be revealed!
-            </p>
-            <button
-              id="gift-open-surprise-btn"
-              onClick={onRevealGift}
-              style={{
-                width: '100%', padding: '18px 24px',
-                borderRadius: 18, border: 'none',
-                background: '#543C30',
-                color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(84,60,48,0.35)',
-                fontFamily: "'Roboto', sans-serif", transition: 'all 300ms',
-                animation: 'pulseGlow 2s ease-in-out infinite',
-              }}
-            >
-              ✨ Open My Gift
-            </button>
-          </div>
-        )}
+          <button
+            id="gift-open-surprise-btn"
+            onClick={onRevealGift}
+            style={{
+              width: '100%', padding: '18px 24px',
+              borderRadius: 18, border: 'none',
+              background: '#543C30',
+              color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 700,
+              letterSpacing: '0.5px', cursor: 'pointer',
+              boxShadow: '0 10px 30px rgba(84,60,48,0.35)',
+              animation: 'pulseGlow 2s ease-in-out infinite',
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
+              transition: 'all 300ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+          >
+            {isAr ? '✨ فتح هديتي' : '✨ Open My Gift'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -643,7 +658,8 @@ function GiftRevealPopup({ voucher, onRevealGift }: { voucher: GiftVoucher; onRe
 
 /* ─────────────────────────────── Digital Video Popup ───────────────── */
 
-function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onContinue: () => void }) {
+function DigitalVideoPopup({ videoUrl, onContinue, lang = 'en' }: { videoUrl: string; onContinue: () => void; lang?: Lang }) {
+  const isAr = lang === 'ar';
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -725,11 +741,11 @@ function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onConti
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
             animation: 'pulseGlow 2s ease-in-out infinite, fadeIn 0.4s ease',
-            fontFamily: "'Roboto', sans-serif",
+            fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
             whiteSpace: 'nowrap',
           }}
         >
-          <span>🔊</span> Tap to Unmute
+          <span>🔊</span> {isAr ? 'اضغط لإلغاء الكتم' : 'Tap to Unmute'}
         </div>
       )}
 
@@ -759,14 +775,14 @@ function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onConti
             borderRadius: 24, padding: '8px 20px',
             color: '#FFFFFF', fontSize: '0.82rem', fontWeight: 600,
             cursor: 'pointer', letterSpacing: '0.5px',
-            fontFamily: "'Roboto', sans-serif",
+            fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
             animation: 'skipFadeIn 0.5s ease both',
             transition: 'all 250ms',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; }}
         >
-          Skip ›
+          {isAr ? 'تخطي ›' : 'Skip ›'}
         </button>
       )}
 
@@ -804,10 +820,11 @@ function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onConti
             <Logo size={36} />
           </div>
           <p style={{
-            fontFamily: "'Alex Brush', cursive",
-            fontSize: '1.4rem', color: '#D3C0B1', marginBottom: 6, textAlign: 'center',
+            fontFamily: isAr ? "'Cairo', sans-serif" : "'Alex Brush', cursive",
+            fontSize: isAr ? '1.25rem' : '1.4rem', color: '#D3C0B1', marginBottom: 6, textAlign: 'center',
+            fontWeight: isAr ? 700 : 400,
           }}>
-            A special message awaits you ✨
+            {isAr ? 'رسالة خاصة بانتظارك ✨' : 'A special message awaits you ✨'}
           </p>
           <button
             id="gift-video-show-message-btn"
@@ -819,14 +836,14 @@ function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onConti
               color: '#FFFFFF', fontSize: '1.05rem', fontWeight: 700,
               letterSpacing: '0.5px', cursor: 'pointer',
               boxShadow: '0 12px 36px rgba(84,60,48,0.5)',
-              fontFamily: "'Roboto', sans-serif",
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
               animation: 'pulseGlow 2s ease-in-out infinite',
               transition: 'all 300ms',
             }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
           >
-            💌 Show My Message & Gift Pack
+            {isAr ? '💌 عرض رسالتي والهدية' : '💌 Show My Message & Gift Pack'}
           </button>
         </div>
       )}
@@ -837,11 +854,11 @@ function DigitalVideoPopup({ videoUrl, onContinue }: { videoUrl: string; onConti
 /* ─────────────────────────────── Delivery Progress ─────────────────── */
 
 const DELIVERY_STEPS = [
-  { key: 'ordered',     label: 'Ordered',    icon: '📋' },
-  { key: 'ready_to_go', label: 'Ready',       icon: '📦' },
-  { key: 'on_the_way',  label: 'On the Way', icon: '🚚' },
-  { key: 'delivered',   label: 'Delivered',  icon: '📬' },
-  { key: 'received',    label: 'Received',   icon: '✓'  },
+  { key: 'ordered',     label: 'Ordered',    labelAr: 'تم الطلب',   icon: '📋' },
+  { key: 'ready_to_go', label: 'Ready',       labelAr: 'جاهز',       icon: '📦' },
+  { key: 'on_the_way',  label: 'On the Way', labelAr: 'في الطريق',  icon: '🚚' },
+  { key: 'delivered',   label: 'Delivered',  labelAr: 'تم التوصيل', icon: '📬' },
+  { key: 'received',    label: 'Received',   labelAr: 'تم الاستلام', icon: '✓'  },
 ];
 
 function getDeliveryStep(status: string | undefined): number {
@@ -853,7 +870,8 @@ function getDeliveryStep(status: string | undefined): number {
   return 0;
 }
 
-function DeliveryProgressBar({ status }: { status: string | undefined }) {
+function DeliveryProgressBar({ status, lang = 'en' }: { status: string | undefined; lang?: Lang }) {
+  const isAr = lang === 'ar';
   const activeStep = getDeliveryStep(status);
 
   return (
@@ -869,8 +887,8 @@ function DeliveryProgressBar({ status }: { status: string | undefined }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
           color: '#FFFFFF',
         }}>🚚</div>
-        <h2 style={{ fontFamily: "'Lustria', serif", fontSize: '1rem', fontWeight: 700, color: '#4E2712' }}>
-          Delivery Progress
+        <h2 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1rem', fontWeight: 700, color: '#4E2712' }}>
+          {isAr ? 'حالة التوصيل' : 'Delivery Progress'}
         </h2>
       </div>
 
@@ -880,7 +898,7 @@ function DeliveryProgressBar({ status }: { status: string | undefined }) {
           background: '#EBE5DE', borderRadius: 2,
         }} />
         <div aria-hidden="true" style={{
-          position: 'absolute', top: 20, left: '10%',
+          position: 'absolute', top: 20, left: isAr ? 'auto' : '10%', right: isAr ? '10%' : 'auto',
           width: `${(activeStep / (DELIVERY_STEPS.length - 1)) * 80}%`,
           height: 3,
           background: '#543C30',
@@ -913,8 +931,9 @@ function DeliveryProgressBar({ status }: { status: string | undefined }) {
                 color: '#4E2712',
                 opacity: done ? 1 : 0.6,
                 letterSpacing: '0.3px', textAlign: 'center', lineHeight: 1.3,
+                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
               }}>
-                {step.label}
+                {isAr ? step.labelAr : step.label}
               </span>
             </div>
           );
@@ -927,8 +946,9 @@ function DeliveryProgressBar({ status }: { status: string | undefined }) {
           background: '#EBE5DE', color: '#4E2712',
           fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.6px',
           textTransform: 'uppercase', border: '1px solid #D3C0B1',
+          fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
         }}>
-          {DELIVERY_STEPS[activeStep]?.icon} {DELIVERY_STEPS[activeStep]?.label}
+          {DELIVERY_STEPS[activeStep]?.icon} {isAr ? DELIVERY_STEPS[activeStep]?.labelAr : DELIVERY_STEPS[activeStep]?.label}
         </span>
       </div>
     </div>
@@ -937,9 +957,10 @@ function DeliveryProgressBar({ status }: { status: string | undefined }) {
 
 /* ─────────────────────────────── Mark As Received Modal ─────────────── */
 
-function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
-  voucherId: string; onSuccess: () => void; onClose: () => void;
+function MarkReceivedModal({ voucherId, onSuccess, onClose, lang = 'en' }: {
+  voucherId: string; onSuccess: () => void; onClose: () => void; lang?: Lang;
 }) {
+  const isAr = lang === 'ar';
   const [secretCode, setSecretCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -969,14 +990,14 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
           (typeof data?.detail === 'string' ? data.detail : '') ||
           (typeof data?.message === 'string' ? data.message : '') ||
           (typeof data?.error === 'string' ? data.error : '') ||
-          'Failed to confirm receipt. Please try again.';
+          (isAr ? 'فشل تأكيد الاستلام. يرجى المحاولة مجدداً.' : 'Failed to confirm receipt. Please try again.');
         setError(msg);
         return;
       }
       setSuccess(true);
       setTimeout(() => { onSuccess(); onClose(); }, 1800);
     } catch {
-      setError('Network error. Please check your connection.');
+      setError(isAr ? 'خطأ في الشبكة. يرجى التحقق من اتصالك.' : 'Network error. Please check your connection.');
     } finally {
       setSubmitting(false);
     }
@@ -1004,7 +1025,7 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
         <button
           onClick={onClose} aria-label="Close"
           style={{
-            position: 'absolute', top: 16, right: 16,
+            position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto',
             width: 34, height: 34, borderRadius: '50%',
             background: '#EBE5DE', border: 'none', cursor: 'pointer',
             fontSize: '1rem', color: '#543C30',
@@ -1022,11 +1043,11 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
               color: '#FFFFFF',
               boxShadow: '0 8px 24px rgba(84,60,48,0.3)',
             }}>✓</div>
-            <h3 style={{ fontFamily: "'Lustria', serif", fontSize: '1.4rem', color: '#543C30', marginBottom: 10 }}>
-              Gift Received! 🎉
+            <h3 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.4rem', color: '#543C30', marginBottom: 10 }}>
+              {isAr ? 'تم استلام الهدية! 🎉' : 'Gift Received! 🎉'}
             </h3>
             <p style={{ color: '#543C30', opacity: 0.8, fontSize: '0.9rem', lineHeight: 1.6 }}>
-              Thank you! Your gift has been marked as received.
+              {isAr ? 'شكراً لك! تم تأكيد استلام هديتك بنجاح.' : 'Thank you! Your gift has been marked as received.'}
             </p>
           </div>
         ) : (
@@ -1041,11 +1062,11 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
               color: '#FFFFFF',
             }}>📦</div>
 
-            <h3 style={{ fontFamily: "'Lustria', serif", fontSize: '1.3rem', color: '#543C30', marginBottom: 8 }}>
-              Confirm Receipt
+            <h3 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.3rem', color: '#543C30', marginBottom: 8 }}>
+              {isAr ? 'تأكيد الاستلام' : 'Confirm Receipt'}
             </h3>
             <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.86rem', lineHeight: 1.6, marginBottom: 28 }}>
-              Enter your secret code to confirm you have received your gift.
+              {isAr ? 'أدخل الرمز السري لتأكيد استلامك للهدية.' : 'Enter your secret code to confirm you have received your gift.'}
             </p>
 
             <input
@@ -1055,8 +1076,9 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
               value={secretCode}
               onChange={e => setSecretCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && secretCode.trim() && handleSubmit()}
-              placeholder="Enter secret code…"
+              placeholder={isAr ? 'أدخل الرمز السري…' : 'Enter secret code…'}
               maxLength={24}
+              dir="ltr"
               style={{
                 width: '100%', padding: '15px 18px',
                 borderRadius: 14, fontSize: '1.3rem',
@@ -1088,15 +1110,15 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
                 letterSpacing: '0.8px', textTransform: 'uppercase',
                 cursor: submitting || !secretCode.trim() ? 'not-allowed' : 'pointer',
                 boxShadow: submitting || !secretCode.trim() ? 'none' : '0 8px 24px rgba(84,60,48,0.3)',
-                transition: 'all 250ms', fontFamily: "'Roboto', sans-serif",
+                transition: 'all 250ms', fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
               }}
             >
               {submitting
                 ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                     <span style={{ width: 18, height: 18, borderRadius: '50%', border: '2.5px solid #D3C0B1', borderTopColor: '#FFFFFF', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                    Confirming…
+                    {isAr ? 'جاري التأكيد…' : 'Confirming…'}
                   </span>
-                : '✓ Confirm Receipt'}
+                : (isAr ? '✓ تأكيد الاستلام' : '✓ Confirm Receipt')}
             </button>
           </>
         )}
@@ -1105,46 +1127,171 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose }: {
   );
 }
 
+/* ─────────────────────────────── Voucher Number Header ──────────────── */
+
+function getVoucherNumber(v: GiftVoucher): string {
+  return (
+    v.voucher_number ||
+    (v as unknown as { voucher_no?: string })?.voucher_no ||
+    (v as unknown as { voucher_code?: string })?.voucher_code ||
+    (v.id ? `VCH-${v.id.substring(0, 8).toUpperCase()}` : '')
+  );
+}
+
+function VoucherNumberHeader({ voucherNumber, lang = 'en' }: { voucherNumber: string; lang?: Lang }) {
+  const [copied, setCopied] = useState(false);
+  if (!voucherNumber) return null;
+
+  function handleCopy() {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(voucherNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  const isAr = lang === 'ar';
+
+  return (
+    <div style={{
+      margin: '16px 18px 0',
+      background: 'linear-gradient(135deg, #FFFFFF 0%, #FBF9F7 100%)',
+      borderRadius: 20,
+      padding: '16px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      border: '1.5px solid #D3C0B1',
+      boxShadow: '0 8px 24px rgba(78,39,18,0.09)',
+      position: 'relative',
+      overflow: 'hidden',
+      animation: 'revealSlide 0.6s ease both',
+    }}>
+      <div className="shimmer-bar" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, position: 'relative', zIndex: 1 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 14,
+          background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, color: '#FFFFFF', flexShrink: 0,
+          boxShadow: '0 4px 14px rgba(84,60,48,0.25)',
+        }}>
+          🎟️
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{
+            fontSize: '0.66rem', color: '#543C30', fontWeight: 700,
+            letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3,
+            opacity: 0.8,
+            fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+          }}>
+            {isAr ? 'رقم القسيمة' : 'Voucher Number'}
+          </div>
+          <div dir="ltr" style={{
+            fontFamily: "'Lustria', serif",
+            fontSize: '1.18rem',
+            fontWeight: 700,
+            color: '#4E2712',
+            letterSpacing: '1.5px',
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {voucherNumber}
+          </div>
+        </div>
+      </div>
+      <button
+        id="copy-voucher-number-btn"
+        type="button"
+        onClick={handleCopy}
+        title={isAr ? 'نسخ رقم القسيمة' : 'Copy Voucher Number'}
+        style={{
+          position: 'relative', zIndex: 1,
+          padding: '8px 14px',
+          borderRadius: 12,
+          border: copied ? '1.5px solid #543C30' : '1.5px solid #D3C0B1',
+          background: copied ? '#543C30' : '#EBE5DE',
+          color: copied ? '#FFFFFF' : '#4E2712',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          letterSpacing: '0.5px',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          flexShrink: 0,
+          transition: 'all 200ms ease',
+          boxShadow: copied ? '0 4px 12px rgba(84,60,48,0.25)' : 'none',
+          fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+        }}
+        onMouseEnter={e => { if (!copied) e.currentTarget.style.background = '#D3C0B1'; }}
+        onMouseLeave={e => { if (!copied) e.currentTarget.style.background = '#EBE5DE'; }}
+      >
+        <span>{copied ? '✓' : '📋'}</span>
+        <span>{copied ? (isAr ? 'تم النسخ' : 'Copied') : (isAr ? 'نسخ' : 'Copy')}</span>
+      </button>
+    </div>
+  );
+}
+
 /* ─────────────────────────────── Physical Gift Display ──────────────── */
 
-function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
+function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
+  const isAr = lang === 'ar';
   const deliveryStatus = v.delivery_status ?? '';
   const [localStatus, setLocalStatus] = useState(deliveryStatus);
   const [showReceivedModal, setShowReceivedModal] = useState(false);
 
   const localStep = getDeliveryStep(localStatus);
   const isDelivered = getDeliveryStep(deliveryStatus) === 3 && localStep !== 4;
+  const voucherNum = getVoucherNumber(v);
+
+  const hasProducts = Boolean(v.ordered_items && v.ordered_items.length > 0);
+  const hasService = Boolean(v.service_data);
+  const sdDuration = v.service_data?.duration ?? v.service_data?.duration_minutes ?? 0;
 
   return (
     <div style={{
       background: '#D3C0B2',
       minHeight: '100vh', overflowX: 'hidden',
     }}>
-      <FloatingPetals />
 
-      {/* ── Top Bar (Only Logo) ── */}
+      {/* ── Top Bar ── */}
       <div style={{
         position: 'relative', zIndex: 10,
         background: '#543C30',
-        padding: '14px 20px',
+        padding: '12px 18px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 10,
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <Logo size={38} />
         </div>
-        <div style={{
-          background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '5px 14px',
-          fontSize: '0.78rem', fontWeight: 700, color: '#FFFFFF', letterSpacing: 1,
-          border: '1px solid #D3C0B1',
-        }}>
-          🎁 GIFT
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
+          <div style={{
+            background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '5px 12px',
+            fontSize: '0.76rem', fontWeight: 700, color: '#FFFFFF', letterSpacing: 0.5,
+            border: '1px solid #D3C0B1',
+            fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+          }}>
+            {isAr ? '🎁 هدية' : '🎁 GIFT'}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '20px 18px 40px' }}>
+      {/* ── Voucher Number at Top (with emphasis) ── */}
+      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
 
-        {/* ── Gift From Banner (No price/qty) ── */}
+      <div style={{ padding: '16px 18px 40px' }}>
+
+        {/* ── Gift From Banner ── */}
         <div style={{
           background: '#FFFFFF', borderRadius: 24,
           padding: '24px 20px 20px',
@@ -1157,9 +1304,11 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>From</div>
-                <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.15rem', color: '#4E2712', fontWeight: 700 }}>
-                  {v.sender_data?.name || '—'}
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'من' : 'From'}
+                </div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.15rem', color: '#4E2712', fontWeight: 700 }}>
+                  {getSenderDisplayName(v) || '—'}
                 </div>
               </div>
               <div style={{
@@ -1172,21 +1321,37 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
               }}>
                 <Logo size={36} style={{ borderRadius: '50%' }} />
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>Special Gift</div>
-                <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>
-                  For You
+              <div style={{ textAlign: isAr ? 'left' : 'right' }}>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'هدية خاصة' : 'Special Gift'}
+                </div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>
+                  {isAr ? 'لك' : 'For You'}
                 </div>
               </div>
             </div>
+
+            {v.gift_message && (
+              <div style={{
+                marginTop: 18, padding: '16px 18px',
+                background: '#EBE5DE',
+                borderRadius: 14,
+                borderLeft: isAr ? 'none' : '3.5px solid #4E2712',
+                borderRight: isAr ? '3.5px solid #4E2712' : 'none',
+              }}>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? '✉ رسالة الإهداء' : '✉ Gift Message'}
+                </div>
+                <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: isAr ? 'normal' : 'italic', lineHeight: 1.65, margin: 0 }}>
+                  &ldquo;{v.gift_message}&rdquo;
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── Delivery Progress ── */}
-        <DeliveryProgressBar status={localStatus || deliveryStatus} />
-
-        {/* ── Ordered Items (Only names) ── */}
-        {v.ordered_items && v.ordered_items.length > 0 && (
+        {/* ── Gift Items Section (Products & Service Details) ── */}
+        {(hasProducts || hasService) && (
           <div style={{
             background: '#FFFFFF', borderRadius: 24,
             boxShadow: '0 6px 24px rgba(78,39,18,0.06)',
@@ -1208,53 +1373,190 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
                 boxShadow: '0 4px 12px rgba(84,60,48,0.2)',
               }}>🛍️</div>
               <div>
-                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem' }}>
-                  Gift Items
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem' }}>
+                  {isAr ? 'محتويات الهدية' : 'Gift Items'}
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#4E2712', opacity: 0.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {hasProducts && hasService
+                    ? (isAr ? 'منتجات وتجربة سبا' : 'Products & Spa Ritual')
+                    : hasService
+                    ? (isAr ? 'تجربة سبا' : 'Spa Ritual Experience')
+                    : (isAr ? 'منتجات مختارة' : 'Curated Products')}
                 </div>
               </div>
             </div>
 
             <div style={{ padding: '8px 20px' }}>
-              {v.ordered_items.map((item, idx) => (
-                <div
-                  key={item.product_id || idx}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '16px 0',
-                    borderBottom: idx < (v.ordered_items?.length ?? 1) - 1 ? '1px solid #EBE5DE' : 'none',
-                  }}
-                >
-                  <div style={{
-                    width: 58, height: 58, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
-                    background: '#EBE5DE', position: 'relative',
-                    border: '1px solid #D3C0B1',
-                  }}>
-                    {item.image ? (
+              {/* Products List */}
+              {hasProducts && (
+                <div>
+                  {hasService && (
+                    <div style={{
+                      fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700,
+                      letterSpacing: 2, textTransform: 'uppercase', padding: '12px 0 4px',
+                      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                    }}>
+                      {isAr ? '🛍️ المنتجات' : '🛍️ Products'}
+                    </div>
+                  )}
+                  {v.ordered_items!.map((item, idx) => (
+                    <div
+                      key={item.product_id || idx}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 16,
+                        padding: '14px 0',
+                        borderBottom: (idx < (v.ordered_items?.length ?? 1) - 1 || hasService)
+                          ? '1px solid #EBE5DE'
+                          : 'none',
+                      }}
+                    >
+                      <div style={{
+                        width: 58, height: 58, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
+                        background: '#EBE5DE', position: 'relative',
+                        border: '1px solid #D3C0B1',
+                      }}>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={(isAr && item.name_ar) ? item.name_ar : (item.name_en || item.name)}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                            🛍️
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
+                          color: '#4E2712', fontSize: '1rem', lineHeight: 1.4,
+                          wordBreak: 'break-word',
+                        }}>
+                          {(isAr && item.name_ar) ? item.name_ar : (item.name_en || item.name)}
+                        </div>
+                        {item.quantity > 1 && (
+                          <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>
+                            {isAr ? `الكمية: ${item.quantity}` : `Quantity: ${item.quantity}`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Service Details (Service name, image, addons, extra minutes) */}
+              {hasService && v.service_data && (
+                <div style={{ padding: '14px 0' }}>
+                  {hasProducts && (
+                    <div style={{
+                      fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700,
+                      letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12,
+                      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                    }}>
+                      {isAr ? '🧖 خدمة السبا' : '🧖 Spa Service'}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    {(v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image) ? (
                       <img
-                        src={item.image}
-                        alt={item.name_en || item.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        src={v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image || ''}
+                        alt={(isAr && v.service_data.name_ar) ? v.service_data.name_ar : v.service_data.name}
+                        style={{
+                          width: 68, height: 68, borderRadius: 16,
+                          objectFit: 'cover', flexShrink: 0,
+                          border: '1px solid #D3C0B1',
+                        }}
                       />
                     ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-                        🎁
+                      <div style={{
+                        width: 68, height: 68, borderRadius: 16,
+                        background: '#EBE5DE', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        fontSize: 28, flexShrink: 0,
+                        border: '1px solid #D3C0B1',
+                      }}>
+                        🧖
                       </div>
                     )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontFamily: "'Lustria', serif", fontWeight: 700,
-                      color: '#4E2712', fontSize: '1rem', lineHeight: 1.4,
-                      wordBreak: 'break-word',
-                    }}>
-                      {item.name_en || item.name}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
+                        color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3,
+                      }}>
+                        {(isAr && v.service_data.name_ar) ? v.service_data.name_ar : v.service_data.name}
+                      </div>
+                      {sdDuration > 0 && (
+                        <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 4 }}>
+                          ⏱ {fmtDuration(sdDuration, lang)}
+                        </div>
+                      )}
+                      {v.branch_data && (
+                        <div style={{ fontSize: '0.8rem', color: '#4E2712', opacity: 0.7, marginTop: 4 }}>
+                          📍 {(isAr && v.branch_data.name_ar) ? v.branch_data.name_ar : v.branch_data.name}
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Add-ons */}
+                  {v.addons && v.addons.length > 0 && (
+                    <div style={{
+                      marginTop: 14, paddingTop: 12,
+                      borderTop: '1px dashed #EBE5DE',
+                    }}>
+                      <div style={{
+                        fontSize: '0.66rem', color: '#D3C0B1', fontWeight: 700,
+                        letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                      }}>
+                        {isAr ? '✨ الإضافات المشمولة' : '✨ Included Add-ons'}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {v.addons.map((a, i) => (
+                          <div key={a.addon_id ?? a.id ?? i} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '7px 12px', background: '#EBE5DE', borderRadius: 10,
+                          }}>
+                            <span style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.88rem', fontWeight: 600, color: '#4E2712' }}>
+                              ✨ {a.name}
+                            </span>
+                            {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
+                              <span style={{ fontSize: '0.75rem', color: '#4E2712', opacity: 0.7 }}>
+                                +{fmtDuration(a.duration ?? a.duration_minutes ?? 0, lang)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Extra minutes */}
+                  {Boolean(v.extra_time) && (
+                    <div style={{
+                      marginTop: 12,
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      background: '#EBE5DE', borderRadius: 12,
+                      padding: '8px 14px', border: '1px solid #D3C0B1',
+                    }}>
+                      <span style={{ fontSize: 16 }}>⏰</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4E2712', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(v.extra_time!, lang)}` : `Bonus Extra Time: +${fmtDuration(v.extra_time!)}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
+
+        {/* ── Delivery Progress (At bottom just before "Ready to redeem your gift?") ── */}
+        <DeliveryProgressBar status={localStatus || deliveryStatus} lang={lang} />
 
         {/* ── Mark as Received / Received Badge ── */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
@@ -1265,8 +1567,9 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
               background: '#EBE5DE', color: '#4E2712',
               fontWeight: 700, fontSize: '0.95rem', border: '1.5px solid #D3C0B1',
               animation: 'bounceIn 0.6s ease',
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
             }}>
-              <span>✓</span> Gift Marked as Received
+              <span>✓</span> {isAr ? 'تم تأكيد استلام الهدية' : 'Gift Marked as Received'}
             </div>
           ) : isDelivered ? (
             <div style={{ animation: 'fadeUp 0.6s 0.4s ease both' }}>
@@ -1280,33 +1583,33 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
                   color: '#FFFFFF', fontSize: '1rem', fontWeight: 700,
                   cursor: 'pointer',
                   boxShadow: '0 8px 28px rgba(78,39,18,0.35)',
-                  fontFamily: "'Roboto', sans-serif",
+                  fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
                   transition: 'all 300ms ease',
                   animation: 'pulseGlow 2s ease-in-out infinite',
                 }}
               >
                 <span style={{ fontSize: '1.2rem' }}>📦</span>
-                Mark as Received
+                {isAr ? 'تأكيد الاستلام' : 'Mark as Received'}
               </button>
-              <p style={{ marginTop: 12, fontSize: '0.82rem', color: '#4E2712', opacity: 0.8 }}>
-                Your gift has been delivered! Tap to confirm receipt.
+              <p style={{ marginTop: 12, fontSize: '0.82rem', color: '#4E2712', opacity: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                {isAr ? 'تم توصيل هديتك! اضغط لتأكيد الاستلام.' : 'Your gift has been delivered! Tap to confirm receipt.'}
               </p>
             </div>
           ) : null}
         </div>
 
-        {/* ── App Download CTA ── */}
-        <AppCTA />
+        {/* ── App Download CTA (Ready to redeem your gift?) ── */}
+        <AppCTA lang={lang} />
 
         {/* ── Footer ── */}
-        <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px' }}>
+        <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
             <Logo size={34} />
           </div>
           <p style={{ lineHeight: 1.7 }}>
-            Thank you for being with us.<br />
+            {isAr ? 'شكراً لتواجدك معنا.' : 'Thank you for being with us.'}<br />
             <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>
-              Gift ID: {v.id?.substring(0, 8).toUpperCase()}
+              {isAr ? 'رقم الهدية:' : 'Gift ID:'} <span dir="ltr">{voucherNum || v.id?.substring(0, 8).toUpperCase()}</span>
             </span>
           </p>
         </div>
@@ -1318,6 +1621,7 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
           voucherId={v.id}
           onSuccess={() => setLocalStatus('received')}
           onClose={() => setShowReceivedModal(false)}
+          lang={lang}
         />
       )}
     </div>
@@ -1326,18 +1630,20 @@ function PhysicalGiftDisplay({ v }: { v: GiftVoucher }) {
 
 /* ─────────────────────────────── Status Badge ───────────────────────── */
 
-function StatusBadge({ status, expired }: { status: string; expired: boolean }) {
+function StatusBadge({ status, expired, lang = 'en' }: { status: string; expired: boolean; lang?: Lang }) {
+  const isAr = lang === 'ar';
   const s = (status || '').toLowerCase();
-  let label = 'Active', icon = '●';
-  if (expired) { label = 'Expired'; icon = '⚠'; }
-  else if (s === 'redeemed') { label = 'Redeemed'; icon = '✓'; }
-  else if (s === 'cancelled' || s === 'inactive') { label = 'Cancelled'; icon = '✕'; }
+  let label = isAr ? 'نشط' : 'Active', icon = '●';
+  if (expired) { label = isAr ? 'منتهي' : 'Expired'; icon = '⚠'; }
+  else if (s === 'redeemed') { label = isAr ? 'مستخدم' : 'Redeemed'; icon = '✓'; }
+  else if (s === 'cancelled' || s === 'inactive') { label = isAr ? 'ملغي' : 'Cancelled'; icon = '✕'; }
 
   return (
     <span style={{
       background: '#EBE5DE', color: '#4E2712', borderRadius: 20,
       padding: '5px 14px', fontSize: '0.78rem', fontWeight: 700, letterSpacing: 1,
       border: '1px solid #D3C0B1',
+      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
     }}>
       {icon} {label.toUpperCase()}
     </span>
@@ -1346,16 +1652,25 @@ function StatusBadge({ status, expired }: { status: string; expired: boolean }) 
 
 /* ─────────────────────────────── App Download CTA ──────────────────── */
 
-function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate?: string }) {
+function AppCTA({
+  style,
+  expireDate,
+  lang = 'en',
+}: {
+  style?: React.CSSProperties;
+  expireDate?: string;
+  lang?: Lang;
+}) {
+  const isAr = lang === 'ar';
   const daysLeft = expireDate
     ? Math.max(0, Math.ceil((new Date(expireDate).getTime() - Date.now()) / 86400000))
     : null;
 
   const urgencyLine =
     daysLeft === null ? null
-    : daysLeft === 0 ? 'Your gift expires today — book now before it’s too late.'
-    : daysLeft <= 7 ? `Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left — secure your experience before it expires.`
-    : daysLeft <= 30 ? `Your gift is valid for ${daysLeft} more days. Don’t let it go to waste.`
+    : daysLeft === 0 ? (isAr ? 'ينتهي موعد هديتك اليوم — احجز الآن قبل فوات الأوان.' : 'Your gift expires today — book now before it’s too late.')
+    : daysLeft <= 7 ? (isAr ? `متبقي ${daysLeft} ${daysLeft === 1 ? 'يوم' : 'أيام'} فقط — احجز تجربتك قبل انتهائها.` : `Only ${daysLeft} day${daysLeft === 1 ? '' : 's'} left — secure your experience before it expires.`)
+    : daysLeft <= 30 ? (isAr ? `هديتك صالحة لمدة ${daysLeft} يوماً أخرى.` : `Your gift is valid for ${daysLeft} more days. Don’t let it go to waste.`)
     : null;
 
   return (
@@ -1363,7 +1678,7 @@ function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate
       margin: '0 0 28px',
       background: '#543C30',
       borderRadius: 24,
-      padding: '32px 22px',
+      padding: '30px 20px',
       boxShadow: '0 14px 40px rgba(84,60,48,0.25)',
       position: 'relative',
       overflow: 'hidden',
@@ -1375,18 +1690,26 @@ function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ fontSize: 32, marginBottom: 10 }}>✨</div>
         <h3 style={{
-          fontFamily: "'Lustria', serif",
+          fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
           color: '#FFFFFF',
-          fontSize: '1.2rem',
+          fontSize: '1.25rem',
           fontWeight: 700,
-          lineHeight: 1.5,
-          marginBottom: urgencyLine ? 10 : 20,
+          lineHeight: 1.4,
+          marginBottom: 8,
         }}>
-          Ready to redeem your gift?<br />
-          <span style={{ fontWeight: 400, fontSize: '1rem', color: '#D3C0B1' }}>
-            Download the USH Spa app and book your session in seconds.
-          </span>
+          {isAr ? 'جاهز لاستخدام هديتك؟' : 'Ready to redeem your gift?'}
         </h3>
+        <p style={{
+          fontSize: '0.88rem',
+          color: '#D3C0B1',
+          marginBottom: urgencyLine ? 14 : 22,
+          lineHeight: 1.6,
+          fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+        }}>
+          {isAr
+            ? 'يمكنك حجز موعدك بسهولة من خلال أحد الخيارين أدناه:'
+            : 'Choose one of the two options below to book your appointment:'}
+        </p>
 
         {urgencyLine && (
           <div style={{
@@ -1396,44 +1719,188 @@ function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate
             borderRadius: 30, padding: '8px 18px', marginBottom: 20,
           }}>
             <span style={{ fontSize: 14 }}>⏰</span>
-            <span style={{ color: '#D3C0B1', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.3px' }}>
+            <span style={{ color: '#D3C0B1', fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.3px', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
               {urgencyLine}
             </span>
           </div>
         )}
 
-        {/* Download Buttons */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <a
-            id="gift-app-store-link"
-            href="https://apps.apple.com/us/app/ushspa/id6771279814"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="app-btn"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="#4E2712">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.77 1 .08 2.05-.52 2.68-1.27z"/>
-            </svg>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.62rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8 }}>DOWNLOAD ON THE</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontSize: '0.95rem', fontWeight: 700, color: '#4E2712' }}>App Store</div>
+        {/* ── Two Redemption Options ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Download the App */}
+          <div style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(211,192,177,0.35)',
+            borderRadius: 18,
+            padding: '18px 14px 16px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+              color: '#FFFFFF',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              marginBottom: 4,
+            }}>
+              {isAr ? 'تحميل تطبيق USH Spa' : 'Download the USH Spa App'}
             </div>
-          </a>
-          <a
-            id="gift-play-store-link"
-            href="https://play.google.com/store/apps/details?id=com.spaush.ushspa"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="app-btn"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="#4E2712">
-              <path d="M3.609 1.814L13.792 12 3.61 22.186c-.328-.31-.518-.763-.518-1.298V3.112c0-.535.19-.988.517-1.298zM15.207 13.415l2.296 2.296-12.01 6.844 9.714-9.14zm0-2.83L5.493 1.445l12.01 6.844-2.296 2.296zm1.414 1.415l3.208 1.828c.84.478.84 1.258 0 1.737l-3.208 1.828-2.008-2.008 2.008-2.008z"/>
-            </svg>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '0.62rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8 }}>GET IT ON</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontSize: '0.95rem', fontWeight: 700, color: '#4E2712' }}>Google Play</div>
+            <p style={{
+              fontSize: '0.8rem',
+              color: '#D3C0B1',
+              marginBottom: 12,
+              lineHeight: 1.5,
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            }}>
+              {isAr
+                ? 'حمّل التطبيق واحجز جلستك بكل سهولة خلال ثوانٍ.'
+                : 'Download the app and book your session in seconds.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <a
+                id="gift-app-store-link"
+                href="https://apps.apple.com/us/app/ushspa/id6771279814"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="app-btn"
+                style={{ flex: '1 1 140px', padding: '10px 14px' }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.77 1 .08 2.05-.52 2.68-1.27z"/>
+                </svg>
+                <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                  <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                    {isAr ? 'تحميل من' : 'DOWNLOAD ON THE'}
+                  </div>
+                  <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
+                    App Store
+                  </div>
+                </div>
+              </a>
+
+              <a
+                id="gift-play-store-link"
+                href="https://play.google.com/store/apps/details?id=com.spaush.ushspa"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="app-btn"
+                style={{ flex: '1 1 140px', padding: '10px 14px' }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
+                  <path d="M3.609 1.814L13.792 12 3.61 22.186c-.328-.31-.518-.763-.518-1.298V3.112c0-.535.19-.988.517-1.298zM15.207 13.415l2.296 2.296-12.01 6.844 9.714-9.14zm0-2.83L5.493 1.445l12.01 6.844-2.296 2.296zm1.414 1.415l3.208 1.828c.84.478.84 1.258 0 1.737l-3.208 1.828-2.008-2.008 2.008-2.008z"/>
+                </svg>
+                <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                  <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                    {isAr ? 'تحميل من' : 'GET IT ON'}
+                  </div>
+                  <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
+                    Google Play
+                  </div>
+                </div>
+              </a>
             </div>
-          </a>
+          </div>
+
+          {/* Divider */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            margin: '2px 0',
+          }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
+            <span style={{
+              color: '#D3C0B1',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            }}>
+              {isAr ? 'أو' : 'OR'}
+            </span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
+          </div>
+
+          {/* Contact Call Center */}
+          <div style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(211,192,177,0.35)',
+            borderRadius: 18,
+            padding: '18px 14px 16px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+              color: '#FFFFFF',
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              marginBottom: 4,
+            }}>
+              {isAr ? 'الاتصال بمركز خدمة عملاء USH Spa' : 'Contact USH Spa Call Center'}
+            </div>
+            <p style={{
+              fontSize: '0.8rem',
+              color: '#D3C0B1',
+              marginBottom: 12,
+              lineHeight: 1.5,
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            }}>
+              {isAr
+                ? 'فريق خدمة العملاء متواجد لمساعدتك وحجز موعدك عبر الهاتف.'
+                : 'Our concierge team is available to assist and confirm your booking.'}
+            </p>
+
+            <a
+              id="gift-call-center-btn"
+              href="tel:+965900103335"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                width: '100%',
+                maxWidth: 320,
+                margin: '0 auto',
+                padding: '13px 20px',
+                borderRadius: 16,
+                background: '#FFFFFF',
+                color: '#4E2712',
+                textDecoration: 'none',
+                fontWeight: 700,
+                boxShadow: '0 6px 20px rgba(0,0,0,0.2)',
+                border: '1.5px solid #D3C0B1',
+                transition: 'all 250ms ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#EBE5DE';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = '#FFFFFF';
+                e.currentTarget.style.transform = '';
+              }}
+            >
+              <span style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: '#543C30', color: '#FFFFFF',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, flexShrink: 0,
+              }}>
+                📞
+              </span>
+              <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                <div style={{ fontSize: '0.64rem', color: '#543C30', opacity: 0.8, textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'اتصل الآن بمركز الخدمة' : 'Contact Call Center'}
+                </div>
+                <div dir="ltr" style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700, letterSpacing: '0.5px' }}>
+                  +965 900103335
+                </div>
+              </div>
+            </a>
+          </div>
+
         </div>
       </div>
     </div>
@@ -1442,37 +1909,47 @@ function AppCTA({ style, expireDate }: { style?: React.CSSProperties; expireDate
 
 /* ─────────────────────────────── Service Gift Page ─────────────────── */
 
-function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
+function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
+  const isAr = lang === 'ar';
   const expired = isExpired(v.expire_date);
+  const voucherNum = getVoucherNumber(v);
   /* Support both image (legacy) and image1 (actual API) */
   const heroImg = v.service_arrangement_data?.image || v.service_data?.image1 || v.service_data?.image || '';
   const serviceImg = v.service_data?.image1 || v.service_data?.image || '';
   const sd = v.service_data;
-  const ar = v.service_arrangement_data;
   const br = v.branch_data;
   /* Support both duration (actual API) and duration_minutes (legacy) */
   const sdDuration = sd?.duration ?? sd?.duration_minutes ?? 0;
   const [revealed, setRevealed] = useState(false);
+  const senderName = getSenderDisplayName(v);
 
   useEffect(() => { setTimeout(() => setRevealed(true), 100); }, []);
 
   return (
     <div style={{ background: '#D3C0B2', overflowX: 'hidden', minHeight: '100vh' }}>
-      <FloatingPetals />
 
-      {/* ── Top Bar (Only Logo) ── */}
+      {/* ── Top Bar (Logo + Lang Switcher + Status Badge) ── */}
       <div style={{
         position: 'relative', zIndex: 10,
         background: '#543C30',
         padding: '14px 20px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 10,
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
           <Logo size={38} />
         </div>
-        <StatusBadge status={v.status} expired={expired} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
+          <StatusBadge status={v.status} expired={expired} lang={lang} />
+        </div>
       </div>
+
+      {/* ── Voucher Number at Top (with emphasis) ── */}
+      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
 
       {/* ── Expired Banner ── */}
       {expired && (
@@ -1484,11 +1961,11 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
         }}>
           <span style={{ fontSize: 24 }}>⚠️</span>
           <div>
-            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Lustria', serif" }}>
-              This Gift Voucher Has Expired
+            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif" }}>
+              {isAr ? 'لقد انتهت صلاحية قسيمة الهدية هذه' : 'This Gift Voucher Has Expired'}
             </div>
-            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2 }}>
-              Expired on {fmtDate(v.expire_date)}
+            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? `انتهت الصلاحية في ${fmtDate(v.expire_date, lang)}` : `Expired on ${fmtDate(v.expire_date, lang)}`}
             </div>
           </div>
         </div>
@@ -1508,27 +1985,27 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           background: 'linear-gradient(to bottom, rgba(78,39,18,0.1) 0%, rgba(78,39,18,0.85) 100%)',
         }} />
         <div style={{
-          position: 'absolute', top: 20, right: 20,
+          position: 'absolute', top: 20, right: isAr ? 'auto' : 20, left: isAr ? 20 : 'auto',
           background: '#4E2712',
           borderRadius: 50, padding: '9px 18px',
-          color: '#FFFFFF', fontFamily: "'Lustria', serif",
-          fontSize: '0.8rem', fontWeight: 700, letterSpacing: 1,
+          color: '#FFFFFF', fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+          fontSize: '0.8rem', fontWeight: 700, letterSpacing: isAr ? 0 : 1,
           boxShadow: '0 4px 20px rgba(78,39,18,0.4)',
           border: '1.5px solid #D3C0B1',
         }}>
-          🎁 GIFT VOUCHER
+          {isAr ? '🎁 قسيمة هدية' : '🎁 GIFT VOUCHER'}
         </div>
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '28px 24px 30px' }}>
-          <p style={{ fontFamily: "'Alex Brush', cursive", fontSize: '1.6rem', color: '#D3C0B1', margin: '0 0 4px' }}>
-            {v.gift_template || 'Luxury Experience'}
+          <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Alex Brush', cursive", fontSize: isAr ? '1.15rem' : '1.6rem', color: '#D3C0B1', margin: '0 0 4px', fontWeight: isAr ? 700 : 400 }}>
+            {v.gift_template || (isAr ? 'تجربة فاخرة' : 'Luxury Experience')}
           </p>
           <h1 style={{
-            fontFamily: "'Lustria', serif",
+            fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
             fontSize: 'clamp(1.4rem, 5vw, 2.2rem)',
             color: '#FFFFFF', fontWeight: 700, lineHeight: 1.2, margin: '0 0 10px',
             textShadow: '0 2px 12px rgba(0,0,0,0.35)',
           }}>
-            {v.service_data?.name || 'Spa Service'}
+            {v.service_data?.name || (isAr ? 'جلسة سبا' : 'Spa Service')}
           </h1>
           {v.service_data?.service_types?.length ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1536,6 +2013,7 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
                 <span key={st.id} style={{
                   background: 'rgba(211,192,177,0.85)', borderRadius: 20,
                   padding: '4px 13px', color: '#4E2712', fontSize: '0.76rem', fontWeight: 700,
+                  fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
                 }}>{st.name}</span>
               ))}
             </div>
@@ -1554,10 +2032,16 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
         animation: 'revealSlide 0.7s 0.2s ease both',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 110 }}>
-            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>From</div>
-            <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.sender_data?.name}</div>
-            <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.sender_data?.phone_number}</div>
+          <div style={{ flex: 1, minWidth: 110, textAlign: isAr ? 'right' : 'left' }}>
+            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? 'من' : 'From'}
+            </div>
+            <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>
+              {senderName || '—'}
+            </div>
+            <div dir="ltr" style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3, textAlign: isAr ? 'right' : 'left' }}>
+              {v.sender_data?.phone_number}
+            </div>
           </div>
           <div style={{
             width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
@@ -1569,20 +2053,30 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           }}>
             <Logo size={36} style={{ borderRadius: '50%' }} />
           </div>
-          <div style={{ flex: 1, minWidth: 110, textAlign: 'right' }}>
-            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>To</div>
-            <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.recipient_data?.name}</div>
-            <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.recipient_phone}</div>
+          <div style={{ flex: 1, minWidth: 110, textAlign: isAr ? 'left' : 'right' }}>
+            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? 'إلى' : 'To'}
+            </div>
+            <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>
+              {v.recipient_data?.name || '—'}
+            </div>
+            <div dir="ltr" style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3, textAlign: isAr ? 'left' : 'right' }}>
+              {v.recipient_phone}
+            </div>
           </div>
         </div>
         {v.gift_message && (
           <div style={{
             marginTop: 20, padding: '16px 18px',
             background: '#EBE5DE',
-            borderRadius: 14, borderLeft: '3.5px solid #4E2712',
+            borderRadius: 14,
+            borderLeft: isAr ? 'none' : '3.5px solid #4E2712',
+            borderRight: isAr ? '3.5px solid #4E2712' : 'none',
           }}>
-            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 7 }}>✉ Gift Message</div>
-            <p style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: 'italic', lineHeight: 1.65, margin: 0 }}>
+            <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? '✉ رسالة الإهداء' : '✉ Gift Message'}
+            </div>
+            <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: isAr ? 'normal' : 'italic', lineHeight: 1.65, margin: 0 }}>
               &ldquo;{v.gift_message}&rdquo;
             </p>
           </div>
@@ -1592,14 +2086,14 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
       {/* ── Quick Stats Row (No Price) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, margin: '20px 18px 0' }}>
         {[
-          { icon: '⏱', label: 'Duration', value: fmtDuration(v.total_duration || sdDuration || 0) },
-          { icon: '🎁', label: 'Ritual', value: v.service_data?.name ? (v.service_data.name.length > 14 ? v.service_data.name.substring(0, 14) + '…' : v.service_data.name) : 'Special' },
-          { icon: '📅', label: 'Valid Until', value: fmtDate(v.expire_date).replace(/,.*/, '') },
+          { icon: '⏱', label: isAr ? 'المدة' : 'Duration', value: fmtDuration(v.total_duration || sdDuration || 0, lang) },
+          { icon: '🎁', label: isAr ? 'الخدمة' : 'Ritual', value: v.service_data?.name ? (v.service_data.name.length > 14 ? v.service_data.name.substring(0, 14) + '…' : v.service_data.name) : (isAr ? 'خاصة' : 'Special') },
+          { icon: '📅', label: isAr ? 'صالح حتى' : 'Valid Until', value: fmtDate(v.expire_date, lang).replace(/,.*/, '') },
         ].map((s, i) => (
           <div key={s.label} className="stat-card" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
             <div style={{ fontSize: 22, marginBottom: 7 }}>{s.icon}</div>
-            <div style={{ fontSize: '0.66rem', color: '#D3C0B1', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 5, fontWeight: 600 }}>{s.label}</div>
-            <div style={{ fontFamily: "'Lustria', serif", fontSize: '0.85rem', color: '#4E2712', fontWeight: 700, lineHeight: 1.3 }}>{s.value}</div>
+            <div style={{ fontSize: '0.66rem', color: '#D3C0B1', textTransform: 'uppercase', letterSpacing: isAr ? 0 : 1.2, marginBottom: 5, fontWeight: 600, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>{s.label}</div>
+            <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.85rem', color: '#4E2712', fontWeight: 700, lineHeight: 1.3 }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -1612,18 +2106,22 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           <div className="detail-card">
             <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>🧖</span>
-              <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Service</span>
+              <span style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>
+                {isAr ? 'الخدمة' : 'Service'}
+              </span>
             </div>
             <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'flex-start' }}>
               {serviceImg && (
                 <img src={serviceImg} alt={sd.name} style={{ width: 72, height: 72, borderRadius: 14, objectFit: 'cover', display: 'block', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3 }}>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3 }}>
                   {sd.name}
                 </div>
                 {sdDuration > 0 && (
-                  <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 6 }}>⏱ {fmtDuration(sdDuration)}</div>
+                  <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 6, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                    ⏱ {fmtDuration(sdDuration, lang)}
+                  </div>
                 )}
               </div>
             </div>
@@ -1635,7 +2133,9 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           <div className="detail-card">
             <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ fontSize: 18 }}>✨</span>
-              <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Add-ons</span>
+              <span style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>
+                {isAr ? 'الإضافات' : 'Add-ons'}
+              </span>
             </div>
             <div style={{ padding: '4px 0' }}>
               {v.addons.map((a, i) => (
@@ -1646,9 +2146,11 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
                 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 10, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>✨</div>
                   <div>
-                    <div style={{ fontFamily: "'Lustria', serif", fontWeight: 600, color: '#4E2712', fontSize: '0.97rem' }}>{a.name}</div>
+                    <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 600, color: '#4E2712', fontSize: '0.97rem' }}>{a.name}</div>
                     {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
-                      <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.65, marginTop: 3 }}>⏱ {fmtDuration(a.duration ?? a.duration_minutes ?? 0)}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.65, marginTop: 3, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                        ⏱ {fmtDuration(a.duration ?? a.duration_minutes ?? 0, lang)}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1666,8 +2168,12 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           }}>
             <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⏰</div>
             <div>
-              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Bonus Extra Time</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>+{fmtDuration(v.extra_time)}</div>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 4, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                {isAr ? 'وقت إضافي مجاني' : 'Bonus Extra Time'}
+              </div>
+              <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>
+                +{fmtDuration(v.extra_time, lang)}
+              </div>
             </div>
           </div>
         )}
@@ -1681,8 +2187,10 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
           }}>
             <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📍</div>
             <div>
-              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Branch Location</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{br.name}</div>
+              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 4, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                {isAr ? 'موقع الفرع' : 'Branch Location'}
+              </div>
+              <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{br.name}</div>
             </div>
           </div>
         )}
@@ -1700,29 +2208,35 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
       }}>
         <div className="shimmer-bar" />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ color: '#D3C0B1', fontSize: '0.72rem', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 6 }}>Luxury Ritual</div>
-          <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.25rem', color: '#FFFFFF', fontWeight: 700, lineHeight: 1.2 }}>
-            {v.service_data?.name || v.gift_template || 'Signature Experience'}
+          <div style={{ color: '#D3C0B1', fontSize: '0.72rem', letterSpacing: isAr ? 0 : 1.8, textTransform: 'uppercase', marginBottom: 6, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+            {isAr ? 'جلسة فاخرة' : 'Luxury Ritual'}
+          </div>
+          <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.25rem', color: '#FFFFFF', fontWeight: 700, lineHeight: 1.2 }}>
+            {v.service_data?.name || v.gift_template || (isAr ? 'تجربة مميزة' : 'Signature Experience')}
           </div>
         </div>
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'right' }}>
-          <div style={{ color: '#D3C0B1', fontSize: '0.72rem', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 6 }}>Total Time</div>
-          <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.3rem', color: '#FFFFFF', fontWeight: 700, lineHeight: 1 }}>
-            {fmtDuration(v.total_duration || 0)}
+        <div style={{ position: 'relative', zIndex: 1, textAlign: isAr ? 'left' : 'right' }}>
+          <div style={{ color: '#D3C0B1', fontSize: '0.72rem', letterSpacing: isAr ? 0 : 1.8, textTransform: 'uppercase', marginBottom: 6, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+            {isAr ? 'إجمالي الوقت' : 'Total Time'}
+          </div>
+          <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.3rem', color: '#FFFFFF', fontWeight: 700, lineHeight: 1 }}>
+            {fmtDuration(v.total_duration || 0, lang)}
           </div>
         </div>
       </div>
 
-      <AppCTA style={{ margin: '0 20px 28px' }} expireDate={v.expire_date} />
+      <AppCTA style={{ margin: '0 20px 28px' }} expireDate={v.expire_date} lang={lang} />
 
       <div style={{ textAlign: 'center', paddingBottom: 48, color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px 48px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
           <Logo size={34} />
         </div>
-        <p style={{ lineHeight: 1.7 }}>
-          Present this voucher at our branch to redeem your experience.<br />
+        <p style={{ lineHeight: 1.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+          {isAr ? 'يرجى تقديم هذه القسيمة في الفرع للاستمتاع بتجربتك.' : 'Present this voucher at our branch to redeem your experience.'}<br />
           <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>
-            {expired ? '⚠ This voucher has expired' : `Valid until ${fmtDate(v.expire_date)}`}
+            {expired
+              ? (isAr ? '⚠ انتهت صلاحية هذه القسيمة' : '⚠ This voucher has expired')
+              : (isAr ? `صالح حتى ${fmtDate(v.expire_date, lang)}` : `Valid until ${fmtDate(v.expire_date)}`)}
           </span>
         </p>
       </div>
@@ -1732,267 +2246,372 @@ function ServiceGiftDisplay({ v }: { v: GiftVoucher }) {
 
 /* ─────────────────────────────── Digital Gift Display ──────────────── */
 
-function DigitalGiftDisplay({ v }: { v: GiftVoucher }) {
-  const expired = isExpired(v.expire_date);
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => { setTimeout(() => setRevealed(true), 100); }, []);
+function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
+  const isAr = lang === 'ar';
+  const voucherNum = getVoucherNumber(v);
+  const senderName = getSenderDisplayName(v);
+
+  const hasProducts = Boolean(v.ordered_items && v.ordered_items.length > 0);
+  const hasService = Boolean(v.service_data);
+  const sdDuration = v.service_data?.duration ?? v.service_data?.duration_minutes ?? 0;
+  const videoUrl = v.digital_product_data?.video_url;
 
   return (
-    <div style={{ background: '#D3C0B2', overflowX: 'hidden', minHeight: '100vh' }}>
-      <FloatingPetals />
+    <div style={{
+      background: '#D3C0B2',
+      minHeight: '100vh', overflowX: 'hidden',
+    }}>
 
-      {/* Top Bar */}
+      {/* ── Top Bar (Logo + Lang Switcher + Digital Gift Badge) ── */}
       <div style={{
         position: 'relative', zIndex: 10,
         background: '#543C30',
         padding: '14px 20px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 10,
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
-        <Logo size={38} />
-        <StatusBadge status={v.status} expired={expired} />
-      </div>
-
-      {/* Expired Banner */}
-      {expired && (
-        <div style={{
-          padding: '16px 24px', background: '#4E2712',
-          borderBottom: '2px solid #D3C0B1',
-          display: 'flex', alignItems: 'center', gap: 12,
-        }}>
-          <span style={{ fontSize: 24 }}>⚠️</span>
-          <div>
-            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Lustria', serif" }}>This Gift Voucher Has Expired</div>
-            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2 }}>Expired on {fmtDate(v.expire_date)}</div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+          <Logo size={38} />
         </div>
-      )}
-
-      {/* Hero Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
-        padding: '48px 24px 56px',
-        textAlign: 'center',
-        position: 'relative', overflow: 'hidden',
-        opacity: revealed ? 1 : 0, transform: revealed ? 'none' : 'translateY(20px)',
-        transition: 'opacity 0.8s ease, transform 0.8s ease',
-      }}>
-        <div className="shimmer-bar" />
-        <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flex: 1 }}>
           <div style={{
-            fontSize: 72, marginBottom: 16,
-            display: 'inline-block',
-            animation: 'giftBounce 2.5s ease-in-out infinite',
-          }}>🎁</div>
-          <p style={{ fontFamily: "'Alex Brush', cursive", fontSize: '1.6rem', color: '#D3C0B1', margin: '0 0 8px' }}>
-            {v.gift_template || 'Your Digital Gift'}
-          </p>
-          <h1 style={{
-            fontFamily: "'Lustria', serif",
-            fontSize: 'clamp(1.4rem, 5vw, 2rem)',
-            color: '#FFFFFF', fontWeight: 700, lineHeight: 1.2, margin: '0 0 14px',
-            textShadow: '0 2px 12px rgba(0,0,0,0.35)',
+            background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '5px 14px',
+            fontSize: '0.78rem', fontWeight: 700, color: '#FFFFFF', letterSpacing: isAr ? 0 : 1,
+            border: '1.5px solid #D3C0B1',
+            fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
           }}>
-            Digital Gift Package
-          </h1>
-          <div style={{
-            display: 'inline-block', padding: '6px 20px', borderRadius: 999,
-            background: 'rgba(211,192,177,0.2)', border: '1px solid rgba(211,192,177,0.4)',
-            color: '#D3C0B1', fontSize: '0.8rem', fontWeight: 700, letterSpacing: 1.2,
-          }}>✨ DIGITAL EXPERIENCE</div>
+            {isAr ? '🎁 هدية رقمية' : '🎁 DIGITAL GIFT'}
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '20px 18px 48px' }}>
+      {/* ── Voucher Number at Top (with emphasis) ── */}
+      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
 
-        {/* From / To Card */}
+      <div style={{ padding: '16px 18px 40px' }}>
+
+        {/* ── Gift From Banner ── */}
         <div style={{
-          margin: '-32px 0 20px',
           background: '#FFFFFF', borderRadius: 24,
-          padding: '26px 22px 22px',
-          boxShadow: '0 16px 48px rgba(78,39,18,0.1)',
-          border: '1px solid #EBE5DE',
-          position: 'relative', zIndex: 5,
-          animation: 'revealSlide 0.7s 0.2s ease both',
+          padding: '24px 20px 20px',
+          boxShadow: '0 8px 32px rgba(78,39,18,0.08)',
+          border: '1px solid #EBE5DE', marginBottom: 18,
+          animation: 'revealSlide 0.7s 0.1s ease both',
+          position: 'relative', overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 110 }}>
-              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>From</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.sender_data?.name || '—'}</div>
-              {v.sender_data?.phone_number && (
-                <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.sender_data.phone_number}</div>
-              )}
-            </div>
-            <div style={{
-              width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-              background: '#543C30',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-              animation: 'float 3s ease-in-out infinite',
-              overflow: 'hidden',
-            }}>
-              <Logo size={36} style={{ borderRadius: '50%' }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 110, textAlign: 'right' }}>
-              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5 }}>To</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>{v.recipient_data?.name || '—'}</div>
-              {v.recipient_phone && (
-                <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3 }}>{v.recipient_phone}</div>
-              )}
-            </div>
-          </div>
-
-          {/* Gift Message */}
-          {v.gift_message && (
-            <div style={{
-              marginTop: 20, padding: '16px 18px',
-              background: '#EBE5DE',
-              borderRadius: 14, borderLeft: '3.5px solid #4E2712',
-            }}>
-              <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 7 }}>✉ Gift Message</div>
-              <p style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: 'italic', lineHeight: 1.65, margin: 0 }}>
-                &ldquo;{v.gift_message}&rdquo;
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-          {[
-            { icon: '📅', label: 'Valid Until', value: fmtDate(v.expire_date) },
-            { icon: '⏱', label: 'Duration', value: fmtDuration(v.total_duration || (v.service_data?.duration ?? v.service_data?.duration_minutes) || 0) },
-          ].map((s, i) => (
-            <div key={s.label} className="stat-card" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
-              <div style={{ fontSize: 22, marginBottom: 7 }}>{s.icon}</div>
-              <div style={{ fontSize: '0.66rem', color: '#D3C0B1', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 5, fontWeight: 600 }}>{s.label}</div>
-              <div style={{ fontFamily: "'Lustria', serif", fontSize: '0.85rem', color: '#4E2712', fontWeight: 700, lineHeight: 1.3 }}>{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Gift Details — Service, Addons, Extra Time, Branch */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-
-          {/* Service */}
-          {v.service_data && (
-            <div className="detail-card">
-              <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>🧖</span>
-                <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Service</span>
+          <div className="shimmer-bar" />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'من' : 'From'}
+                </div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.15rem', color: '#4E2712', fontWeight: 700 }}>
+                  {senderName || '—'}
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: 14, padding: '16px 18px', alignItems: 'center' }}>
-                {(v.service_data.image1 || v.service_data.image) && (
-                  <img
-                    src={v.service_data.image1 || v.service_data.image!}
-                    alt={v.service_data.name}
-                    style={{ width: 68, height: 68, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
-                  />
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3 }}>
-                    {v.service_data.name}
-                  </div>
-                  {(v.service_data.duration ?? v.service_data.duration_minutes ?? 0) > 0 && (
-                    <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.65, marginTop: 5 }}>
-                      ⏱ {fmtDuration(v.service_data.duration ?? v.service_data.duration_minutes ?? 0)}
-                    </div>
-                  )}
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                background: '#543C30',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                animation: 'float 3s ease-in-out infinite',
+                overflow: 'hidden',
+              }}>
+                <Logo size={36} style={{ borderRadius: '50%' }} />
+              </div>
+              <div style={{ textAlign: isAr ? 'left' : 'right' }}>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'هدية مميزة' : 'Special Gift'}
+                </div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700 }}>
+                  {isAr ? 'خصيصاً لك' : 'For You'}
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Addons */}
-          {v.addons && v.addons.length > 0 && (
-            <div className="detail-card">
-              <div style={{ padding: '13px 18px', borderBottom: '1px solid #EBE5DE', background: '#EBE5DE', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>✨</span>
-                <span style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '0.92rem' }}>Add-ons</span>
+            {v.gift_message && (
+              <div style={{
+                marginTop: 18, padding: '16px 18px',
+                background: '#EBE5DE',
+                borderRadius: 14,
+                borderLeft: isAr ? 'none' : '3.5px solid #4E2712',
+                borderRight: isAr ? '3.5px solid #4E2712' : 'none',
+              }}>
+                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? '✉ رسالة الإهداء' : '✉ Gift Message'}
+                </div>
+                <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: isAr ? 'normal' : 'italic', lineHeight: 1.65, margin: 0 }}>
+                  &ldquo;{v.gift_message}&rdquo;
+                </p>
               </div>
-              <div style={{ padding: '4px 0' }}>
-                {v.addons.map((a, i) => (
-                  <div key={a.addon_id ?? a.id ?? i} style={{
-                    padding: '14px 18px',
-                    borderBottom: i < (v.addons?.length ?? 1) - 1 ? '1px solid #EBE5DE' : 'none',
-                    display: 'flex', alignItems: 'center', gap: 12,
-                  }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✨</div>
-                    <div>
-                      <div style={{ fontFamily: "'Lustria', serif", fontWeight: 600, color: '#4E2712', fontSize: '0.97rem' }}>{a.name}</div>
-                      {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
-                        <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.65, marginTop: 2 }}>⏱ {fmtDuration(a.duration ?? a.duration_minutes ?? 0)}</div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Video Greeting Card (If video exists) ── */}
+        {videoUrl && (
+          <div style={{
+            background: '#FFFFFF', borderRadius: 24,
+            padding: '18px 18px 16px',
+            boxShadow: '0 6px 24px rgba(78,39,18,0.06)',
+            border: '1px solid #EBE5DE',
+            overflow: 'hidden', marginBottom: 18,
+            animation: 'fadeUp 0.6s 0.15s ease both',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 12,
+                background: '#543C30',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, color: '#FFFFFF',
+              }}>🎬</div>
+              <div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>
+                  {isAr ? 'فيديو الإهداء' : 'Video Greeting'}
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#4E2712', opacity: 0.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {isAr ? 'رسالة فيديو مميزة لك' : 'A special video message for you'}
+                </div>
+              </div>
+            </div>
+            <div style={{ borderRadius: 16, overflow: 'hidden', background: '#000', position: 'relative' }}>
+              <video
+                src={videoUrl}
+                controls
+                playsInline
+                style={{ width: '100%', maxHeight: 280, display: 'block', objectFit: 'contain' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Gift Items Section (Products & Service Details) ── */}
+        {(hasProducts || hasService) && (
+          <div style={{
+            background: '#FFFFFF', borderRadius: 24,
+            boxShadow: '0 6px 24px rgba(78,39,18,0.06)',
+            border: '1px solid #EBE5DE',
+            overflow: 'hidden', marginBottom: 18,
+            animation: 'fadeUp 0.6s 0.2s ease both',
+          }}>
+            <div style={{
+              padding: '16px 20px 14px',
+              borderBottom: '1px solid #EBE5DE',
+              background: '#EBE5DE',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 14,
+                background: '#543C30',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                color: '#FFFFFF',
+                boxShadow: '0 4px 12px rgba(84,60,48,0.2)',
+              }}>🛍️</div>
+              <div>
+                <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1.05rem' }}>
+                  {isAr ? 'محتويات الهدية' : 'Gift Items'}
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#4E2712', opacity: 0.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                  {hasProducts && hasService
+                    ? (isAr ? 'منتجات وجلسة سبا' : 'Products & Spa Ritual')
+                    : hasService
+                    ? (isAr ? 'جلسة سبا فاخرة' : 'Spa Ritual Experience')
+                    : (isAr ? 'منتجات مختارة' : 'Curated Products')}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '8px 20px' }}>
+              {/* Products List */}
+              {hasProducts && (
+                <div>
+                  {hasService && (
+                    <div style={{
+                      fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700,
+                      letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', padding: '12px 0 4px',
+                      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                    }}>
+                      {isAr ? '🛍️ المنتجات' : '🛍️ Products'}
+                    </div>
+                  )}
+                  {v.ordered_items!.map((item, idx) => (
+                    <div
+                      key={item.product_id || idx}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 16,
+                        padding: '14px 0',
+                        borderBottom: (idx < (v.ordered_items?.length ?? 1) - 1 || hasService)
+                          ? '1px solid #EBE5DE'
+                          : 'none',
+                      }}
+                    >
+                      <div style={{
+                        width: 58, height: 58, borderRadius: 16, overflow: 'hidden', flexShrink: 0,
+                        background: '#EBE5DE', position: 'relative',
+                        border: '1px solid #D3C0B1',
+                      }}>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name_en || item.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                            🛍️
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
+                          color: '#4E2712', fontSize: '1rem', lineHeight: 1.4,
+                          wordBreak: 'break-word',
+                        }}>
+                          {isAr ? (item.name || item.name_en) : (item.name_en || item.name)}
+                        </div>
+                        {item.quantity > 1 && (
+                          <div style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                            {isAr ? `الكمية: ${item.quantity}` : `Quantity: ${item.quantity}`}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Service Details (Service name, image, addons, extra minutes) */}
+              {hasService && v.service_data && (
+                <div style={{ padding: '14px 0' }}>
+                  {hasProducts && (
+                    <div style={{
+                      fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700,
+                      letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 12,
+                      fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                    }}>
+                      {isAr ? '🧖 جلسة السبا' : '🧖 Spa Service'}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                    {(v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image) ? (
+                      <img
+                        src={v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image || ''}
+                        alt={v.service_data.name}
+                        style={{
+                          width: 68, height: 68, borderRadius: 16,
+                          objectFit: 'cover', flexShrink: 0,
+                          border: '1px solid #D3C0B1',
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 68, height: 68, borderRadius: 16,
+                        background: '#EBE5DE', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        fontSize: 28, flexShrink: 0,
+                        border: '1px solid #D3C0B1',
+                      }}>
+                        🧖
+                      </div>
+                    )}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
+                        color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3,
+                      }}>
+                        {v.service_data.name}
+                      </div>
+                      {sdDuration > 0 && (
+                        <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 4, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                          ⏱ {fmtDuration(sdDuration, lang)}
+                        </div>
+                      )}
+                      {v.branch_data && (
+                        <div style={{ fontSize: '0.8rem', color: '#4E2712', opacity: 0.7, marginTop: 4, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                          📍 {v.branch_data.name}
+                        </div>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Add-ons */}
+                  {v.addons && v.addons.length > 0 && (
+                    <div style={{
+                      marginTop: 14, paddingTop: 12,
+                      borderTop: '1px dashed #EBE5DE',
+                    }}>
+                      <div style={{
+                        fontSize: '0.66rem', color: '#D3C0B1', fontWeight: 700,
+                        letterSpacing: isAr ? 0 : 1.5, textTransform: 'uppercase', marginBottom: 8,
+                        fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                      }}>
+                        {isAr ? '✨ الإضافات المشمولة' : '✨ Included Add-ons'}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {v.addons.map((a, i) => (
+                          <div key={a.addon_id ?? a.id ?? i} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '7px 12px', background: '#EBE5DE', borderRadius: 10,
+                          }}>
+                            <span style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.88rem', fontWeight: 600, color: '#4E2712' }}>
+                              ✨ {a.name}
+                            </span>
+                            {(a.duration ?? a.duration_minutes ?? 0) > 0 && (
+                              <span style={{ fontSize: '0.75rem', color: '#4E2712', opacity: 0.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                                +{fmtDuration(a.duration ?? a.duration_minutes ?? 0, lang)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Extra minutes */}
+                  {Boolean(v.extra_time) && (
+                    <div style={{
+                      marginTop: 12,
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      background: '#EBE5DE', borderRadius: 12,
+                      padding: '8px 14px', border: '1px solid #D3C0B1',
+                    }}>
+                      <span style={{ fontSize: 16 }}>⏰</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4E2712', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(v.extra_time!, lang)}` : `Bonus Extra Time: +${fmtDuration(v.extra_time!, lang)}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Extra Time */}
-          {!!v.extra_time && (
-            <div style={{
-              background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
-              border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
-              display: 'flex', alignItems: 'center', gap: 14,
-            }}>
-              <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⏰</div>
-              <div>
-                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Bonus Extra Time</div>
-                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>+{fmtDuration(v.extra_time)}</div>
-              </div>
-            </div>
-          )}
+        {/* Note: Delivery progress section completely removed for digital gift vouchers as per requirement 1.i */}
 
-          {/* Branch */}
-          {v.branch_data && (
-            <div style={{
-              background: '#FFFFFF', borderRadius: 20, padding: '16px 18px',
-              border: '1px solid #EBE5DE', boxShadow: '0 4px 18px rgba(78,39,18,0.05)',
-              display: 'flex', alignItems: 'center', gap: 14,
-            }}>
-              <div style={{ width: 50, height: 50, borderRadius: 14, flexShrink: 0, background: '#4E2712', color: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>📍</div>
-              <div>
-                <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>Branch Location</div>
-                <div style={{ fontFamily: "'Lustria', serif", fontWeight: 700, color: '#4E2712', fontSize: '1rem' }}>{v.branch_data.name}</div>
-              </div>
-            </div>
-          )}
+        {/* ── App Download CTA (Ready to redeem your gift?) ── */}
+        <AppCTA lang={lang} />
 
-        </div>
-
-        {/* Info row */}
-        <div className="detail-card" style={{ marginBottom: 24 }}>
-          {[
-            { label: 'Status', value: v.status?.charAt(0).toUpperCase() + v.status?.slice(1) },
-            { label: 'Valid Until', value: fmtDate(v.expire_date) },
-            { label: 'Redeemed', value: v.redeemed_at ? fmtDate(v.redeemed_at) : 'Not yet redeemed' },
-            { label: 'Gift Issued', value: fmtDate(v.created_at) },
-          ].map((r, i, arr) => (
-            <div key={r.label} style={{
-              padding: '15px 18px',
-              borderBottom: i < arr.length - 1 ? '1px solid #EBE5DE' : 'none',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-            }}>
-              <span style={{ fontSize: '0.83rem', color: '#4E2712', opacity: 0.75 }}>{r.label}</span>
-              <span style={{ fontFamily: "'Lustria', serif", fontSize: '0.88rem', fontWeight: 700, color: '#4E2712', textAlign: 'right' }}>
-                {r.value || '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <AppCTA />
-
-        {/* Footer */}
+        {/* ── Footer ── */}
         <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
             <Logo size={34} />
           </div>
-          <p style={{ lineHeight: 1.7 }}>
-            {expired ? '⚠ This voucher has expired' : `Valid until ${fmtDate(v.expire_date)}`}<br />
-            <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>Gift ID: {v.id?.substring(0, 8).toUpperCase()}</span>
+          <p style={{ lineHeight: 1.7, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+            {isAr ? 'شكراً لكونك جزءاً من عائلة USH Spa.' : 'Thank you for being with us.'}<br />
+            <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>
+              {isAr
+                ? `رقم الهدية: ${voucherNum || v.id?.substring(0, 8).toUpperCase()}`
+                : `Gift ID: ${voucherNum || v.id?.substring(0, 8).toUpperCase()}`}
+            </span>
           </p>
         </div>
       </div>
@@ -2005,11 +2624,33 @@ function DigitalGiftDisplay({ v }: { v: GiftVoucher }) {
 export default function GiftPage({ params }: { params: Promise<{ public_token: string }> }) {
   const { public_token } = use(params);
 
+  const [lang, setLang] = useState<Lang>('en');
   const [phase, setPhase] = useState<'loading' | 'modal' | 'digital-video' | 'reveal' | 'gift-display'>('loading');
   const [loading, setLoading] = useState(false);
   const [modalError, setModalError] = useState('');
   const [voucher, setVoucher] = useState<GiftVoucher | null>(null);
   const didFetch = useRef(false);
+
+  /* ── Load preferred language ── */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ush_gift_lang');
+      if (saved === 'en' || saved === 'ar') {
+        setLang(saved);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleSetLang = (l: Lang) => {
+    setLang(l);
+    try {
+      localStorage.setItem('ush_gift_lang', l);
+    } catch {
+      /* ignore */
+    }
+  };
 
   /* ── Auto-fetch to determine category ── */
   useEffect(() => {
@@ -2036,12 +2677,9 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
           ? raw as GiftVoucher
           : null;
 
-        if (voucherData?.gift_category === 'physical') {
+        if (voucherData?.gift_category === 'physical' || voucherData?.gift_category === 'digital') {
           setVoucher(voucherData);
           setPhase('reveal');
-        } else if (voucherData?.gift_category === 'digital') {
-          // Digital gifts always need secret code first
-          setPhase('modal');
         } else {
           setPhase('modal');
         }
@@ -2053,7 +2691,7 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
     autoFetch();
   }, [public_token]);
 
-  /* ── Secret code submission (service/digital) ── */
+  /* ── Secret code submission (service) ── */
   async function handleModalSubmit(secret_code: string) {
     setLoading(true);
     setModalError('');
@@ -2075,10 +2713,10 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
           (typeof data?.detail === 'string' ? data.detail : '') ||
           (typeof data?.message === 'string' ? data.message : '') ||
           (typeof data?.error === 'string' ? data.error : '') ||
-          (res.status === 404 ? 'Gift not found. Please check the link.' :
-           res.status === 400 ? 'Invalid secret code. Please try again.' :
-           res.status === 403 ? 'Access denied. Please check your secret code.' :
-           'Something went wrong. Please try again.');
+          (res.status === 404 ? (lang === 'ar' ? 'لم يتم العثور على الهدية. يرجى التحقق من الرابط.' : 'Gift not found. Please check the link.') :
+           res.status === 400 ? (lang === 'ar' ? 'رمز سري غير صالح. يرجى المحاولة مرة أخرى.' : 'Invalid secret code. Please try again.') :
+           res.status === 403 ? (lang === 'ar' ? 'تم رفض الوصول. يرجى التحقق من الرمز السري الخاص بك.' : 'Access denied. Please check your secret code.') :
+           (lang === 'ar' ? 'حدث خطأ ما. يرجى المحاولة مرة أخرى.' : 'Something went wrong. Please try again.'));
         setModalError(msg);
         return;
       }
@@ -2089,22 +2727,13 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
         : null;
       setVoucher(voucherData);
 
-      if (voucherData?.gift_category === 'physical') {
+      if (voucherData?.gift_category === 'physical' || voucherData?.gift_category === 'digital') {
         setPhase('reveal');
-      } else if (voucherData?.gift_category === 'digital') {
-        // Check for video in digital_product_data
-        const videoUrl = voucherData.digital_product_data?.video_url;
-        if (videoUrl) {
-          setPhase('digital-video');
-        } else {
-          // No video — go straight to reveal popup
-          setPhase('reveal');
-        }
       } else {
         setPhase('gift-display');
       }
     } catch {
-      setModalError('Network error. Please check your connection and try again.');
+      setModalError(lang === 'ar' ? 'خطأ في الشبكة. يرجى التحقق من اتصالك والمحاولة مرة أخرى.' : 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -2115,16 +2744,16 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
       <style>{KEYFRAMES}</style>
 
       <div className="gift-outer">
-        <div className="gift-shell">
+        <div className="gift-shell" dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ fontFamily: lang === 'ar' ? "'Cairo', sans-serif" : undefined }}>
 
           {/* Loading */}
-          {phase === 'loading' && <GiftLoadingScreen />}
+          {phase === 'loading' && <GiftLoadingScreen lang={lang} />}
 
           {/* Secret code modal (service/digital) */}
           {phase === 'modal' && (
             <>
               <FloatingPetals />
-              <SecretModal onSubmit={handleModalSubmit} loading={loading} error={modalError} />
+              <SecretModal onSubmit={handleModalSubmit} loading={loading} error={modalError} lang={lang} onToggleLang={handleSetLang} />
             </>
           )}
 
@@ -2133,6 +2762,7 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
             <DigitalVideoPopup
               videoUrl={voucher.digital_product_data!.video_url!}
               onContinue={() => setPhase('reveal')}
+              lang={lang}
             />
           )}
 
@@ -2141,25 +2771,26 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
             <>
               <div style={{ filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.25, userSelect: 'none' }}>
                 {voucher.gift_category === 'physical'
-                  ? <PhysicalGiftDisplay v={voucher} />
+                  ? <PhysicalGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
                   : voucher.gift_category === 'digital'
-                  ? <DigitalGiftDisplay v={voucher} />
-                  : <ServiceGiftDisplay v={voucher} />}
+                  ? <DigitalGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
+                  : <ServiceGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />}
               </div>
-              <GiftRevealPopup voucher={voucher} onRevealGift={() => setPhase('gift-display')} />
+              <GiftRevealPopup voucher={voucher} onRevealGift={() => setPhase('gift-display')} lang={lang} />
             </>
           )}
 
           {/* Final display */}
           {phase === 'gift-display' && voucher && (
             voucher.gift_category === 'physical'
-              ? <PhysicalGiftDisplay v={voucher} />
+              ? <PhysicalGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
               : voucher.gift_category === 'digital'
-              ? <DigitalGiftDisplay v={voucher} />
-              : <ServiceGiftDisplay v={voucher} />
+              ? <DigitalGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
+              : <ServiceGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
           )}
         </div>
       </div>
     </>
   );
 }
+
