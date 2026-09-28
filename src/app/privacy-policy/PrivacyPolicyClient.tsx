@@ -754,31 +754,36 @@ export default function PrivacyPolicyClient() {
                   </p>
                 </div>
 
-                {/* Option B: Web / Email Request */}
-                <div className="bg-white p-4 rounded border border-spa-petal/70 space-y-2">
-                  <h4 className="font-lustria text-xs font-bold uppercase tracking-wider text-spa-cherry flex items-center gap-1.5">
-                    <span>✉️</span> Method 2: Request Deletion via Email / Web Form
-                  </h4>
-                  <p className="text-xs text-spa-muted leading-relaxed">
-                    If you have uninstalled the app or prefer to request deletion via email, you may send an email from your registered email address or phone number to:
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-spa-cream rounded border border-spa-petal/50">
-                    <div>
-                      <span className="block text-xs font-semibold text-spa-text">Official Privacy Desk:</span>
-                      <a href="mailto:info@ushspa.co?subject=Account%20Deletion%20Request%20-%20USH%20Spa" className="text-xs text-spa-cherry hover:underline font-mono">
-                        info@ushspa.co
-                      </a>
-                    </div>
-                    <button
-                      onClick={copyEmail}
-                      type="button"
-                      className="text-[11px] bg-spa-rose text-white px-2.5 py-1 rounded hover:bg-spa-cherry transition-colors"
+                {/* Option B: Web Request Portal (Google Play store link) */}
+                <div className="bg-white p-4 rounded border border-spa-petal/70 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h4 className="font-lustria text-xs font-bold uppercase tracking-wider text-spa-cherry flex items-center gap-1.5">
+                      <span>🌐</span> Method 2: Web Deletion Request Portal (Immediate Online Form)
+                    </h4>
+                    <Link
+                      href="/customers/delete-request/"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-spa-cherry hover:underline"
                     >
-                      {copiedEmail ? 'Copied!' : 'Copy Email'}
-                    </button>
+                      Open Delete Portal →
+                    </Link>
                   </div>
                   <p className="text-xs text-spa-muted leading-relaxed">
-                    Please include the subject line: <code className="bg-spa-cream px-1 py-0.5 rounded text-[11px] text-spa-cherry font-medium">&ldquo;Account Deletion Request - USH Spa&rdquo;</code> along with your registered mobile phone number.
+                    Users can submit an authenticated account deletion request through our official web form using their registered phone number and account password:
+                  </p>
+                  <div className="p-3 bg-spa-blush/60 rounded border border-spa-petal/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="text-xs">
+                      <span className="font-semibold text-spa-text block">Official Web Deletion URL:</span>
+                      <code className="text-spa-cherry font-mono text-[11px]">https://ushspa.co/customers/delete-request/</code>
+                    </div>
+                    <Link
+                      href="/customers/delete-request/"
+                      className="btn-spa btn-rose text-xs py-1.5 px-3 shrink-0"
+                    >
+                      Go to Delete Form
+                    </Link>
+                  </div>
+                  <p className="text-[11px] text-spa-muted leading-relaxed">
+                    Alternatively, you can email our privacy desk at <a href="mailto:info@ushspa.co?subject=Account%20Deletion%20Request%20-%20USH%20Spa" className="text-spa-cherry hover:underline font-mono">info@ushspa.co</a> with your registered phone number.
                   </p>
                 </div>
 
