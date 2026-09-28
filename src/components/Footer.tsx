@@ -5,8 +5,9 @@ const quickLinks = [
     { label: 'Our Services', href: '#services' },
     { label: 'Our Experts', href: '#team' },
     { label: 'Appointments', href: '#booking' },
-    { label: 'Gift Cards', href: '#gift-cards' }];
-
+    { label: 'Gift Cards', href: '#gift-cards' },
+    { label: 'Privacy Policy', href: '/privacy-policy' }
+];
 
 const instagramImages = [
     { src: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=150&q=80', alt: 'USH Spa massage therapy session' },
@@ -14,13 +15,21 @@ const instagramImages = [
     { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=150&q=80', alt: 'USH Spa aromatherapy oils' },
     { src: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=150&q=80', alt: 'USH Spa hot stone massage' },
     { src: 'https://images.unsplash.com/photo-1552693673-1bf958298935?w=150&q=80', alt: 'USH Spa body scrub treatment' },
-    { src: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=150&q=80', alt: 'USH Spa luxury suite' }];
-
+    { src: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=150&q=80', alt: 'USH Spa luxury suite' }
+];
 
 export default function Footer() {
     const handleScroll = (href: string) => {
+        if (href.startsWith('/')) {
+            window.location.href = href;
+            return;
+        }
         const el = document.querySelector(href);
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            window.location.href = `/${href}`;
+        }
     };
 
     return (
@@ -101,9 +110,13 @@ export default function Footer() {
 
                 {/* Bottom Footer */}
                 <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <p className="text-white/50 text-sm">
-                        &copy; {new Date().getFullYear()} USH Spa. All Rights Reserved.
-                    </p>
+                    <div className="flex items-center gap-3 text-white/50 text-sm">
+                        <p>&copy; {new Date().getFullYear()} USH Spa. All Rights Reserved.</p>
+                        <span>|</span>
+                        <a href="/privacy-policy" className="hover:text-spa-rose transition-colors duration-300">
+                            Privacy Policy
+                        </a>
+                    </div>
                     <div className="flex items-center gap-4">
                         {[
                             { label: 'Facebook', href: '#' },
