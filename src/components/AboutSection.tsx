@@ -44,6 +44,9 @@ export default function AboutSection() {
 
                         {/* ── Right: Text ── */}
                         <div className="py-16 pr-12 pl-6 lg:pl-4">
+                            <div className="inline-block text-xs uppercase tracking-widest text-spa-cherry font-semibold mb-2">
+                                Quiet Ush Thai Spa Health Institute for Women
+                            </div>
                             <h2
                                 className="font-lustria leading-snug mb-5"
                                 style={{
@@ -53,16 +56,16 @@ export default function AboutSection() {
                                     letterSpacing: '0.3px',
                                 }}
                             >
-                                Your Beauty And<br />Success Starts Here
+                                Your Beauty And<br />Wellness Starts Here
                             </h2>
 
                             <p
                                 className="text-spa-muted leading-relaxed mb-8"
-                                style={{ fontSize: '0.92rem', maxWidth: '440px' }}
+                                style={{ fontSize: '0.92rem', maxWidth: '460px' }}
                             >
-                                Porta semper lacus cursus, feugiat primis ultrce ligula risus auctor an
-                                tempus feugiat dolor undo lacinia cubilia curae integer orci congue and
-                                metus mollis lorem
+                                <strong>Quiet Ush Thai Spa Health Institute for Women</strong> (USH Spa) is Kuwait&apos;s premier institute
+                                dedicated to women&apos;s tranquility and vitality. Experience authentic Thai therapeutic massage,
+                                rejuvenating skincare, and restorative aromatherapy in a serene, luxurious atmosphere.
                             </p>
 
                             <button

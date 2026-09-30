@@ -165,7 +165,7 @@ export default function PrivacyPolicyClient() {
             </h1>
 
             <p className="text-spa-muted text-base sm:text-lg leading-relaxed mb-6 font-light">
-              This Privacy Policy explains how <strong className="text-spa-text font-medium">USH Spa Co.</strong> collects,
+              This Privacy Policy explains how <strong className="text-spa-text font-medium">Quiet Ush Thai Spa Health Institute for Women</strong> (operating as <strong className="text-spa-text font-medium">USH Spa</strong>) collects,
               uses, protects, and discloses personal data when you use the <strong className="text-spa-text font-medium">USH Spa</strong> mobile application
               (available for iOS on the Apple App Store and for Android on the Google Play Store) to discover spa services, schedule appointments, and manage gift vouchers.
             </p>
@@ -174,15 +174,15 @@ export default function PrivacyPolicyClient() {
             <div className="flex flex-wrap items-center gap-3 sm:gap-6 pt-4 border-t border-spa-petal/40 text-xs text-spa-muted">
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-spa-text">Last Updated:</span>
-                <span className="bg-white px-2 py-1 rounded border border-spa-petal/50">September 28, 2026</span>
+                <span className="bg-white px-2 py-1 rounded border border-spa-petal/50">September 2026</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-spa-text">Application:</span>
                 <span className="bg-white px-2 py-1 rounded border border-spa-petal/50">USH Spa (iOS &amp; Android)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-spa-text">Entity:</span>
-                <span>USH Spa Co., Mangaf, Kuwait</span>
+                <span className="font-semibold text-spa-text">Legal Entity:</span>
+                <span>Quiet Ush Thai Spa Health Institute for Women, Sharq, Kuwait</span>
               </div>
             </div>
 
@@ -381,7 +381,7 @@ export default function PrivacyPolicyClient() {
                 </h2>
               </div>
               <p className="text-sm leading-relaxed text-spa-muted">
-                Welcome to <strong className="text-spa-text">USH Spa</strong> (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), operated by <strong className="text-spa-text">USH Spa Co.</strong>, registered in the State of Kuwait at Building 124, Floor 5, Office 10, USH SPA - Mangaf. We are committed to honoring the trust you place in us when using our mobile application (the &ldquo;App&rdquo;) and associated web and online booking services.
+                Welcome to <strong className="text-spa-text">USH Spa</strong> (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), operated by <strong className="text-spa-text">Quiet Ush Thai Spa Health Institute for Women</strong>, registered in the State of Kuwait at Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman, Kuwait city, Sharq 15300, Kuwait. We are committed to honoring the trust you place in us when using our mobile application (the &ldquo;App&rdquo;) and associated web and online booking services.
               </p>
               <p className="text-sm leading-relaxed text-spa-muted">
                 This Privacy Policy applies to personal data collected through:
@@ -563,7 +563,7 @@ export default function PrivacyPolicyClient() {
                     <tr>
                       <td className="p-3 font-semibold text-spa-text">Location (Coarse/Fine)</td>
                       <td className="p-3">iOS &amp; Android</td>
-                      <td className="p-3">To calculate travel distance and navigate you to our Mangaf branch. We do not track you continuously in the background.</td>
+                      <td className="p-3">To calculate travel distance and navigate you to our Sharq branch. We do not track you continuously in the background.</td>
                       <td className="p-3 text-spa-cherry font-medium">Optional</td>
                     </tr>
                     <tr>
@@ -872,19 +872,20 @@ export default function PrivacyPolicyClient() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h3 className="font-lustria text-sm font-bold uppercase tracking-wider text-spa-text mb-3">
-                      USH Spa Co.
+                      Quiet Ush Thai Spa Health Institute for Women
                     </h3>
                     <div className="space-y-2 text-xs text-spa-muted">
                       <p className="flex items-start gap-2">
-                        <span className="text-spa-cherry">📍</span>
+                        <span className="text-spa-cherry mt-0.5">📍</span>
                         <span>
-                          Building 124, Floor 5, Office 10<br />
-                          USH SPA - Mangaf, State of Kuwait
+                          Al-Shuhada Street, Block 04, Building 32<br />
+                          Nasser Ahmed Abdul Latif Al-Othman<br />
+                          Kuwait city, Sharq 15300, Kuwait
                         </span>
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">📞</span>
-                        <span>Phone / WhatsApp: <a href="tel:+96590010335" className="text-spa-text hover:text-spa-cherry font-medium">+965 90010335</a></span>
+                        <span>Phone / WhatsApp: <a href="tel:+965900103335" className="text-spa-text hover:text-spa-cherry font-medium">+965 900103335</a></span>
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">✉️</span>

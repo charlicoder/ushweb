@@ -6,7 +6,7 @@ const navItems = [
     { label: 'Home', href: '#hero' },
     { label: 'Our Services', href: '#services' },
     { label: 'Our Experts', href: '#team' },
-    { label: 'Contact Us', href: '#contact' },
+    { label: 'Contact Us', href: '/contact-us' },
     { label: 'Gallery', href: '#gallery' },
 ];
 
@@ -24,9 +24,15 @@ export default function Header() {
 
     const handleNavClick = (href: string) => {
         setMobileOpen(false);
+        if (href.startsWith('/')) {
+            window.location.href = href;
+            return;
+        }
         const el = document.querySelector(href);
         if (el) {
             el.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            window.location.href = `/${href}`;
         }
     };
 
@@ -37,19 +43,39 @@ export default function Header() {
                     : 'bg-transparent py-5'
                 }`}
         >
-            <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
-                {/* Logo */}
+            <div className="max-w-7xl mx-auto px-4 flex items-center justify-between gap-4">
+                {/* Logo & Legal Entity Title */}
                 <a
-                    href="#hero"
-                    onClick={(e) => { e.preventDefault(); handleNavClick('#hero'); }}
-                    className="flex items-center gap-2 group"
+                    href="/"
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (typeof window !== 'undefined' && window.location.pathname === '/') {
+                            handleNavClick('#hero');
+                        } else {
+                            window.location.href = '/';
+                        }
+                    }}
+                    className="flex items-center gap-2.5 sm:gap-3 group min-w-0"
                 >
                     <img
                         src={scrolled ? '/images/logo-01.png' : '/images/logo-white.png'}
                         alt="USH Spa Logo"
-                        style={{ height: '52px', width: 'auto', display: 'block' }}
-                        className="transition-all duration-300"
+                        style={{ height: '48px', width: 'auto', display: 'block' }}
+                        className="transition-all duration-300 flex-shrink-0"
                     />
+                    <div
+                        className="flex flex-col justify-center border-l pl-2.5 sm:pl-3 transition-colors duration-300"
+                        style={{ borderColor: scrolled ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.35)' }}
+                    >
+                        <span
+                            className={`font-lustria font-semibold text-[11px] sm:text-xs md:text-sm lg:text-[14px] leading-tight transition-colors duration-300 max-w-[200px] sm:max-w-[280px] md:max-w-md lg:max-w-none ${
+                                scrolled ? 'text-spa-text' : 'text-white'
+                            }`}
+                            style={scrolled ? {} : { textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+                        >
+                            Quiet Ush Thai Spa Health Institute for Women
+                        </span>
+                    </div>
                 </a>
 
                 {/* Desktop Nav */}

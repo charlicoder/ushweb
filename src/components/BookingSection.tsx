@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AppDownloadButtons from '@/components/AppDownloadButtons';
 
 export default function BookingSection() {
     const [formData, setFormData] = useState({
@@ -31,57 +32,51 @@ export default function BookingSection() {
                         <h2 className="font-lustria text-4xl md:text-5xl text-spa-text mb-6 leading-tight">
                             Schedule Your Visit
                         </h2>
-                        <p className="text-spa-muted leading-relaxed mb-8">
-                            Ready to experience the ultimate in relaxation and beauty? Book your appointment
-                            online or download our mobile app for the most convenient booking experience.
+                        <p className="text-spa-muted leading-relaxed mb-6">
+                            <strong>Quiet Ush Thai Spa Health Institute for Women</strong> welcomes you to experience the ultimate in
+                            relaxation and authentic wellness therapies. Book your appointment online or download our mobile app for instant reservations.
                         </p>
 
                         {/* App Download CTA */}
                         <div className="bg-white p-6 rounded-sm shadow-spa mb-8">
-                            <h5 className="font-lustria text-lg text-spa-text mb-3">📱 Book via Our Mobile App</h5>
+                            <h5 className="font-lustria text-lg text-spa-text mb-2">📱 Book via Our Mobile App</h5>
                             <p className="text-spa-muted text-sm leading-relaxed mb-4">
                                 Download the USH Spa app for instant booking, exclusive offers, and personalized
                                 wellness recommendations at your fingertips.
                             </p>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <a
-                                    href="https://apps.apple.com/us/app/ushspa/id6771279814"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 bg-spa-text text-white px-4 py-2.5 rounded-sm hover:bg-spa-cherry transition-colors duration-300 text-sm font-medium"
-                                >
-                                    <span className="text-lg">🍎</span>
-                                    App Store
-                                </a>
-                                <a
-                                    href="https://play.google.com/store/apps/details?id=com.spaush.ushspa"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 bg-spa-text text-white px-4 py-2.5 rounded-sm hover:bg-spa-cherry transition-colors duration-300 text-sm font-medium"
-                                >
-                                    {/* Google Play SVG icon */}
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                                        <path d="M3.18 23.76c.3.17.64.24.99.2l12.37-11.88L13.48 9 3.18 23.76zM21.37 10.6l-2.79-1.6-3.44 3.31 3.44 3.3 2.8-1.6c.8-.46.8-1.95 0-2.41zM1.96.48C1.65.85 1.5 1.36 1.5 1.98v20.04c0 .62.15 1.13.47 1.5L13.06 12 1.96.48zM16.54 1.64 4.17.24c-.35-.04-.69.03-.99.2L13.48 9l3.06-7.36z"/>
-                                    </svg>
-                                    Google Play
-                                </a>
-                            </div>
+                            <AppDownloadButtons />
                         </div>
 
-                        {/* Contact Info */}
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-3 text-spa-muted">
+                        {/* Contact & Legal Entity Info */}
+                        <div className="flex flex-col gap-3.5 bg-spa-cream/40 p-5 rounded-md border border-spa-petal/50">
+                            <div>
+                                <span className="text-[11px] uppercase tracking-wider font-semibold text-spa-cherry block mb-0.5">
+                                    Legal Business Entity
+                                </span>
+                                <h6 className="font-lustria font-bold text-spa-text text-base leading-snug">
+                                    Quiet Ush Thai Spa Health Institute for Women
+                                </h6>
+                                <p className="text-xs text-spa-muted">Operating as USH Spa</p>
+                            </div>
+                            <div className="flex items-center gap-3 text-spa-muted text-sm">
                                 <span className="text-spa-rose text-lg">📞</span>
-                                <span>+965 900103335</span>
+                                <a href="tel:+965900103335" className="hover:text-spa-cherry font-medium transition-colors">
+                                    +965 900103335
+                                </a>
                             </div>
-                            <div className="flex items-center gap-3 text-spa-muted">
+                            <div className="flex items-center gap-3 text-spa-muted text-sm">
                                 <span className="text-spa-rose text-lg">✉️</span>
-                                <span>info@ushspa.co</span>
+                                <a href="mailto:info@ushspa.co" className="hover:text-spa-cherry font-medium transition-colors">
+                                    info@ushspa.co
+                                </a>
                             </div>
-                            <div className="flex items-center gap-3 text-spa-muted">
-                                <span className="text-spa-rose text-lg">📍</span>
-                                <span>Building 124 floor 5 office 10</span>
-                                <span>USH SPA - Mangaf</span>
+                            <div className="flex items-start gap-3 text-spa-muted text-sm">
+                                <span className="text-spa-rose text-lg mt-0.5">📍</span>
+                                <div>
+                                    <p className="font-medium text-spa-text">Al-Shuhada Street</p>
+                                    <p>Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman</p>
+                                    <p>Kuwait city, Sharq 15300, Kuwait</p>
+                                </div>
                             </div>
                         </div>
                     </div>

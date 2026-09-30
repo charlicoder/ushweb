@@ -162,16 +162,16 @@ export default function DeleteRequestClient() {
                 <span className="text-spa-cherry font-medium">USH Spa</span>
               </div>
               <div>
-                <span className="block font-semibold text-spa-text">Developer Name:</span>
-                <span>USH Spa Co.</span>
+                <span className="block font-semibold text-spa-text">Developer / Entity:</span>
+                <span>Quiet Ush Thai Spa Health Institute for Women</span>
               </div>
               <div>
                 <span className="block font-semibold text-spa-text">Package / App ID:</span>
                 <span className="font-mono text-[11px]">com.spaush.ushspa</span>
               </div>
               <div>
-                <span className="block font-semibold text-spa-text">Operating Entity:</span>
-                <span>USH Spa, Mangaf, Kuwait</span>
+                <span className="block font-semibold text-spa-text">Operating Location:</span>
+                <span>Sharq, Kuwait City, Kuwait</span>
               </div>
             </div>
           </div>

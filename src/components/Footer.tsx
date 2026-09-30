@@ -6,6 +6,7 @@ const quickLinks = [
     { label: 'Our Experts', href: '#team' },
     { label: 'Appointments', href: '#booking' },
     { label: 'Gift Cards', href: '#gift-cards' },
+    { label: 'Contact Us', href: '/contact-us' },
     { label: 'Privacy Policy', href: '/privacy-policy' }
 ];
 
@@ -38,30 +39,47 @@ export default function Footer() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-white/10">
                     {/* Brand */}
                     <div>
-                        <div className="mb-5">
+                        <div className="mb-4">
                             <span className="font-lustria text-3xl font-bold tracking-widest text-white">USH</span>
                             <span className="font-brush text-2xl text-spa-rose ml-2">Spa</span>
                         </div>
-                        <p className="text-white/60 text-sm leading-relaxed">
-                            Your premier destination for luxury spa treatments, wellness therapies, and
-                            transformative beauty experiences. We craft personalized journeys for your body and soul.
+                        <p className="font-semibold text-white/95 text-sm mb-1">
+                            Quiet Ush Thai Spa Health Institute for Women
+                        </p>
+                        <p className="text-white/60 text-xs mb-3">
+                            Commercial / Legal Business Entity
+                        </p>
+                        <p className="text-white/70 text-xs leading-relaxed">
+                            Kuwait&apos;s premier destination for luxury spa treatments, authentic Thai wellness therapies,
+                            and transformative beauty experiences.
                         </p>
                     </div>
 
                     {/* Contact */}
                     <div>
-                        <h6 className="font-lustria text-base mb-6 text-white">Let&apos;s Talk</h6>
-                        <div className="flex flex-col gap-2 text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                            <p>Building 124 floor 5 office 10</p>
-                            <p>USH SPA - Mangaf</p>
-                            <div className="mt-2 flex flex-col gap-1">
+                        <h6 className="font-lustria text-base mb-4 text-white">Let&apos;s Talk</h6>
+                        <div className="flex flex-col gap-2 text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                            <p className="font-semibold text-white">
+                                Quiet Ush Thai Spa Health Institute for Women
+                            </p>
+                            <p className="text-white/80">
+                                Al-Shuhada Street<br />
+                                Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman<br />
+                                Kuwait city, Sharq 15300, Kuwait
+                            </p>
+                            <div className="mt-2 flex flex-col gap-1.5 text-xs">
                                 <p>
-                                    E:{' '}
+                                    Email:{' '}
                                     <a href="mailto:info@ushspa.co" style={{ color: '#efa697' }} className="hover:opacity-80 transition-opacity duration-300">
                                         info@ushspa.co
                                     </a>
                                 </p>
-                                <p>Phone: +965 90010335</p>
+                                <p>
+                                    Phone:{' '}
+                                    <a href="tel:+965900103335" className="hover:text-spa-rose transition-colors">
+                                        +965 900103335
+                                    </a>
+                                </p>
                                 <p>
                                     Instagram:{' '}
                                     <a href="#" style={{ color: '#efa697' }} className="hover:opacity-80 transition-opacity duration-300">
@@ -110,11 +128,19 @@ export default function Footer() {
 
                 {/* Bottom Footer */}
                 <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 text-white/50 text-sm">
-                        <p>&copy; {new Date().getFullYear()} USH Spa. All Rights Reserved.</p>
+                    <div className="flex items-center gap-3 text-white/50 text-xs flex-wrap">
+                        <p>&copy; {new Date().getFullYear()} Quiet Ush Thai Spa Health Institute for Women (USH Spa). All Rights Reserved.</p>
+                        <span>|</span>
+                        <a href="/contact-us" className="hover:text-spa-rose transition-colors duration-300">
+                            Contact Us
+                        </a>
                         <span>|</span>
                         <a href="/privacy-policy" className="hover:text-spa-rose transition-colors duration-300">
                             Privacy Policy
+                        </a>
+                        <span>|</span>
+                        <a href="/marketing" className="hover:text-spa-rose transition-colors duration-300">
+                            Marketing Details
                         </a>
                     </div>
                     <div className="flex items-center gap-4">

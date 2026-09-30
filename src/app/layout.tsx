@@ -20,13 +20,54 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'USH Spa - Luxury Spa & Wellness Center',
-  description: 'USH Spa offers premium spa treatments, massages, skincare, and wellness services. Book your appointment today and experience ultimate relaxation.',
+  title: 'Quiet Ush Thai Spa Health Institute for Women | USH Spa',
+  description: 'Quiet Ush Thai Spa Health Institute for Women (operating as USH Spa) offers premier wellness treatments, authentic Thai massages, skincare, and beauty therapy in Kuwait.',
+  keywords: [
+    'Quiet Ush Thai Spa Health Institute for Women',
+    'USH Spa',
+    'Thai Spa Kuwait',
+    'Women Spa Kuwait',
+    'Massage Therapy Sharq',
+    'Kuwait Wellness Center',
+  ],
+  openGraph: {
+    title: 'Quiet Ush Thai Spa Health Institute for Women | USH Spa',
+    description: 'Premier destination for luxury spa treatments, authentic Thai wellness therapies, and transformative beauty experiences.',
+    siteName: 'Quiet Ush Thai Spa Health Institute for Women',
+    url: 'https://ushspa.co',
+    type: 'website',
+  },
   icons: {
     icon: [
       { url: '/favicon.ico', type: 'image/x-icon' }
     ],
   },
+};
+
+const businessJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'HealthAndBeautyBusiness',
+  name: 'Quiet Ush Thai Spa Health Institute for Women',
+  legalName: 'Quiet Ush Thai Spa Health Institute for Women',
+  alternateName: 'USH Spa',
+  url: 'https://ushspa.co',
+  telephone: '+965 900103335',
+  email: 'info@ushspa.co',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman',
+    addressLocality: 'Kuwait city, Sharq',
+    postalCode: '15300',
+    addressCountry: 'KW',
+  },
+  openingHoursSpecification: [
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      opens: '10:00',
+      closes: '22:00',
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -36,6 +77,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(businessJsonLd) }}
+        />
+      </head>
       <body suppressHydrationWarning>
         {children}
 
