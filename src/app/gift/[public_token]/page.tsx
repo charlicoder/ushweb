@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useEffect, useState, useRef } from 'react';
+import React, { use, useEffect, useState, useRef, useCallback } from 'react';
 
 /* ── Allowed Palette: #D3C0B1, #4E2712, #EBE5DE, #FFFFFF ── */
 
@@ -160,16 +160,26 @@ function isExpired(dateStr: string) {
 }
 
 /* ── Language Switcher Component ── */
-function LanguageSwitcher({ lang, onToggle }: { lang: Lang; onToggle: (l: Lang) => void }) {
+function LanguageSwitcher({
+  lang,
+  onToggle,
+  variant = 'dark',
+}: {
+  lang: Lang;
+  onToggle: (l: Lang) => void;
+  variant?: 'dark' | 'light';
+}) {
+  const isLight = variant === 'light';
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        background: 'rgba(255,255,255,0.14)',
+        background: isLight ? '#EBE5DE' : 'rgba(255,255,255,0.14)',
         borderRadius: 20,
         padding: '2px',
-        border: '1px solid rgba(211,192,177,0.4)',
+        border: isLight ? '1px solid #D3C0B1' : '1px solid rgba(211,192,177,0.4)',
+        backdropFilter: isLight ? undefined : 'blur(8px)',
       }}
     >
       <button
@@ -177,8 +187,8 @@ function LanguageSwitcher({ lang, onToggle }: { lang: Lang; onToggle: (l: Lang) 
         type="button"
         onClick={() => onToggle('en')}
         style={{
-          background: lang === 'en' ? '#FFFFFF' : 'transparent',
-          color: lang === 'en' ? '#4E2712' : '#FFFFFF',
+          background: lang === 'en' ? (isLight ? '#543C30' : '#FFFFFF') : 'transparent',
+          color: lang === 'en' ? (isLight ? '#FFFFFF' : '#4E2712') : (isLight ? '#543C30' : '#FFFFFF'),
           border: 'none',
           borderRadius: 16,
           padding: '4px 10px',
@@ -196,8 +206,8 @@ function LanguageSwitcher({ lang, onToggle }: { lang: Lang; onToggle: (l: Lang) 
         type="button"
         onClick={() => onToggle('ar')}
         style={{
-          background: lang === 'ar' ? '#FFFFFF' : 'transparent',
-          color: lang === 'ar' ? '#4E2712' : '#FFFFFF',
+          background: lang === 'ar' ? (isLight ? '#543C30' : '#FFFFFF') : 'transparent',
+          color: lang === 'ar' ? (isLight ? '#FFFFFF' : '#4E2712') : (isLight ? '#543C30' : '#FFFFFF'),
           border: 'none',
           borderRadius: 16,
           padding: '4px 10px',
@@ -360,7 +370,7 @@ function FloatingPetals() {
 
 /* ─────────────────────────────── Loading Screen ────────────────────── */
 
-function GiftLoadingScreen({ lang = 'en' }: { lang?: Lang }) {
+function GiftLoadingScreen({ lang = 'en', onToggleLang }: { lang?: Lang; onToggleLang?: (l: Lang) => void }) {
   const isAr = lang === 'ar';
   const [dots, setDots] = useState('');
   useEffect(() => {
@@ -377,6 +387,17 @@ function GiftLoadingScreen({ lang = 'en' }: { lang?: Lang }) {
       background: '#543C30',
     }}>
       <FloatingPetals />
+      {onToggleLang && (
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          right: isAr ? 'auto' : 20,
+          left: isAr ? 20 : 'auto',
+          zIndex: 10,
+        }}>
+          <LanguageSwitcher lang={lang} onToggle={onToggleLang} variant="dark" />
+        </div>
+      )}
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
         <div style={{
           fontSize: 72, marginBottom: 28,
@@ -424,35 +445,34 @@ function GiftLoadingScreen({ lang = 'en' }: { lang?: Lang }) {
   );
 }
 
-/* ─────────────────────────────── Secret Code Modal ─────────────────── */
+/* ─────────────────────────────── Error Screen ───────────────────────── */
 
-function SecretModal({ onSubmit, loading, error, lang = 'en', onToggleLang }: {
-  onSubmit: (code: string) => void; loading: boolean; error: string; lang?: Lang; onToggleLang?: (l: Lang) => void;
+function GiftErrorScreen({
+  error,
+  onRetry,
+  lang = 'en',
+  onToggleLang,
+}: {
+  error: string;
+  onRetry?: () => void;
+  lang?: Lang;
+  onToggleLang?: (l: Lang) => void;
 }) {
-  const [code, setCode] = useState('');
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { setTimeout(() => ref.current?.focus(), 350); }, []);
   const isAr = lang === 'ar';
+  const isNotFound = error === 'not_found';
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
+      position: 'fixed', inset: 0, zIndex: 2000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#543C30',
+      background: '#543C30', padding: 20,
     }}>
-      {[500, 370, 240].map((s, i) => (
-        <div key={s} style={{
-          position: 'absolute', width: s, height: s, borderRadius: '50%',
-          border: `1.5px solid rgba(211, 192, 177, ${0.25 + i * 0.1})`,
-          top: '50%', left: '50%',
-          animation: `ringPulse ${3 + i}s ease-in-out ${i * 0.8}s infinite`,
-        }} />
-      ))}
+      <FloatingPetals />
 
       <div style={{
         position: 'relative', zIndex: 1,
         background: '#FFFFFF', borderRadius: 28,
-        padding: '52px 44px 44px',
+        padding: '48px 36px 40px',
         maxWidth: 420, width: '92%',
         boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
         border: '1px solid #D3C0B1',
@@ -460,95 +480,70 @@ function SecretModal({ onSubmit, loading, error, lang = 'en', onToggleLang }: {
         textAlign: 'center',
       }}>
         {onToggleLang && (
-          <div style={{ position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto' }}>
-            <LanguageSwitcher lang={lang} onToggle={onToggleLang} />
+          <div style={{ position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto', zIndex: 5 }}>
+            <LanguageSwitcher lang={lang} onToggle={onToggleLang} variant="light" />
           </div>
         )}
 
         <div style={{
-          width: 84, height: 84, borderRadius: '50%',
-          background: '#543C30',
+          width: 80, height: 80, borderRadius: '50%',
+          background: '#EBE5DE',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 24px',
-          boxShadow: '0 8px 28px rgba(84,60,48,0.35)',
-          animation: 'float 3s ease-in-out infinite',
-          fontSize: 38,
-        }}>🎁</div>
+          margin: '0 auto 20px',
+          boxShadow: '0 8px 24px rgba(84,60,48,0.15)',
+          fontSize: 36,
+        }}>
+          {isNotFound ? '🔍' : '⚠️'}
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-          <Logo size={44} />
+          <Logo size={42} />
         </div>
-        <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Alex Brush', cursive", fontSize: isAr ? '1.25rem' : '1.6rem', color: '#543C30', lineHeight: 1.2, marginBottom: 8, fontWeight: isAr ? 700 : 400 }}>
-          {isAr ? 'لديك هدية مميزة!' : 'You have a gift!'}
-        </p>
-        <h2 style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.3rem', color: '#543C30', marginBottom: 10 }}>
-          {isAr ? 'أدخل الرمز السري' : 'Enter Your Secret Code'}
+
+        <h2 style={{
+          fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+          fontSize: '1.35rem', color: '#543C30', marginBottom: 10, fontWeight: 700,
+        }}>
+          {isNotFound
+            ? (isAr ? 'لم يتم العثور على قسيمة الهدية' : 'Gift Voucher Not Found')
+            : (isAr ? 'تعذر تحميل الهدية' : 'Unable to Load Gift')}
         </h2>
-        <p style={{ color: '#543C30', opacity: 0.75, fontSize: '0.9rem', marginBottom: 28, lineHeight: 1.7 }}>
-          {isAr ? (
-            <>تمت مشاركة الرمز السري مع هديتك.<br />أدخله أدناه لفتح تجربتك الفاخرة.</>
-          ) : (
-            <>Your secret code was shared with your gift.<br />Enter it below to unwrap your luxury experience.</>
-          )}
+
+        <p style={{
+          color: '#543C30', opacity: 0.8, fontSize: '0.88rem',
+          lineHeight: 1.7, marginBottom: 28,
+          fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+        }}>
+          {isNotFound
+            ? (isAr
+                ? 'لم نتمكن من العثور على هدية مطابقة لهذا الرابط. يرجى التحقق من الرابط أو التواصل مع من أرسلها لك.'
+                : 'We couldn’t find a gift matching this link. Please check your link or contact the person who sent it to you.')
+            : (isAr
+                ? 'حدث خطأ أثناء تحميل تفاصيل الهدية. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.'
+                : 'Something went wrong while fetching your gift details. Please check your connection and try again.')}
         </p>
 
-        <input
-          id="gift-secret-code"
-          ref={ref}
-          type="text"
-          value={code}
-          onChange={e => setCode(e.target.value.toUpperCase())}
-          onKeyDown={e => e.key === 'Enter' && code.trim() && onSubmit(code.trim())}
-          placeholder={isAr ? 'أدخل الرمز…' : 'Enter code…'}
-          maxLength={20}
-          dir="ltr"
-          style={{
-            width: '100%', padding: '17px 20px',
-            borderRadius: 14, fontSize: '1.6rem',
-            letterSpacing: '0.35em', textAlign: 'center',
-            fontFamily: "'Lustria', serif", color: '#543C30',
-            border: error ? '2px solid #543C30' : '2px solid #D3C0B1',
-            background: '#EBE5DE', outline: 'none',
-            transition: 'border 250ms, box-shadow 250ms',
-          }}
-          onFocus={e => { e.currentTarget.style.borderColor = '#543C30'; e.currentTarget.style.boxShadow = '0 0 0 4px rgba(84,60,48,0.2)'; }}
-          onBlur={e => { if (!error) { e.currentTarget.style.borderColor = '#D3C0B1'; e.currentTarget.style.boxShadow = 'none'; } }}
-        />
-
-        {error && (
-          <p style={{ color: '#543C30', fontWeight: 700, fontSize: '0.84rem', marginTop: 10, animation: 'shake 0.4s ease' }}>
-            ⚠ {error}
-          </p>
+        {onRetry && (
+          <button
+            id="gift-retry-btn"
+            onClick={onRetry}
+            style={{
+              width: '100%', padding: '16px',
+              borderRadius: 14, border: 'none',
+              background: '#543C30',
+              color: '#FFFFFF', fontSize: '0.95rem', fontWeight: 600,
+              letterSpacing: '1px', textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(84,60,48,0.3)',
+              transition: 'all 300ms',
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+          >
+            {isAr ? '🔄 إعادة المحاولة' : '🔄 Try Again'}
+          </button>
         )}
-
-        <button
-          id="gift-submit-code"
-          disabled={loading || !code.trim()}
-          onClick={() => code.trim() && onSubmit(code.trim())}
-          style={{
-            width: '100%', marginTop: 18, padding: '16px',
-            borderRadius: 14, border: 'none',
-            background: loading || !code.trim() ? '#D3C0B1' : '#543C30',
-            color: '#FFFFFF', fontSize: '0.95rem', fontWeight: 600,
-            letterSpacing: '1.2px', textTransform: 'uppercase',
-            cursor: loading || !code.trim() ? 'not-allowed' : 'pointer',
-            boxShadow: loading || !code.trim() ? 'none' : '0 8px 24px rgba(84,60,48,0.3)',
-            transition: 'all 300ms', fontFamily: isAr ? "'Cairo', sans-serif" : "'Roboto', sans-serif",
-          }}
-          onMouseEnter={e => { if (!loading && code.trim()) { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
-        >
-          {loading
-            ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                <span style={{ width: 18, height: 18, borderRadius: '50%', border: '2.5px solid #D3C0B1', borderTopColor: '#FFFFFF', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                {isAr ? 'جاري فتح الهدية…' : 'Unwrapping your gift…'}
-              </span>
-            : (isAr ? '✨ فتح الهدية' : '✨ Unwrap My Gift')}
-        </button>
-
-        <p style={{ marginTop: 18, color: '#543C30', opacity: 0.6, fontSize: '0.78rem' }}>
-          {isAr ? '🔒 آمن ومشفّر بالكامل' : '🔒 Secured & encrypted'}
-        </p>
       </div>
     </div>
   );
@@ -597,7 +592,7 @@ function GiftRevealPopup({ voucher, onRevealGift, lang = 'en', onToggleLang }: {
 
         {onToggleLang && (
           <div style={{ position: 'absolute', top: 16, right: isAr ? 'auto' : 16, left: isAr ? 16 : 'auto', zIndex: 5 }}>
-            <LanguageSwitcher lang={lang} onToggle={onToggleLang} />
+            <LanguageSwitcher lang={lang} onToggle={onToggleLang} variant="light" />
           </div>
         )}
 
@@ -658,7 +653,17 @@ function GiftRevealPopup({ voucher, onRevealGift, lang = 'en', onToggleLang }: {
 
 /* ─────────────────────────────── Digital Video Popup ───────────────── */
 
-function DigitalVideoPopup({ videoUrl, onContinue, lang = 'en' }: { videoUrl: string; onContinue: () => void; lang?: Lang }) {
+function DigitalVideoPopup({
+  videoUrl,
+  onContinue,
+  lang = 'en',
+  onToggleLang,
+}: {
+  videoUrl: string;
+  onContinue: () => void;
+  lang?: Lang;
+  onToggleLang?: (l: Lang) => void;
+}) {
   const isAr = lang === 'ar';
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
@@ -721,6 +726,19 @@ function DigitalVideoPopup({ videoUrl, onContinue, lang = 'en' }: { videoUrl: st
         }}
       />
 
+      {/* Language Switcher in Video Step */}
+      {onToggleLang && (
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          left: isAr ? 'auto' : 20,
+          right: isAr ? 20 : 'auto',
+          zIndex: 25,
+        }}>
+          <LanguageSwitcher lang={lang} onToggle={onToggleLang} variant="dark" />
+        </div>
+      )}
+
       {/* Prominent Tap to Unmute Banner */}
       {showUnmuteBanner && !videoEnded && (
         <div
@@ -763,13 +781,17 @@ function DigitalVideoPopup({ videoUrl, onContinue, lang = 'en' }: { videoUrl: st
         pointerEvents: 'none',
       }} />
 
-      {/* Skip button (top-right) */}
+      {/* Skip button */}
       {showSkip && !videoEnded && (
         <button
           id="gift-video-skip-btn"
           onClick={() => setVideoEnded(true)}
           style={{
-            position: 'absolute', top: 20, right: 20, zIndex: 10,
+            position: 'absolute',
+            top: 20,
+            right: isAr ? 'auto' : 20,
+            left: isAr ? 20 : 'auto',
+            zIndex: 25,
             background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255,255,255,0.3)',
             borderRadius: 24, padding: '8px 20px',
@@ -957,8 +979,8 @@ function DeliveryProgressBar({ status, lang = 'en' }: { status: string | undefin
 
 /* ─────────────────────────────── Mark As Received Modal ─────────────── */
 
-function MarkReceivedModal({ voucherId, onSuccess, onClose, lang = 'en' }: {
-  voucherId: string; onSuccess: () => void; onClose: () => void; lang?: Lang;
+function MarkReceivedModal({ voucherId, onSuccess, onClose, lang = 'en', onToggleLang }: {
+  voucherId: string; onSuccess: () => void; onClose: () => void; lang?: Lang; onToggleLang?: (l: Lang) => void;
 }) {
   const isAr = lang === 'ar';
   const [secretCode, setSecretCode] = useState('');
@@ -1022,6 +1044,12 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose, lang = 'en' }: {
         animation: 'modalIn 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         textAlign: 'center',
       }}>
+        {onToggleLang && (
+          <div style={{ position: 'absolute', top: 16, left: isAr ? 'auto' : 16, right: isAr ? 16 : 'auto', zIndex: 5 }}>
+            <LanguageSwitcher lang={lang} onToggle={onToggleLang} variant="light" />
+          </div>
+        )}
+
         <button
           onClick={onClose} aria-label="Close"
           style={{
@@ -1622,6 +1650,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
           onSuccess={() => setLocalStatus('received')}
           onClose={() => setShowReceivedModal(false)}
           lang={lang}
+          onToggleLang={setLang}
         />
       )}
     </div>
@@ -2625,11 +2654,9 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
   const { public_token } = use(params);
 
   const [lang, setLang] = useState<Lang>('en');
-  const [phase, setPhase] = useState<'loading' | 'modal' | 'digital-video' | 'reveal' | 'gift-display'>('loading');
-  const [loading, setLoading] = useState(false);
-  const [modalError, setModalError] = useState('');
+  const [phase, setPhase] = useState<'loading' | 'digital-video' | 'reveal' | 'gift-display' | 'error'>('loading');
   const [voucher, setVoucher] = useState<GiftVoucher | null>(null);
-  const didFetch = useRef(false);
+  const [fetchError, setFetchError] = useState<string>('');
 
   /* ── Load preferred language ── */
   useEffect(() => {
@@ -2652,92 +2679,59 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
     }
   };
 
-  /* ── Auto-fetch to determine category ── */
-  useEffect(() => {
-    if (didFetch.current) return;
-    didFetch.current = true;
-
-    const autoFetch = async () => {
-      try {
-        const res = await fetch(
-          `/booknpay/api/v1/vouchers/public/${encodeURIComponent(public_token)}/`,
-          { method: 'GET', headers: { 'Content-Type': 'application/json' } }
-        );
-
-        if (!res.ok) {
-          setPhase('modal');
-          return;
-        }
-
-        let data: Record<string, unknown> = {};
-        try { data = await res.json(); } catch { /* empty */ }
-
-        const raw = data?.data ?? data?.result ?? data?.voucher ?? data;
-        const voucherData = (raw && typeof (raw as Record<string, unknown>)?.gift_category === 'string')
-          ? raw as GiftVoucher
-          : null;
-
-        if (voucherData?.gift_category === 'physical' || voucherData?.gift_category === 'digital') {
-          setVoucher(voucherData);
-          setPhase('reveal');
-        } else {
-          setPhase('modal');
-        }
-      } catch {
-        setPhase('modal');
-      }
-    };
-
-    autoFetch();
-  }, [public_token]);
-
-  /* ── Secret code submission (service) ── */
-  async function handleModalSubmit(secret_code: string) {
-    setLoading(true);
-    setModalError('');
+  /* ── Fetch voucher directly without security code ── */
+  const fetchVoucher = useCallback(async () => {
+    setPhase('loading');
+    setFetchError('');
     try {
       const res = await fetch(
         `/booknpay/api/v1/vouchers/public/${encodeURIComponent(public_token)}/`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret_code }),
-        }
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
       );
+
+      if (!res.ok) {
+        let errData: Record<string, unknown> = {};
+        try { errData = await res.json(); } catch { /* empty */ }
+        const msg =
+          (typeof errData?.detail === 'string' ? errData.detail : '') ||
+          (typeof errData?.message === 'string' ? errData.message : '') ||
+          (typeof errData?.error === 'string' ? errData.error : '') ||
+          (res.status === 404 ? 'not_found' : 'server_error');
+        setFetchError(msg);
+        setPhase('error');
+        return;
+      }
 
       let data: Record<string, unknown> = {};
       try { data = await res.json(); } catch { /* empty */ }
 
-      if (!res.ok) {
-        const msg =
-          (typeof data?.detail === 'string' ? data.detail : '') ||
-          (typeof data?.message === 'string' ? data.message : '') ||
-          (typeof data?.error === 'string' ? data.error : '') ||
-          (res.status === 404 ? (lang === 'ar' ? 'لم يتم العثور على الهدية. يرجى التحقق من الرابط.' : 'Gift not found. Please check the link.') :
-           res.status === 400 ? (lang === 'ar' ? 'رمز سري غير صالح. يرجى المحاولة مرة أخرى.' : 'Invalid secret code. Please try again.') :
-           res.status === 403 ? (lang === 'ar' ? 'تم رفض الوصول. يرجى التحقق من الرمز السري الخاص بك.' : 'Access denied. Please check your secret code.') :
-           (lang === 'ar' ? 'حدث خطأ ما. يرجى المحاولة مرة أخرى.' : 'Something went wrong. Please try again.'));
-        setModalError(msg);
+      const raw = data?.data ?? data?.result ?? data?.voucher ?? data;
+      const voucherData = (raw && typeof raw === 'object' && (typeof (raw as Record<string, unknown>)?.gift_category === 'string' || typeof (raw as Record<string, unknown>)?.id === 'string'))
+        ? raw as GiftVoucher
+        : null;
+
+      if (!voucherData) {
+        setFetchError('not_found');
+        setPhase('error');
         return;
       }
 
-      const raw = data?.data ?? data?.result ?? data?.voucher ?? data;
-      const voucherData = (raw && typeof (raw as Record<string, unknown>)?.gift_category === 'string')
-        ? raw as GiftVoucher
-        : null;
       setVoucher(voucherData);
 
-      if (voucherData?.gift_category === 'physical' || voucherData?.gift_category === 'digital') {
-        setPhase('reveal');
+      if (voucherData.gift_category === 'digital' && voucherData.digital_product_data?.video_url) {
+        setPhase('digital-video');
       } else {
-        setPhase('gift-display');
+        setPhase('reveal');
       }
     } catch {
-      setModalError(lang === 'ar' ? 'خطأ في الشبكة. يرجى التحقق من اتصالك والمحاولة مرة أخرى.' : 'Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
+      setFetchError('network_error');
+      setPhase('error');
     }
-  }
+  }, [public_token]);
+
+  useEffect(() => {
+    fetchVoucher();
+  }, [fetchVoucher]);
 
   return (
     <>
@@ -2747,14 +2741,16 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
         <div className="gift-shell" dir={lang === 'ar' ? 'rtl' : 'ltr'} style={{ fontFamily: lang === 'ar' ? "'Cairo', sans-serif" : undefined }}>
 
           {/* Loading */}
-          {phase === 'loading' && <GiftLoadingScreen lang={lang} />}
+          {phase === 'loading' && <GiftLoadingScreen lang={lang} onToggleLang={handleSetLang} />}
 
-          {/* Secret code modal (service/digital) */}
-          {phase === 'modal' && (
-            <>
-              <FloatingPetals />
-              <SecretModal onSubmit={handleModalSubmit} loading={loading} error={modalError} lang={lang} onToggleLang={handleSetLang} />
-            </>
+          {/* Error */}
+          {phase === 'error' && (
+            <GiftErrorScreen
+              error={fetchError}
+              onRetry={fetchVoucher}
+              lang={lang}
+              onToggleLang={handleSetLang}
+            />
           )}
 
           {/* Digital video popup */}
@@ -2763,10 +2759,11 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
               videoUrl={voucher.digital_product_data!.video_url!}
               onContinue={() => setPhase('reveal')}
               lang={lang}
+              onToggleLang={handleSetLang}
             />
           )}
 
-          {/* Reveal popup (physical + digital) */}
+          {/* Reveal popup (physical, digital, service) */}
           {phase === 'reveal' && voucher && (
             <>
               <div style={{ filter: 'blur(4px)', pointerEvents: 'none', opacity: 0.25, userSelect: 'none' }}>
@@ -2776,7 +2773,12 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
                   ? <DigitalGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />
                   : <ServiceGiftDisplay v={voucher} lang={lang} setLang={handleSetLang} />}
               </div>
-              <GiftRevealPopup voucher={voucher} onRevealGift={() => setPhase('gift-display')} lang={lang} />
+              <GiftRevealPopup
+                voucher={voucher}
+                onRevealGift={() => setPhase('gift-display')}
+                lang={lang}
+                onToggleLang={handleSetLang}
+              />
             </>
           )}
 
