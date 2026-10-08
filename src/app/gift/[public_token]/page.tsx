@@ -1155,7 +1155,7 @@ function MarkReceivedModal({ voucherId, onSuccess, onClose, lang = 'en', onToggl
   );
 }
 
-/* ─────────────────────────────── Voucher Number Header ──────────────── */
+/* ─────────────────────────────── Voucher Code Header ────────────────── */
 
 function getVoucherNumber(v: GiftVoucher): string {
   return (
@@ -1166,15 +1166,59 @@ function getVoucherNumber(v: GiftVoucher): string {
   );
 }
 
-function VoucherNumberHeader({ voucherNumber, lang = 'en' }: { voucherNumber: string; lang?: Lang }) {
+function getSecretCode(v: GiftVoucher): string {
+  const raw = v as unknown as Record<string, unknown>;
+  return (
+    (typeof v.secret_code === 'string' && v.secret_code.trim()) ||
+    (typeof raw?.secret_code === 'string' && (raw.secret_code as string).trim()) ||
+    (typeof raw?.secretCode === 'string' && (raw.secretCode as string).trim()) ||
+    (typeof raw?.secret === 'string' && (raw.secret as string).trim()) ||
+    (typeof raw?.security_code === 'string' && (raw.security_code as string).trim()) ||
+    (typeof raw?.voucher_secret === 'string' && (raw.voucher_secret as string).trim()) ||
+    (typeof raw?.secret_number === 'string' && (raw.secret_number as string).trim()) ||
+    (typeof raw?.code === 'string' && (raw.code as string).trim()) ||
+    ''
+  );
+}
+
+function VoucherCodeHeader({ voucherCode, lang = 'en' }: { voucherCode?: string; lang?: Lang }) {
   const [copied, setCopied] = useState(false);
-  if (!voucherNumber) return null;
+  const code = (voucherCode || '').trim() || '—';
 
   function handleCopy() {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(voucherNumber);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    if (typeof window === 'undefined') return;
+    const url = window.location.href;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = url;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch { /* empty */ }
+      });
+    } else {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch { /* empty */ }
     }
   }
 
@@ -1214,7 +1258,7 @@ function VoucherNumberHeader({ voucherNumber, lang = 'en' }: { voucherNumber: st
             opacity: 0.8,
             fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
           }}>
-            {isAr ? 'رقم القسيمة' : 'Voucher Number'}
+            {isAr ? 'كود القسيمة' : 'Voucher Code'}
           </div>
           <div dir="ltr" style={{
             fontFamily: "'Lustria', serif",
@@ -1227,15 +1271,15 @@ function VoucherNumberHeader({ voucherNumber, lang = 'en' }: { voucherNumber: st
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}>
-            {voucherNumber}
+            {code}
           </div>
         </div>
       </div>
       <button
-        id="copy-voucher-number-btn"
+        id="copy-voucher-link-btn"
         type="button"
         onClick={handleCopy}
-        title={isAr ? 'نسخ رقم القسيمة' : 'Copy Voucher Number'}
+        title={isAr ? 'نسخ الرابط للمشاركة' : 'Copy link to share'}
         style={{
           position: 'relative', zIndex: 1,
           padding: '8px 14px',
@@ -1265,6 +1309,9 @@ function VoucherNumberHeader({ voucherNumber, lang = 'en' }: { voucherNumber: st
   );
 }
 
+const VoucherNumberHeader = VoucherCodeHeader;
+
+
 /* ─────────────────────────────── Physical Gift Display ──────────────── */
 
 function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
@@ -1275,6 +1322,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
 
   const localStep = getDeliveryStep(localStatus);
   const isDelivered = getDeliveryStep(deliveryStatus) === 3 && localStep !== 4;
+  const voucherCode = getSecretCode(v);
   const voucherNum = getVoucherNumber(v);
 
   const hasProducts = Boolean(v.ordered_items && v.ordered_items.length > 0);
@@ -1297,7 +1345,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Logo size={38} />
+          <Logo size={38} style={{ animation: 'float 3s ease-in-out infinite' }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
@@ -1314,8 +1362,8 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
         </div>
       </div>
 
-      {/* ── Voucher Number at Top (with emphasis) ── */}
-      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
+      {/* ── Voucher Code at Top (with emphasis) ── */}
+      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
 
       <div style={{ padding: '16px 18px 40px' }}>
 
@@ -1338,16 +1386,6 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                 <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.15rem', color: '#4E2712', fontWeight: 700 }}>
                   {getSenderDisplayName(v) || '—'}
                 </div>
-              </div>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                background: '#543C30',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                animation: 'float 3s ease-in-out infinite',
-                overflow: 'hidden',
-              }}>
-                <Logo size={36} style={{ borderRadius: '50%' }} />
               </div>
               <div style={{ textAlign: isAr ? 'left' : 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
@@ -1941,7 +1979,7 @@ function AppCTA({
 function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
   const isAr = lang === 'ar';
   const expired = isExpired(v.expire_date);
-  const voucherNum = getVoucherNumber(v);
+  const voucherCode = getSecretCode(v);
   /* Support both image (legacy) and image1 (actual API) */
   const heroImg = v.service_arrangement_data?.image || v.service_data?.image1 || v.service_data?.image || '';
   const serviceImg = v.service_data?.image1 || v.service_data?.image || '';
@@ -1967,7 +2005,7 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Logo size={38} />
+          <Logo size={38} style={{ animation: 'float 3s ease-in-out infinite' }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
@@ -1977,8 +2015,8 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         </div>
       </div>
 
-      {/* ── Voucher Number at Top (with emphasis) ── */}
-      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
+      {/* ── Voucher Code at Top (with emphasis) ── */}
+      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
 
       {/* ── Expired Banner ── */}
       {expired && (
@@ -2071,16 +2109,6 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
             <div dir="ltr" style={{ fontSize: '0.78rem', color: '#4E2712', opacity: 0.7, marginTop: 3, textAlign: isAr ? 'right' : 'left' }}>
               {v.sender_data?.phone_number}
             </div>
-          </div>
-          <div style={{
-            width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-            background: '#543C30',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-            animation: 'float 3s ease-in-out infinite',
-            overflow: 'hidden',
-          }}>
-            <Logo size={36} style={{ borderRadius: '50%' }} />
           </div>
           <div style={{ flex: 1, minWidth: 110, textAlign: isAr ? 'left' : 'right' }}>
             <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
@@ -2277,6 +2305,7 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
 
 function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?: Lang; setLang?: (l: Lang) => void }) {
   const isAr = lang === 'ar';
+  const voucherCode = getSecretCode(v);
   const voucherNum = getVoucherNumber(v);
   const senderName = getSenderDisplayName(v);
 
@@ -2301,7 +2330,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         boxShadow: '0 4px 20px rgba(78,39,18,0.25)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <Logo size={38} />
+          <Logo size={38} style={{ animation: 'float 3s ease-in-out infinite' }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {setLang && <LanguageSwitcher lang={lang} onToggle={setLang} />}
@@ -2318,8 +2347,8 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         </div>
       </div>
 
-      {/* ── Voucher Number at Top (with emphasis) ── */}
-      <VoucherNumberHeader voucherNumber={voucherNum} lang={lang} />
+      {/* ── Voucher Code at Top (with emphasis) ── */}
+      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
 
       <div style={{ padding: '16px 18px 40px' }}>
 
@@ -2342,16 +2371,6 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                 <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.15rem', color: '#4E2712', fontWeight: 700 }}>
                   {senderName || '—'}
                 </div>
-              </div>
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                background: '#543C30',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                animation: 'float 3s ease-in-out infinite',
-                overflow: 'hidden',
-              }}>
-                <Logo size={36} style={{ borderRadius: '50%' }} />
               </div>
               <div style={{ textAlign: isAr ? 'left' : 'right' }}>
                 <div style={{ fontSize: '0.68rem', color: '#D3C0B1', fontWeight: 700, letterSpacing: isAr ? 0 : 2, textTransform: 'uppercase', marginBottom: 5, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
@@ -2714,6 +2733,24 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
         setFetchError('not_found');
         setPhase('error');
         return;
+      }
+
+      const rootSecretCode =
+        (typeof (raw as Record<string, unknown>)?.secret_code === 'string' && (raw as Record<string, unknown>).secret_code) ||
+        (typeof data?.secret_code === 'string' && data.secret_code) ||
+        (typeof (raw as Record<string, unknown>)?.secretCode === 'string' && (raw as Record<string, unknown>).secretCode) ||
+        (typeof data?.secretCode === 'string' && data.secretCode) ||
+        (typeof (raw as Record<string, unknown>)?.secret === 'string' && (raw as Record<string, unknown>).secret) ||
+        (typeof data?.secret === 'string' && data.secret) ||
+        (typeof (raw as Record<string, unknown>)?.security_code === 'string' && (raw as Record<string, unknown>).security_code) ||
+        (typeof data?.security_code === 'string' && data.security_code) ||
+        (typeof (raw as Record<string, unknown>)?.voucher_secret === 'string' && (raw as Record<string, unknown>).voucher_secret) ||
+        (typeof (raw as Record<string, unknown>)?.secret_number === 'string' && (raw as Record<string, unknown>).secret_number) ||
+        (typeof (raw as Record<string, unknown>)?.code === 'string' && (raw as Record<string, unknown>).code) ||
+        voucherData.secret_code;
+
+      if (rootSecretCode) {
+        voucherData.secret_code = rootSecretCode as string;
       }
 
       setVoucher(voucherData);
