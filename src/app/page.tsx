@@ -9,7 +9,6 @@ import GiftCardsSection from '@/components/GiftCardsSection';
 import ServicesSection from '@/components/ServicesSection';
 import OpenHoursSection from '@/components/OpenHoursSection';
 import PricingSection from '@/components/PricingSection';
-import TeamSection from '@/components/TeamSection';
 import BookingCTASection from '@/components/BookingCTASection';
 import TestimonialsSection from '@/components/TestimonialsSection';
 import PackagesSection from '@/components/PackagesSection';
@@ -72,10 +71,7 @@ export default function HomePage() {
         bgImage="https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1920&q=80"
       /> */}
 
-      {/* 11. Team Section */}
-      <TeamSection />
-
-      {/* 12. Booking CTA Banner */}
+      {/* 11. Booking CTA Banner */}
       <BookingCTASection />
 
       {/* 13. Testimonials Section */}

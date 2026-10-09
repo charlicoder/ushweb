@@ -51,7 +51,7 @@ const businessJsonLd = {
   legalName: 'Quiet Ush Thai Spa Health Institute for Women',
   alternateName: 'USH Spa',
   url: 'https://ushspa.co',
-  telephone: '+965 900103335',
+  telephone: '+965 55555564',
   email: 'info@ushspa.co',
   address: {
     '@type': 'PostalAddress',

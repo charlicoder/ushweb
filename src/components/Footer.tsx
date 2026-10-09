@@ -1,9 +1,10 @@
 'use client';
 
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+
 const quickLinks = [
     { label: 'About Us', href: '#about' },
     { label: 'Our Services', href: '#services' },
-    { label: 'Our Experts', href: '#team' },
     { label: 'Appointments', href: '#booking' },
     { label: 'Gift Cards', href: '#gift-cards' },
     { label: 'Contact Us', href: '/contact-us' },
@@ -76,8 +77,8 @@ export default function Footer() {
                                 </p>
                                 <p>
                                     Phone:{' '}
-                                    <a href="tel:+965900103335" className="hover:text-spa-rose transition-colors">
-                                        +965 900103335
+                                    <a href={USH_PHONE_TEL_HREF} className="hover:text-spa-rose transition-colors">
+                                        {USH_PHONE_DISPLAY}
                                     </a>
                                 </p>
                                 <p>

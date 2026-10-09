@@ -1,5 +1,7 @@
 'use client';
 
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+
 export default function BookingCTASection() {
     const handleScroll = (href: string) => {
         const el = document.querySelector(href);
@@ -56,11 +58,11 @@ export default function BookingCTASection() {
                         >
                             Call us :{' '}
                             <a
-                                href="tel:+1298765432"
+                                href={USH_PHONE_TEL_HREF}
                                 className="font-bold hover:text-spa-rose transition-colors duration-300"
                                 style={{ color: '#4a4a4a', fontWeight: 700 }}
                             >
-                                +12 9 8765 4321
+                                {USH_PHONE_DISPLAY}
                             </a>{' '}
                             or fill out our online booking &amp; enquiry form and we will contact you
                         </p>

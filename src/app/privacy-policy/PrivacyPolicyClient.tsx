@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
 
 interface Section {
   id: string;
@@ -72,10 +74,6 @@ export default function PrivacyPolicyClient() {
     setTimeout(() => setCopiedEmail(false), 2500);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const filteredSections = useMemo(() => {
     if (!searchQuery.trim()) return sections;
     const query = searchQuery.toLowerCase();
@@ -84,68 +82,10 @@ export default function PrivacyPolicyClient() {
 
   return (
     <div className="min-h-screen bg-white text-spa-text antialiased">
-      {/* Top Navbar */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-spa-petal/40 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/images/logo-01.png"
-              alt="USH Spa"
-              className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-            />
-            <div className="hidden sm:block border-l border-spa-petal/60 pl-3">
-              <span className="block font-lustria text-xs font-semibold tracking-wider text-spa-text uppercase">
-                Legal & Privacy Portal
-              </span>
-              <span className="block text-[11px] text-spa-muted">
-                USH Spa Mobile App
-              </span>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-spa-muted hover:text-spa-cherry transition-colors px-3 py-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-              Back to Home
-            </Link>
-
-            <button
-              onClick={handlePrint}
-              type="button"
-              className="hidden lg:inline-flex items-center gap-1.5 text-xs font-medium tracking-wider text-spa-text border border-spa-petal/70 bg-spa-cream/60 hover:bg-spa-blush px-3 py-2 rounded-sm transition-colors"
-              title="Print Privacy Policy"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-spa-rosybrown" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-              </svg>
-              Print
-            </button>
-
-            <button
-              onClick={() => scrollToSection('account-deletion')}
-              type="button"
-              className="text-xs font-medium text-spa-cherry bg-spa-blush hover:bg-spa-petal/60 border border-spa-petal px-3 py-2 rounded-sm transition-colors"
-            >
-              Account Deletion
-            </button>
-
-            <Link
-              href="/#booking"
-              className="btn-spa btn-rose text-xs py-2 px-4 shadow-sm"
-            >
-              Book Spa
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Header */}
-      <section className="relative bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-12 pb-14 border-b border-spa-petal/30">
+      <section className="relative bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-28 pb-14 border-b border-spa-petal/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-spa-muted mb-6">
@@ -885,7 +825,7 @@ export default function PrivacyPolicyClient() {
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">📞</span>
-                        <span>Phone / WhatsApp: <a href="tel:+965900103335" className="text-spa-text hover:text-spa-cherry font-medium">+965 900103335</a></span>
+                        <span>Phone / WhatsApp: <a href={USH_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_PHONE_DISPLAY}</a></span>
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">✉️</span>

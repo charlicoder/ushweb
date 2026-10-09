@@ -1,26 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const navItems = [
     { label: 'Home', href: '#hero' },
     { label: 'Our Services', href: '#services' },
-    { label: 'Our Experts', href: '#team' },
     { label: 'Contact Us', href: '/contact-us' },
     { label: 'Gallery', href: '#gallery' },
 ];
 
 export default function Header() {
-    const [scrolled, setScrolled] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 80);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const handleNavClick = (href: string) => {
         setMobileOpen(false);
@@ -38,10 +28,8 @@ export default function Header() {
 
     return (
         <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled
-                    ? 'bg-white shadow-md py-2'
-                    : 'bg-transparent py-5'
-                }`}
+            className="fixed top-0 left-0 right-0 z-50 bg-[#543C30] shadow-md py-2 transition-all duration-500"
+            style={{ boxShadow: '0 4px 20px rgba(78, 39, 18, 0.25)' }}
         >
             <div className="max-w-7xl mx-auto px-4 flex items-center justify-between gap-4">
                 {/* Logo & Legal Entity Title */}
@@ -58,20 +46,18 @@ export default function Header() {
                     className="flex items-center gap-2.5 sm:gap-3 group min-w-0"
                 >
                     <img
-                        src={scrolled ? '/images/logo-01.png' : '/images/logo-white.png'}
+                        src="/images/logo-white.png"
                         alt="USH Spa Logo"
                         style={{ height: '48px', width: 'auto', display: 'block' }}
                         className="transition-all duration-300 flex-shrink-0"
                     />
                     <div
                         className="flex flex-col justify-center border-l pl-2.5 sm:pl-3 transition-colors duration-300"
-                        style={{ borderColor: scrolled ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.35)' }}
+                        style={{ borderColor: 'rgba(255,255,255,0.35)' }}
                     >
                         <span
-                            className={`font-lustria font-semibold text-[11px] sm:text-xs md:text-sm lg:text-[14px] leading-tight transition-colors duration-300 max-w-[200px] sm:max-w-[280px] md:max-w-md lg:max-w-none ${
-                                scrolled ? 'text-spa-text' : 'text-white'
-                            }`}
-                            style={scrolled ? {} : { textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}
+                            className="font-lustria font-semibold text-[11px] sm:text-xs md:text-sm lg:text-[14px] leading-tight text-white transition-colors duration-300 max-w-[200px] sm:max-w-[280px] md:max-w-md lg:max-w-none"
+                            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.35)' }}
                         >
                             Quiet Ush Thai Spa Health Institute for Women
                         </span>
@@ -85,8 +71,7 @@ export default function Header() {
                             key={item.label}
                             href={item.href}
                             onClick={(e) => { e.preventDefault(); handleNavClick(item.href); }}
-                            className="text-sm font-medium uppercase tracking-wider px-3 py-2 transition-colors duration-300 hover:text-spa-rose"
-                            style={{ color: scrolled ? '' : '#ffffff' }}
+                            className="text-sm font-medium uppercase tracking-wider px-3 py-2 transition-colors duration-300 !text-white hover:!text-[#D3C0B1]"
                         >
                             {item.label}
                         </a>
@@ -102,8 +87,7 @@ export default function Header() {
 
                 {/* Mobile Menu Button */}
                 <button
-                    className={`lg:hidden flex flex-col gap-1.5 p-2 transition-colors duration-300 ${scrolled ? 'text-spa-text' : 'text-white'
-                        }`}
+                    className="lg:hidden flex flex-col gap-1.5 p-2 text-white transition-colors duration-300"
                     onClick={() => setMobileOpen(!mobileOpen)}
                     aria-label="Toggle menu"
                 >
@@ -124,7 +108,7 @@ export default function Header() {
                             key={item.label}
                             href={item.href}
                             onClick={(e) => { e.preventDefault(); handleNavClick(item.href); }}
-                            className="text-sm font-medium uppercase tracking-wider py-2 text-spa-text hover:text-spa-rose transition-colors duration-300 border-b border-spa-petal"
+                            className="text-sm font-medium uppercase tracking-wider py-2 !text-spa-text hover:!text-spa-rose transition-colors duration-300 border-b border-spa-petal"
                         >
                             {item.label}
                         </a>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { use, useEffect, useState, useRef, useCallback } from 'react';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
 
 /* ── Allowed Palette: #D3C0B1, #4E2712, #EBE5DE, #FFFFFF ── */
 
@@ -1921,7 +1922,7 @@ function AppCTA({
 
             <a
               id="gift-call-center-btn"
-              href="tel:+965900103335"
+              href={USH_PHONE_TEL_HREF}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1962,7 +1963,7 @@ function AppCTA({
                   {isAr ? 'اتصل الآن بمركز الخدمة' : 'Contact Call Center'}
                 </div>
                 <div dir="ltr" style={{ fontFamily: "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontWeight: 700, letterSpacing: '0.5px' }}>
-                  +965 900103335
+                  {USH_PHONE_DISPLAY}
                 </div>
               </div>
             </a>

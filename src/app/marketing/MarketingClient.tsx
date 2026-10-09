@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
 
 interface TableOfContentItem {
   id: string;
@@ -42,78 +44,12 @@ export default function MarketingClient() {
     setTimeout(() => setCopiedEmail(false), 2500);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="min-h-screen bg-[#faf5f3] text-spa-text antialiased">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-spa-petal/40 transition-all">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/images/company-logo.png"
-              alt="USH Spa Logo"
-              className="h-11 w-11 rounded-xl object-contain shadow-sm transition-transform duration-300 group-hover:scale-105"
-            />
-            <div className="flex flex-col">
-              <span className="font-lustria text-lg font-bold tracking-wider text-spa-text uppercase">
-                USH <span className="font-brush text-xl font-normal text-spa-cherry capitalize">Spa</span>
-              </span>
-              <span className="text-[10px] tracking-widest uppercase text-spa-muted font-medium">
-                Marketing & Rewards Portal
-              </span>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-spa-muted hover:text-spa-cherry transition-colors px-3 py-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Home
-            </Link>
-
-            <button
-              onClick={handlePrint}
-              type="button"
-              className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium tracking-wider text-spa-text border border-spa-petal/70 bg-spa-cream/80 hover:bg-spa-blush px-3 py-2 rounded-sm transition-colors cursor-pointer"
-              title="Print page"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-4 h-4 text-spa-rosybrown"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                />
-              </svg>
-              Print
-            </button>
-
-            <Link href="/#booking" className="btn-spa btn-rose text-xs py-2 px-4 shadow-sm">
-              Book Spa
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Header matching design with brand color theme */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#9c4c47] via-[#b7605a] to-[#efa697] text-white pt-14 pb-20 px-4 sm:px-6">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#9c4c47] via-[#b7605a] to-[#efa697] text-white pt-32 pb-20 px-4 sm:px-6">
         {/* Soft background ambient ornaments */}
         <div className="absolute inset-0 opacity-15 pointer-events-none">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white blur-3xl" />
@@ -712,8 +648,8 @@ export default function MarketingClient() {
                   </p>
                   <p>
                     <span className="font-semibold text-spa-text">Phone:</span>{' '}
-                    <a href="tel:+965900103335" className="text-spa-cherry hover:underline">
-                      +965 900103335
+                    <a href={USH_PHONE_TEL_HREF} className="text-spa-cherry hover:underline">
+                      {USH_PHONE_DISPLAY}
                     </a>
                   </p>
                   <p>

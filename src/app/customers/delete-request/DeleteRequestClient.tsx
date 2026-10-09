@@ -2,7 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
 
 export default function DeleteRequestClient() {
   const [countryCode, setCountryCode] = useState<string>('+965');
@@ -94,44 +96,10 @@ export default function DeleteRequestClient() {
 
   return (
     <div className="min-h-screen bg-white text-spa-text antialiased">
-      {/* Top Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-spa-petal/40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/images/logo-01.png"
-              alt="USH Spa"
-              className="h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-            />
-            <div className="hidden sm:block border-l border-spa-petal/60 pl-3">
-              <span className="block font-lustria text-xs font-semibold tracking-wider text-spa-text uppercase">
-                Account &amp; Data Erasure
-              </span>
-              <span className="block text-[11px] text-spa-muted">
-                USH Spa Mobile App
-              </span>
-            </div>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-spa-muted hover:text-spa-cherry transition-colors px-3 py-2"
-            >
-              ← Back to Home
-            </Link>
-            <Link
-              href="/privacy-policy"
-              className="text-xs font-medium text-spa-cherry bg-spa-blush hover:bg-spa-petal/60 border border-spa-petal px-3 py-2 rounded-sm transition-colors"
-            >
-              Privacy Policy
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Banner */}
-      <section className="bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-10 pb-12 border-b border-spa-petal/30">
+      <section className="bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-28 pb-12 border-b border-spa-petal/30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <nav className="flex items-center gap-2 text-xs text-spa-muted mb-4">
             <Link href="/" className="hover:text-spa-cherry transition-colors">Home</Link>
@@ -363,7 +331,7 @@ export default function DeleteRequestClient() {
                   <input
                     type="tel"
                     required
-                    placeholder="e.g. 90010335"
+                    placeholder="e.g. 55555564"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs text-spa-text focus:outline-none"
@@ -491,7 +459,7 @@ export default function DeleteRequestClient() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
             <div className="space-y-1">
               <p>Email: <a href="mailto:info@ushspa.co?subject=Manual%20Account%20Deletion%20Request" className="text-spa-cherry hover:underline font-medium">info@ushspa.co</a></p>
-              <p>Phone / WhatsApp: <a href="tel:+96590010335" className="text-spa-text hover:text-spa-cherry font-medium">+965 90010335</a></p>
+              <p>Phone / WhatsApp: <a href={USH_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_PHONE_DISPLAY}</a></p>
             </div>
             <a
               href="mailto:info@ushspa.co?subject=Manual%20Account%20Deletion%20Request%20-%20USH%20Spa"

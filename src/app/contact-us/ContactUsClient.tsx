@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
+import { USH_PHONE_DISPLAY, USH_PHONE_E164, USH_PHONE_TEL_HREF } from '@/lib/contact';
 
 export default function ContactUsClient() {
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -24,7 +25,7 @@ export default function ContactUsClient() {
   };
 
   const copyPhone = () => {
-    navigator.clipboard.writeText('+965900103335');
+    navigator.clipboard.writeText(USH_PHONE_E164);
     setCopiedPhone(true);
     setTimeout(() => setCopiedPhone(false), 2500);
   };
@@ -120,15 +121,15 @@ export default function ContactUsClient() {
                 Direct bookings, concierge assistance, and guest inquiries:
               </p>
               <p className="text-base font-bold text-spa-text font-mono mb-4">
-                +965 900103335
+                {USH_PHONE_DISPLAY}
               </p>
             </div>
             <div className="flex flex-col gap-2">
               <a
-                href="tel:+965900103335"
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-white bg-spa-text hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
+                href={USH_PHONE_TEL_HREF}
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium !text-white hover:!text-white bg-spa-text hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
               >
-                Call +965 900103335
+                Call {USH_PHONE_DISPLAY}
               </a>
               <button
                 type="button"
@@ -162,7 +163,7 @@ export default function ContactUsClient() {
             <div className="flex flex-col gap-2">
               <a
                 href="mailto:info@ushspa.co"
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-white bg-spa-text hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
+                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium !text-white hover:!text-white bg-spa-text hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
               >
                 Send Email
               </a>
@@ -363,7 +364,7 @@ export default function ContactUsClient() {
                 </div>
                 <div>
                   <span className="block font-semibold text-spa-text">Official Contact:</span>
-                  <span>info@ushspa.co • +965 900103335</span>
+                  <span>info@ushspa.co • {USH_PHONE_DISPLAY}</span>
                 </div>
               </div>
 

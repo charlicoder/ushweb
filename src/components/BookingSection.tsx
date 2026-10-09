@@ -1,5 +1,7 @@
 'use client';
 
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+
 import { useState } from 'react';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
 
@@ -60,8 +62,8 @@ export default function BookingSection() {
                             </div>
                             <div className="flex items-center gap-3 text-spa-muted text-sm">
                                 <span className="text-spa-rose text-lg">📞</span>
-                                <a href="tel:+965900103335" className="hover:text-spa-cherry font-medium transition-colors">
-                                    +965 900103335
+                                <a href={USH_PHONE_TEL_HREF} className="hover:text-spa-cherry font-medium transition-colors">
+                                    {USH_PHONE_DISPLAY}
                                 </a>
                             </div>
                             <div className="flex items-center gap-3 text-spa-muted text-sm">
