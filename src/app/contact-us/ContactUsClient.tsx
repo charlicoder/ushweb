@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
-import { USH_PHONE_DISPLAY, USH_PHONE_E164, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_E164, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 export default function ContactUsClient() {
   const [copiedEmail, setCopiedEmail] = useState(false);
@@ -19,7 +19,7 @@ export default function ContactUsClient() {
   });
 
   const copyEmail = () => {
-    navigator.clipboard.writeText('info@ushspa.co');
+    navigator.clipboard.writeText(USH_EMAIL_DISPLAY);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2500);
   };
@@ -157,12 +157,12 @@ export default function ContactUsClient() {
                 Corporate inquiries, customer service, and verification requests:
               </p>
               <p className="text-base font-bold text-spa-text font-mono mb-4">
-                info@ushspa.co
+                {USH_EMAIL_DISPLAY}
               </p>
             </div>
             <div className="flex flex-col gap-2">
               <a
-                href="mailto:info@ushspa.co"
+                href={USH_EMAIL_MAILTO_HREF}
                 className="inline-flex items-center justify-center gap-1.5 text-xs font-medium !text-white hover:!text-white bg-spa-text hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
               >
                 Send Email
@@ -364,7 +364,7 @@ export default function ContactUsClient() {
                 </div>
                 <div>
                   <span className="block font-semibold text-spa-text">Official Contact:</span>
-                  <span>info@ushspa.co • {USH_PHONE_DISPLAY}</span>
+                  <span>{USH_EMAIL_DISPLAY} • {USH_PHONE_DISPLAY}</span>
                 </div>
               </div>
 

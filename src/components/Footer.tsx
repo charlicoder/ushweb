@@ -1,6 +1,6 @@
 'use client';
 
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 const quickLinks = [
     { label: 'About Us', href: '#about' },
@@ -71,8 +71,8 @@ export default function Footer() {
                             <div className="mt-2 flex flex-col gap-1.5 text-xs">
                                 <p>
                                     Email:{' '}
-                                    <a href="mailto:info@ushspa.co" style={{ color: '#efa697' }} className="hover:opacity-80 transition-opacity duration-300">
-                                        info@ushspa.co
+                                    <a href={USH_EMAIL_MAILTO_HREF} style={{ color: '#efa697' }} className="hover:opacity-80 transition-opacity duration-300">
+                                        {USH_EMAIL_DISPLAY}
                                     </a>
                                 </p>
                                 <p>

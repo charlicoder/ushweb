@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 interface Section {
   id: string;
@@ -69,7 +69,7 @@ export default function PrivacyPolicyClient() {
   };
 
   const copyEmail = () => {
-    navigator.clipboard.writeText('info@ushspa.co');
+    navigator.clipboard.writeText(USH_EMAIL_DISPLAY);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2500);
   };
@@ -162,7 +162,7 @@ export default function PrivacyPolicyClient() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-spa-cherry" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
-                {copiedEmail ? 'Copied info@ushspa.co!' : 'Copy Privacy Contact Email'}
+                {copiedEmail ? `Copied ${USH_EMAIL_DISPLAY}!` : 'Copy Privacy Contact Email'}
               </button>
             </div>
           </div>
@@ -723,7 +723,7 @@ export default function PrivacyPolicyClient() {
                     </Link>
                   </div>
                   <p className="text-[11px] text-spa-muted leading-relaxed">
-                    Alternatively, you can email our privacy desk at <a href="mailto:info@ushspa.co?subject=Account%20Deletion%20Request%20-%20USH%20Spa" className="text-spa-cherry hover:underline font-mono">info@ushspa.co</a> with your registered phone number.
+                    Alternatively, you can email our privacy desk at <a href={`mailto:${USH_EMAIL_DISPLAY}?subject=Account%20Deletion%20Request%20-%20USH%20Spa`} className="text-spa-cherry hover:underline font-mono">{USH_EMAIL_DISPLAY}</a> with your registered phone number.
                   </p>
                 </div>
 
@@ -772,7 +772,7 @@ export default function PrivacyPolicyClient() {
                 The USH Spa mobile app is designed and marketed exclusively for adult clients and individuals aged <strong className="text-spa-text">16 years and older</strong>. We do not knowingly collect, solicit, or maintain personal information from children under 16.
               </p>
               <p className="text-xs leading-relaxed text-spa-muted">
-                If we learn that an account has been registered by a minor without parental consent, we will promptly delete all associated data from our servers. Parents or guardians who believe their child has submitted personal data to us may contact us at <a href="mailto:info@ushspa.co" className="text-spa-cherry hover:underline">info@ushspa.co</a>.
+                If we learn that an account has been registered by a minor without parental consent, we will promptly delete all associated data from our servers. Parents or guardians who believe their child has submitted personal data to us may contact us at <a href={USH_EMAIL_MAILTO_HREF} className="text-spa-cherry hover:underline">{USH_EMAIL_DISPLAY}</a>.
               </p>
             </section>
 
@@ -829,7 +829,7 @@ export default function PrivacyPolicyClient() {
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">✉️</span>
-                        <span>Email: <a href="mailto:info@ushspa.co" className="text-spa-cherry hover:underline font-medium">info@ushspa.co</a></span>
+                        <span>Email: <a href={USH_EMAIL_MAILTO_HREF} className="text-spa-cherry hover:underline font-medium">{USH_EMAIL_DISPLAY}</a></span>
                       </p>
                     </div>
                   </div>
@@ -860,7 +860,7 @@ export default function PrivacyPolicyClient() {
                   </div>
                   <div className="flex gap-2">
                     <a
-                      href="mailto:info@ushspa.co?subject=Account%20Deletion%20Request%20-%20USH%20Spa"
+                      href={`mailto:${USH_EMAIL_DISPLAY}?subject=Account%20Deletion%20Request%20-%20USH%20Spa`}
                       className="btn-spa btn-rose text-xs py-1.5 px-3"
                     >
                       Email Deletion Request

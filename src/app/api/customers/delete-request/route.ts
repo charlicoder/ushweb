@@ -1,3 +1,4 @@
+import { USH_EMAIL_DISPLAY } from '@/lib/contact';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
         message:
           'Your account deletion request has been successfully registered. Your profile and associated data will be permanently processed within 7 to 14 business days.',
         timeline: '7-14 business days',
-        support_email: 'info@ushspa.co',
+        support_email: USH_EMAIL_DISPLAY,
         data: upstreamResponseData,
       },
       {
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'SERVER_ERROR',
           message:
-            'An unexpected error occurred while submitting your request. Please try again or email info@ushspa.co.',
+            'An unexpected error occurred while submitting your request. Please try again or email ${USH_EMAIL_DISPLAY}.',
         },
       },
       { status: 500 }

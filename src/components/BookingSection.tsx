@@ -1,6 +1,6 @@
 'use client';
 
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 import { useState } from 'react';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
@@ -68,8 +68,8 @@ export default function BookingSection() {
                             </div>
                             <div className="flex items-center gap-3 text-spa-muted text-sm">
                                 <span className="text-spa-rose text-lg">✉️</span>
-                                <a href="mailto:info@ushspa.co" className="hover:text-spa-cherry font-medium transition-colors">
-                                    info@ushspa.co
+                                <a href={USH_EMAIL_MAILTO_HREF} className="hover:text-spa-cherry font-medium transition-colors">
+                                    {USH_EMAIL_DISPLAY}
                                 </a>
                             </div>
                             <div className="flex items-start gap-3 text-spa-muted text-sm">

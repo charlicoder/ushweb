@@ -1,3 +1,4 @@
+import { USH_PHONE_DISPLAY, USH_EMAIL_DISPLAY } from '@/lib/contact';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 
@@ -51,8 +52,8 @@ const businessJsonLd = {
   legalName: 'Quiet Ush Thai Spa Health Institute for Women',
   alternateName: 'USH Spa',
   url: 'https://ushspa.co',
-  telephone: '+965 55555564',
-  email: 'info@ushspa.co',
+  telephone: USH_PHONE_DISPLAY,
+  email: USH_EMAIL_DISPLAY,
   address: {
     '@type': 'PostalAddress',
     streetAddress: 'Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman',

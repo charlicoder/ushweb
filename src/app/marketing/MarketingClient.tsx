@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 interface TableOfContentItem {
   id: string;
@@ -39,7 +39,7 @@ export default function MarketingClient() {
   };
 
   const copyEmail = () => {
-    navigator.clipboard.writeText('info@ushspa.co');
+    navigator.clipboard.writeText(USH_EMAIL_DISPLAY);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2500);
   };
@@ -569,8 +569,8 @@ export default function MarketingClient() {
                   <span className="text-spa-cherry mt-1">•</span>
                   <span>
                     <strong className="text-spa-text font-semibold">Contact Support:</strong> Email us at{' '}
-                    <a href="mailto:info@ushspa.co" className="text-spa-cherry font-medium underline">
-                      info@ushspa.co
+                    <a href={USH_EMAIL_MAILTO_HREF} className="text-spa-cherry font-medium underline">
+                      {USH_EMAIL_DISPLAY}
                     </a>{' '}
                     with your request and we will update your preferences within 48 hours.
                   </span>
@@ -632,8 +632,8 @@ export default function MarketingClient() {
                 <div className="space-y-2 text-xs sm:text-sm text-spa-text/85">
                   <p className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-spa-text">Email:</span>
-                    <a href="mailto:info@ushspa.co" className="text-spa-cherry font-medium hover:underline">
-                      info@ushspa.co
+                    <a href={USH_EMAIL_MAILTO_HREF} className="text-spa-cherry font-medium hover:underline">
+                      {USH_EMAIL_DISPLAY}
                     </a>
                     <button
                       type="button"

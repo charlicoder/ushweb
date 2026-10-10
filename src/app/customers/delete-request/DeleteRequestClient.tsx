@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
 
 export default function DeleteRequestClient() {
   const [countryCode, setCountryCode] = useState<string>('+965');
@@ -68,7 +68,7 @@ export default function DeleteRequestClient() {
       if (!res.ok || !data.success) {
         throw new Error(
           data?.error?.message ||
-            'Unable to process deletion request. Please check your credentials or email info@ushspa.co.'
+            'Unable to process deletion request. Please check your credentials or email ${USH_EMAIL_DISPLAY}.'
         );
       }
 
@@ -81,7 +81,7 @@ export default function DeleteRequestClient() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : 'An unexpected error occurred. Please contact info@ushspa.co for assistance.'
+          : 'An unexpected error occurred. Please contact ${USH_EMAIL_DISPLAY} for assistance.'
       );
     } finally {
       setLoading(false);
@@ -289,7 +289,7 @@ export default function DeleteRequestClient() {
 
               <p className="text-[11px] text-spa-muted">
                 A confirmation record has been registered. If you need any assistance, contact our privacy desk at{' '}
-                <a href="mailto:info@ushspa.co" className="text-spa-cherry underline">info@ushspa.co</a>.
+                <a href={USH_EMAIL_MAILTO_HREF} className="text-spa-cherry underline">{USH_EMAIL_DISPLAY}</a>.
               </p>
 
               <div className="pt-2">
@@ -331,7 +331,7 @@ export default function DeleteRequestClient() {
                   <input
                     type="tel"
                     required
-                    placeholder="e.g. 55555564"
+                    placeholder="e.g. 900103335"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs text-spa-text focus:outline-none"
@@ -458,11 +458,11 @@ export default function DeleteRequestClient() {
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
             <div className="space-y-1">
-              <p>Email: <a href="mailto:info@ushspa.co?subject=Manual%20Account%20Deletion%20Request" className="text-spa-cherry hover:underline font-medium">info@ushspa.co</a></p>
+              <p>Email: <a href={`mailto:${USH_EMAIL_DISPLAY}?subject=Manual%20Account%20Deletion%20Request`} className="text-spa-cherry hover:underline font-medium">{USH_EMAIL_DISPLAY}</a></p>
               <p>Phone / WhatsApp: <a href={USH_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_PHONE_DISPLAY}</a></p>
             </div>
             <a
-              href="mailto:info@ushspa.co?subject=Manual%20Account%20Deletion%20Request%20-%20USH%20Spa"
+              href={`mailto:${USH_EMAIL_DISPLAY}?subject=Manual%20Account%20Deletion%20Request%20-%20USH%20Spa`}
               className="btn-spa btn-rose text-xs py-1.5 px-3"
             >
               Email Privacy Desk
