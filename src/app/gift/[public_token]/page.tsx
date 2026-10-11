@@ -138,8 +138,44 @@ function getSenderDisplayName(v: GiftVoucher): string {
 function fmtDate(d: string, lang: Lang = 'en') {
   if (!d) return '';
   try {
-    return new Date(d).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(d).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+      timeZone: 'Asia/Kuwait',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   } catch { return d; }
+}
+
+function fmtDateTime(d: string, lang: Lang = 'en') {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+      timeZone: 'Asia/Kuwait',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch { return d; }
+}
+
+function fmtTime(d: string, lang: Lang = 'en') {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return '';
+    return dt.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+      timeZone: 'Asia/Kuwait',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch { return ''; }
 }
 
 function fmtDuration(min: number, lang: Lang = 'en') {
@@ -1182,9 +1218,22 @@ function getSecretCode(v: GiftVoucher): string {
   );
 }
 
-function VoucherCodeHeader({ voucherCode, lang = 'en' }: { voucherCode?: string; lang?: Lang }) {
+function VoucherCodeHeader({
+  voucherCode,
+  expireDate,
+  lang = 'en',
+}: {
+  voucherCode?: string;
+  expireDate?: string;
+  lang?: Lang;
+}) {
   const [copied, setCopied] = useState(false);
   const code = (voucherCode || '').trim() || '—';
+  const isAr = lang === 'ar';
+  const expired = expireDate ? isExpired(expireDate) : false;
+  const daysLeft = expireDate
+    ? Math.max(0, Math.ceil((new Date(expireDate).getTime() - Date.now()) / 86400000))
+    : null;
 
   function handleCopy() {
     if (typeof window === 'undefined') return;
@@ -1223,18 +1272,12 @@ function VoucherCodeHeader({ voucherCode, lang = 'en' }: { voucherCode?: string;
     }
   }
 
-  const isAr = lang === 'ar';
-
   return (
     <div style={{
       margin: '16px 18px 0',
       background: 'linear-gradient(135deg, #FFFFFF 0%, #FBF9F7 100%)',
       borderRadius: 20,
       padding: '16px 20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
       border: '1.5px solid #D3C0B1',
       boxShadow: '0 8px 24px rgba(78,39,18,0.09)',
       position: 'relative',
@@ -1242,70 +1285,153 @@ function VoucherCodeHeader({ voucherCode, lang = 'en' }: { voucherCode?: string;
       animation: 'revealSlide 0.6s ease both',
     }}>
       <div className="shimmer-bar" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, position: 'relative', zIndex: 1 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 14,
-          background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22, color: '#FFFFFF', flexShrink: 0,
-          boxShadow: '0 4px 14px rgba(84,60,48,0.25)',
-        }}>
-          🎟️
-        </div>
-        <div style={{ minWidth: 0 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, position: 'relative', zIndex: 1 }}>
           <div style={{
-            fontSize: '0.66rem', color: '#543C30', fontWeight: 700,
-            letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3,
-            opacity: 0.8,
-            fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            width: 44, height: 44, borderRadius: 14,
+            background: 'linear-gradient(135deg, #543C30 0%, #4E2712 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, color: '#FFFFFF', flexShrink: 0,
+            boxShadow: '0 4px 14px rgba(84,60,48,0.25)',
           }}>
-            {isAr ? 'كود القسيمة' : 'Voucher Code'}
+            🎟️
           </div>
-          <div dir="ltr" style={{
-            fontFamily: "'Lustria', serif",
-            fontSize: '1.18rem',
-            fontWeight: 700,
-            color: '#4E2712',
-            letterSpacing: '1.5px',
-            lineHeight: 1.2,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {code}
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontSize: '0.66rem', color: '#543C30', fontWeight: 700,
+              letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3,
+              opacity: 0.8,
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            }}>
+              {isAr ? 'كود القسيمة' : 'Voucher Code'}
+            </div>
+            <div dir="ltr" style={{
+              fontFamily: "'Lustria', serif",
+              fontSize: '1.18rem',
+              fontWeight: 700,
+              color: '#4E2712',
+              letterSpacing: '1.5px',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {code}
+            </div>
           </div>
         </div>
+        <button
+          id="copy-voucher-link-btn"
+          type="button"
+          onClick={handleCopy}
+          title={isAr ? 'نسخ الرابط للمشاركة' : 'Copy link to share'}
+          style={{
+            position: 'relative', zIndex: 1,
+            padding: '8px 14px',
+            borderRadius: 12,
+            border: copied ? '1.5px solid #543C30' : '1.5px solid #D3C0B1',
+            background: copied ? '#543C30' : '#EBE5DE',
+            color: copied ? '#FFFFFF' : '#4E2712',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            letterSpacing: '0.5px',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            flexShrink: 0,
+            transition: 'all 200ms ease',
+            boxShadow: copied ? '0 4px 12px rgba(84,60,48,0.25)' : 'none',
+            fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+          }}
+          onMouseEnter={e => { if (!copied) e.currentTarget.style.background = '#D3C0B1'; }}
+          onMouseLeave={e => { if (!copied) e.currentTarget.style.background = '#EBE5DE'; }}
+        >
+          <span>{copied ? '✓' : '📋'}</span>
+          <span>{copied ? (isAr ? 'تم النسخ' : 'Copied') : (isAr ? 'نسخ' : 'Copy')}</span>
+        </button>
       </div>
-      <button
-        id="copy-voucher-link-btn"
-        type="button"
-        onClick={handleCopy}
-        title={isAr ? 'نسخ الرابط للمشاركة' : 'Copy link to share'}
-        style={{
-          position: 'relative', zIndex: 1,
-          padding: '8px 14px',
-          borderRadius: 12,
-          border: copied ? '1.5px solid #543C30' : '1.5px solid #D3C0B1',
-          background: copied ? '#543C30' : '#EBE5DE',
-          color: copied ? '#FFFFFF' : '#4E2712',
-          fontSize: '0.78rem',
-          fontWeight: 700,
-          letterSpacing: '0.5px',
-          cursor: 'pointer',
-          display: 'inline-flex',
+
+      {expireDate && (
+        <div style={{
+          marginTop: 12,
+          paddingTop: 11,
+          borderTop: '1px solid #EBE5DE',
+          display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          flexShrink: 0,
-          transition: 'all 200ms ease',
-          boxShadow: copied ? '0 4px 12px rgba(84,60,48,0.25)' : 'none',
-          fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
-        }}
-        onMouseEnter={e => { if (!copied) e.currentTarget.style.background = '#D3C0B1'; }}
-        onMouseLeave={e => { if (!copied) e.currentTarget.style.background = '#EBE5DE'; }}
-      >
-        <span>{copied ? '✓' : '📋'}</span>
-        <span>{copied ? (isAr ? 'تم النسخ' : 'Copied') : (isAr ? 'نسخ' : 'Copy')}</span>
-      </button>
+          justifyContent: 'space-between',
+          gap: 10,
+          flexWrap: 'wrap',
+          position: 'relative',
+          zIndex: 1,
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            fontSize: '0.78rem',
+            flexWrap: 'wrap',
+          }}>
+            <span style={{ fontSize: 14 }}>{expired ? '⚠️' : '⏳'}</span>
+            <span style={{
+              color: expired ? '#991B1B' : '#543C30',
+              fontWeight: 600,
+              opacity: 0.85,
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+            }}>
+              {expired
+                ? (isAr ? 'انتهت الصلاحية في:' : 'Expired on:')
+                : (isAr ? 'صالح حتى:' : 'Valid until:')}
+            </span>
+            <span style={{
+              color: expired ? '#991B1B' : '#4E2712',
+              fontWeight: 700,
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+            }}>
+              {fmtDateTime(expireDate, lang)}
+            </span>
+          </div>
+
+          {!expired && daysLeft !== null && (
+            <span style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              color: daysLeft <= 7 ? '#92400E' : '#543C30',
+              background: daysLeft <= 7 ? '#FEF3C7' : '#EBE5DE',
+              padding: '3px 10px',
+              borderRadius: 20,
+              border: daysLeft <= 7 ? '1px solid #FDE68A' : '1px solid #D3C0B1',
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+              flexShrink: 0,
+            }}>
+              {daysLeft === 0
+                ? (isAr ? 'ينتهي اليوم' : 'Expires today')
+                : (isAr ? `متبقي ${daysLeft} ${daysLeft === 1 ? 'يوم' : 'أيام'}` : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`)}
+            </span>
+          )}
+
+          {expired && (
+            <span style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              color: '#991B1B',
+              background: '#FEE2E2',
+              padding: '3px 10px',
+              borderRadius: 20,
+              border: '1px solid #FCA5A5',
+              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+              flexShrink: 0,
+            }}>
+              {isAr ? 'منتهي الصلاحية' : 'Expired'}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1364,7 +1490,27 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
       </div>
 
       {/* ── Voucher Code at Top (with emphasis) ── */}
-      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
+      <VoucherCodeHeader voucherCode={voucherCode} expireDate={v.expire_date} lang={lang} />
+
+      {/* ── Expired Banner ── */}
+      {isExpired(v.expire_date) && (
+        <div style={{
+          padding: '16px 24px',
+          background: '#4E2712',
+          borderBottom: '2px solid #D3C0B1',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif" }}>
+              {isAr ? 'لقد انتهت صلاحية قسيمة الهدية هذه' : 'This Gift Voucher Has Expired'}
+            </div>
+            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? `انتهت الصلاحية في ${fmtDateTime(v.expire_date, lang)}` : `Expired on ${fmtDateTime(v.expire_date, lang)}`}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '16px 18px 40px' }}>
 
@@ -1412,6 +1558,41 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                 <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: isAr ? 'normal' : 'italic', lineHeight: 1.65, margin: 0 }}>
                   &ldquo;{v.gift_message}&rdquo;
                 </p>
+              </div>
+            )}
+
+            {v.expire_date && (
+              <div style={{
+                marginTop: v.gift_message ? 18 : 16,
+                paddingTop: 12,
+                borderTop: '1px dashed #EBE5DE',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                flexWrap: 'wrap',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13 }}>📅</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    color: '#D3C0B1',
+                    fontWeight: 700,
+                    letterSpacing: isAr ? 0 : 1.5,
+                    textTransform: 'uppercase',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}>
+                    {isAr ? 'صلاحية الهدية' : 'Gift Validity'}
+                  </span>
+                </div>
+                <div style={{
+                  fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  color: isExpired(v.expire_date) ? '#991B1B' : '#4E2712',
+                }}>
+                  {isAr ? `ينتهي في ${fmtDateTime(v.expire_date, lang)}` : `Expires ${fmtDateTime(v.expire_date, lang)}`}
+                </div>
               </div>
             )}
           </div>
@@ -1666,7 +1847,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
         </div>
 
         {/* ── App Download CTA (Ready to redeem your gift?) ── */}
-        <AppCTA lang={lang} />
+        <AppCTA expireDate={v.expire_date} lang={lang} />
 
         {/* ── Footer ── */}
         <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
@@ -1678,6 +1859,13 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
             <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>
               {isAr ? 'رقم الهدية:' : 'Gift ID:'} <span dir="ltr">{voucherNum || v.id?.substring(0, 8).toUpperCase()}</span>
             </span>
+            {v.expire_date && (
+              <span style={{ display: 'block', color: '#D3C0B1', fontSize: '0.74rem', marginTop: 4 }}>
+                {isExpired(v.expire_date)
+                  ? (isAr ? `⚠ انتهت صلاحية هذه الهدية في ${fmtDateTime(v.expire_date, lang)}` : `⚠ Expired on ${fmtDateTime(v.expire_date, lang)}`)
+                  : (isAr ? `صالح حتى ${fmtDateTime(v.expire_date, lang)}` : `Valid until ${fmtDateTime(v.expire_date, lang)}`)}
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -2017,7 +2205,7 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
       </div>
 
       {/* ── Voucher Code at Top (with emphasis) ── */}
-      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
+      <VoucherCodeHeader voucherCode={voucherCode} expireDate={v.expire_date} lang={lang} />
 
       {/* ── Expired Banner ── */}
       {expired && (
@@ -2033,7 +2221,7 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
               {isAr ? 'لقد انتهت صلاحية قسيمة الهدية هذه' : 'This Gift Voucher Has Expired'}
             </div>
             <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-              {isAr ? `انتهت الصلاحية في ${fmtDate(v.expire_date, lang)}` : `Expired on ${fmtDate(v.expire_date, lang)}`}
+              {isAr ? `انتهت الصلاحية في ${fmtDateTime(v.expire_date, lang)}` : `Expired on ${fmtDateTime(v.expire_date, lang)}`}
             </div>
           </div>
         </div>
@@ -2139,6 +2327,41 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
             </p>
           </div>
         )}
+
+        {v.expire_date && (
+          <div style={{
+            marginTop: v.gift_message ? 18 : 16,
+            paddingTop: 12,
+            borderTop: '1px dashed #EBE5DE',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13 }}>📅</span>
+              <span style={{
+                fontSize: '0.7rem',
+                color: '#D3C0B1',
+                fontWeight: 700,
+                letterSpacing: isAr ? 0 : 1.5,
+                textTransform: 'uppercase',
+                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+              }}>
+                {isAr ? 'صلاحية الهدية' : 'Gift Validity'}
+              </span>
+            </div>
+            <div style={{
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              color: expired ? '#991B1B' : '#4E2712',
+            }}>
+              {isAr ? `ينتهي في ${fmtDateTime(v.expire_date, lang)}` : `Expires ${fmtDateTime(v.expire_date, lang)}`}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Quick Stats Row (No Price) ── */}
@@ -2146,7 +2369,18 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         {[
           { icon: '⏱', label: isAr ? 'المدة' : 'Duration', value: fmtDuration(v.total_duration || sdDuration || 0, lang) },
           { icon: '🎁', label: isAr ? 'الخدمة' : 'Ritual', value: v.service_data?.name ? (v.service_data.name.length > 14 ? v.service_data.name.substring(0, 14) + '…' : v.service_data.name) : (isAr ? 'خاصة' : 'Special') },
-          { icon: '📅', label: isAr ? 'صالح حتى' : 'Valid Until', value: fmtDate(v.expire_date, lang).replace(/,.*/, '') },
+          {
+            icon: '📅',
+            label: isAr ? 'صالح حتى' : 'Valid Until',
+            value: (
+              <div>
+                <div>{fmtDate(v.expire_date, lang)}</div>
+                <div style={{ fontSize: '0.7rem', opacity: 0.75, fontWeight: 600, marginTop: 2 }}>
+                  {fmtTime(v.expire_date, lang)}
+                </div>
+              </div>
+            ),
+          },
         ].map((s, i) => (
           <div key={s.label} className="stat-card" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
             <div style={{ fontSize: 22, marginBottom: 7 }}>{s.icon}</div>
@@ -2293,8 +2527,8 @@ function ServiceGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
           {isAr ? 'يرجى تقديم هذه القسيمة في الفرع للاستمتاع بتجربتك.' : 'Present this voucher at our branch to redeem your experience.'}<br />
           <span style={{ color: '#D3C0B1', fontSize: '0.74rem' }}>
             {expired
-              ? (isAr ? '⚠ انتهت صلاحية هذه القسيمة' : '⚠ This voucher has expired')
-              : (isAr ? `صالح حتى ${fmtDate(v.expire_date, lang)}` : `Valid until ${fmtDate(v.expire_date)}`)}
+              ? (isAr ? `⚠ انتهت صلاحية هذه القسيمة في ${fmtDateTime(v.expire_date, lang)}` : `⚠ This voucher expired on ${fmtDateTime(v.expire_date, lang)}`)
+              : (isAr ? `صالح حتى ${fmtDateTime(v.expire_date, lang)}` : `Valid until ${fmtDateTime(v.expire_date, lang)}`)}
           </span>
         </p>
       </div>
@@ -2349,7 +2583,27 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
       </div>
 
       {/* ── Voucher Code at Top (with emphasis) ── */}
-      <VoucherCodeHeader voucherCode={voucherCode} lang={lang} />
+      <VoucherCodeHeader voucherCode={voucherCode} expireDate={v.expire_date} lang={lang} />
+
+      {/* ── Expired Banner ── */}
+      {isExpired(v.expire_date) && (
+        <div style={{
+          padding: '16px 24px',
+          background: '#4E2712',
+          borderBottom: '2px solid #D3C0B1',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.95rem', fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif" }}>
+              {isAr ? 'لقد انتهت صلاحية قسيمة الهدية هذه' : 'This Gift Voucher Has Expired'}
+            </div>
+            <div style={{ color: '#D3C0B1', fontSize: '0.8rem', marginTop: 2, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+              {isAr ? `انتهت الصلاحية في ${fmtDateTime(v.expire_date, lang)}` : `Expired on ${fmtDateTime(v.expire_date, lang)}`}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '16px 18px 40px' }}>
 
@@ -2397,6 +2651,41 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                 <p style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '1.05rem', color: '#4E2712', fontStyle: isAr ? 'normal' : 'italic', lineHeight: 1.65, margin: 0 }}>
                   &ldquo;{v.gift_message}&rdquo;
                 </p>
+              </div>
+            )}
+
+            {v.expire_date && (
+              <div style={{
+                marginTop: v.gift_message ? 18 : 16,
+                paddingTop: 12,
+                borderTop: '1px dashed #EBE5DE',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                flexWrap: 'wrap',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13 }}>📅</span>
+                  <span style={{
+                    fontSize: '0.7rem',
+                    color: '#D3C0B1',
+                    fontWeight: 700,
+                    letterSpacing: isAr ? 0 : 1.5,
+                    textTransform: 'uppercase',
+                    fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+                  }}>
+                    {isAr ? 'صلاحية الهدية' : 'Gift Validity'}
+                  </span>
+                </div>
+                <div style={{
+                  fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  color: isExpired(v.expire_date) ? '#991B1B' : '#4E2712',
+                }}>
+                  {isAr ? `ينتهي في ${fmtDateTime(v.expire_date, lang)}` : `Expires ${fmtDateTime(v.expire_date, lang)}`}
+                </div>
               </div>
             )}
           </div>
@@ -2647,7 +2936,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
         {/* Note: Delivery progress section completely removed for digital gift vouchers as per requirement 1.i */}
 
         {/* ── App Download CTA (Ready to redeem your gift?) ── */}
-        <AppCTA lang={lang} />
+        <AppCTA expireDate={v.expire_date} lang={lang} />
 
         {/* ── Footer ── */}
         <div style={{ textAlign: 'center', color: '#4E2712', opacity: 0.85, fontSize: '0.8rem', padding: '0 20px' }}>
@@ -2661,6 +2950,13 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                 ? `رقم الهدية: ${voucherNum || v.id?.substring(0, 8).toUpperCase()}`
                 : `Gift ID: ${voucherNum || v.id?.substring(0, 8).toUpperCase()}`}
             </span>
+            {v.expire_date && (
+              <span style={{ display: 'block', color: '#D3C0B1', fontSize: '0.74rem', marginTop: 4 }}>
+                {isExpired(v.expire_date)
+                  ? (isAr ? `⚠ انتهت صلاحية هذه القسيمة في ${fmtDateTime(v.expire_date, lang)}` : `⚠ This voucher expired on ${fmtDateTime(v.expire_date, lang)}`)
+                  : (isAr ? `صالح حتى ${fmtDateTime(v.expire_date, lang)}` : `Valid until ${fmtDateTime(v.expire_date, lang)}`)}
+              </span>
+            )}
           </p>
         </div>
       </div>
