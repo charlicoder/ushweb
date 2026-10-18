@@ -6,7 +6,7 @@ const quickLinks = [
     { label: 'About Us', href: '#about' },
     { label: 'Our Services', href: '#services' },
     { label: 'Appointments', href: '#booking' },
-    { label: 'Gift Cards', href: '#gift-cards' },
+    { label: 'Gift Voucher', href: '/gift-voucher' },
     { label: 'Contact Us', href: '/contact-us' },
     { label: 'Privacy Policy', href: '/privacy-policy' }
 ];

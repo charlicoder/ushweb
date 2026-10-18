@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
         source: '/booknpay/api/:path*',
         destination: `${baseUrl}/booknpay/api/:path*`,
       },
+      {
+        source: '/uauth/api/:path*',
+        destination: `${baseUrl}/uauth/api/:path*`,
+      },
     ];
   },
 

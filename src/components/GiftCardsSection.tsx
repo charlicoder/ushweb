@@ -47,11 +47,7 @@ export default function GiftCardsSection() {
                             {giftCards.map((card) =>
                                 <a
                                     key={card.title}
-                                    href="#booking"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        document.querySelector('#booking')?.scrollIntoView({ behavior: 'smooth' });
-                                    }}
+                                    href="/gift-voucher"
                                     className="flex items-center justify-between p-5 border border-spa-petal rounded-sm hover:border-spa-rose hover:bg-spa-blush transition-all duration-300 group">
 
                                     <div>
