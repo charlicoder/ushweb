@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
+import { useApp } from '@/context/AppContext';
 import {
   GiftIcon,
   CheckCircleIcon,
@@ -61,8 +62,7 @@ export default function GiftVoucherPaymentSuccessClient() {
   const amountParam = searchParams.get('amount') || '';
   const currencyParam = searchParams.get('currency') || 'KWD';
 
-  const [lang, setLang] = useState<'en' | 'ar'>('en');
-  const isAr = lang === 'ar';
+  const { lang, isAr, isDark } = useApp();
 
   const [isLoading, setIsLoading] = useState(true);
   const [voucher, setVoucher] = useState<VoucherData | null>(null);
@@ -174,31 +174,28 @@ export default function GiftVoucherPaymentSuccessClient() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      style={{ backgroundColor: '#EAE5DF', minHeight: '100vh', color: '#1A1A1A' }}
-      className="flex flex-col font-sans pt-[64px] sm:pt-[68px]"
+      style={{
+        backgroundColor: isDark ? '#17110e' : '#EAE5DF',
+        minHeight: '100vh',
+        color: isDark ? '#f7eee9' : '#1A1A1A',
+      }}
+      className="flex flex-col font-sans pt-[64px] sm:pt-[68px] transition-colors duration-300"
     >
       <Header />
 
       {/* Top Banner */}
       <div
         style={{
-          backgroundColor: '#d6c3b5',
-          borderColor: 'rgba(84, 60, 48, 0.15)',
+          backgroundColor: isDark ? '#261b16' : '#d6c3b5',
+          borderColor: isDark ? 'rgba(239, 166, 151, 0.15)' : 'rgba(84, 60, 48, 0.15)',
         }}
-        className="border-b py-3 px-4 sm:px-8"
+        className="border-b py-3 px-4 sm:px-8 transition-colors duration-300"
       >
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#543C30]">
-            <CheckCircleIcon className="w-5 h-5 text-emerald-700" />
+          <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: isDark ? '#f7eee9' : '#543C30' }}>
+            <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span>{isAr ? 'تأكيد السداد وتفعيل القسيمة' : 'Payment Confirmed & Voucher Active'}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setLang(isAr ? 'en' : 'ar')}
-            className="text-xs font-bold px-3 py-1 rounded-full border border-[#543C30]/30 hover:bg-black/5"
-          >
-            {isAr ? 'English' : 'العربية'}
-          </button>
         </div>
       </div>
 

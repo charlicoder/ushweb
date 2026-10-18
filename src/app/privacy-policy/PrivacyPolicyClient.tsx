@@ -5,31 +5,34 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import { useApp } from '@/context/AppContext';
 
 interface Section {
   id: string;
   number: string;
   title: string;
+  titleAr: string;
 }
 
 const sections: Section[] = [
-  { id: 'introduction', number: '1', title: 'Introduction & Scope' },
-  { id: 'data-collected', number: '2', title: 'Information We Collect' },
-  { id: 'how-we-use-data', number: '3', title: 'How We Use Your Information' },
-  { id: 'legal-basis', number: '4', title: 'Legal Bases for Processing' },
-  { id: 'device-permissions', number: '5', title: 'Device Permissions & Access' },
-  { id: 'payment-security', number: '6', title: 'Payment & Financial Security' },
-  { id: 'data-sharing', number: '7', title: 'Data Sharing & Third Parties' },
-  { id: 'data-retention', number: '8', title: 'Data Retention' },
-  { id: 'data-security', number: '9', title: 'Data Security Measures' },
-  { id: 'user-rights', number: '10', title: 'Your Privacy Rights' },
-  { id: 'account-deletion', number: '11', title: 'Account Deletion & Data Erasure' },
-  { id: 'children-privacy', number: '12', title: "Children's Privacy" },
-  { id: 'policy-changes', number: '13', title: 'Changes to this Policy' },
-  { id: 'contact-us', number: '14', title: 'Contact Us & Grievances' },
+  { id: 'introduction', number: '1', title: 'Introduction & Scope', titleAr: 'المقدمة ونطاق السياسة' },
+  { id: 'data-collected', number: '2', title: 'Information We Collect', titleAr: 'البيانات والمعلومات التي نجمعها' },
+  { id: 'how-we-use-data', number: '3', title: 'How We Use Your Information', titleAr: 'كيف نستخدم معلوماتكِ' },
+  { id: 'legal-basis', number: '4', title: 'Legal Bases for Processing', titleAr: 'الأسس القانونية لمعالجة البيانات' },
+  { id: 'device-permissions', number: '5', title: 'Device Permissions & Access', titleAr: 'أذونات وصلاحيات الجهاز' },
+  { id: 'payment-security', number: '6', title: 'Payment & Financial Security', titleAr: 'أمان وسرية الدفع الإلكتروني' },
+  { id: 'data-sharing', number: '7', title: 'Data Sharing & Third Parties', titleAr: 'مشاركة البيانات مع الأطراف الثالثة' },
+  { id: 'data-retention', number: '8', title: 'Data Retention', titleAr: 'مدة الاحتفاظ بالبيانات' },
+  { id: 'data-security', number: '9', title: 'Data Security Measures', titleAr: 'إجراءات حماية وأمن البيانات' },
+  { id: 'user-rights', number: '10', title: 'Your Privacy Rights', titleAr: 'حقوق الخصوصية الخاصة بكِ' },
+  { id: 'account-deletion', number: '11', title: 'Account Deletion & Data Erasure', titleAr: 'حذف الحساب ومسح البيانات' },
+  { id: 'children-privacy', number: '12', title: "Children's Privacy", titleAr: 'خصوصية الأطفال والقُصّر' },
+  { id: 'policy-changes', number: '13', title: 'Changes to this Policy', titleAr: 'تحديثات وتغييرات هذه السياسة' },
+  { id: 'contact-us', number: '14', title: 'Contact Us & Grievances', titleAr: 'التواصل والشكاوى' },
 ];
 
 export default function PrivacyPolicyClient() {
+  const { isAr } = useApp();
   const [activeSection, setActiveSection] = useState<string>('introduction');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedEmail, setCopiedEmail] = useState<boolean>(false);
@@ -77,37 +80,52 @@ export default function PrivacyPolicyClient() {
   const filteredSections = useMemo(() => {
     if (!searchQuery.trim()) return sections;
     const query = searchQuery.toLowerCase();
-    return sections.filter((s) => s.title.toLowerCase().includes(query));
+    return sections.filter((s) =>
+      s.title.toLowerCase().includes(query) || s.titleAr.includes(query)
+    );
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-white text-spa-text antialiased">
+    <div className="min-h-screen bg-white dark:bg-[#16100d] text-spa-text dark:text-[#f7eee9] antialiased transition-colors duration-300">
       <Header />
 
       {/* Hero Header */}
-      <section className="relative bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-28 pb-14 border-b border-spa-petal/30">
+      <section className="relative bg-gradient-to-b from-spa-cream via-spa-pearl to-white dark:from-[#201713] dark:via-[#1a1310] dark:to-[#16100d] pt-28 pb-14 border-b border-spa-petal/30 dark:border-white/10 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-xs text-spa-muted mb-6">
-            <Link href="/" className="hover:text-spa-cherry transition-colors">Home</Link>
+          <nav className="flex items-center gap-2 text-xs text-spa-muted dark:text-[#b5a49c] mb-6">
+            <Link href="/" className="hover:text-spa-cherry dark:hover:text-spa-rose transition-colors">
+              {isAr ? 'الرئيسية' : 'Home'}
+            </Link>
             <span>/</span>
-            <span className="text-spa-cherry font-medium">Privacy Policy</span>
+            <span className="text-spa-cherry dark:text-spa-rose font-medium">
+              {isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}
+            </span>
           </nav>
 
           <div className="max-w-4xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-spa-blush border border-spa-petal/60 text-spa-cherry text-xs font-semibold tracking-wider uppercase mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-spa-blush dark:bg-[#281e19] border border-spa-petal/60 dark:border-white/15 text-spa-cherry dark:text-spa-rose text-xs font-semibold tracking-wider uppercase mb-4">
               <span className="w-2 h-2 rounded-full bg-spa-rose animate-pulse" />
-              Official Mobile App Notice
+              {isAr ? 'إشعار رسمي لتطبيق الهاتف' : 'Official Mobile App Notice'}
             </div>
 
-            <h1 className="font-lustria text-3xl sm:text-4xl md:text-5xl text-spa-text mb-4 leading-tight">
-              USH Spa Mobile App Privacy Policy
+            <h1 className="font-lustria text-3xl sm:text-4xl md:text-5xl text-spa-text dark:text-[#f7eee9] mb-4 leading-tight">
+              {isAr ? 'سياسة الخصوصية لتطبيق معهد أوش سبا' : 'USH Spa Mobile App Privacy Policy'}
             </h1>
 
-            <p className="text-spa-muted text-base sm:text-lg leading-relaxed mb-6 font-light">
-              This Privacy Policy explains how <strong className="text-spa-text font-medium">Quiet Ush Thai Spa Health Institute for Women</strong> (operating as <strong className="text-spa-text font-medium">USH Spa</strong>) collects,
-              uses, protects, and discloses personal data when you use the <strong className="text-spa-text font-medium">USH Spa</strong> mobile application
-              (available for iOS on the Apple App Store and for Android on the Google Play Store) to discover spa services, schedule appointments, and manage gift vouchers.
+            <p className="text-spa-muted dark:text-[#b5a49c] text-base sm:text-lg leading-relaxed mb-6 font-light">
+              {isAr ? (
+                <>
+                  توضح هذه السياسة كيفية قيام <strong className="text-spa-text dark:text-white font-medium">معهد كوايت أوش للسبا الصحي التايلاندي للنساء</strong> (المعروف تجارياً بـ <strong className="text-spa-text dark:text-white font-medium">USH Spa</strong>) بجمع
+                  واستخدام وحماية البيانات الشخصية عند استخدامكِ لتطبيق <strong className="text-spa-text dark:text-white font-medium">أوش سبا</strong> على نظامي iOS و Android لحجز الجلسات وإدارة قسائم الهدايا.
+                </>
+              ) : (
+                <>
+                  This Privacy Policy explains how <strong className="text-spa-text dark:text-white font-medium">Quiet Ush Thai Spa Health Institute for Women</strong> (operating as <strong className="text-spa-text dark:text-white font-medium">USH Spa</strong>) collects,
+                  uses, protects, and discloses personal data when you use the <strong className="text-spa-text dark:text-white font-medium">USH Spa</strong> mobile application
+                  (available for iOS on the Apple App Store and for Android on the Google Play Store) to discover spa services, schedule appointments, and manage gift vouchers.
+                </>
+              )}
             </p>
 
             {/* Quick Metadata Pill Container */}
@@ -176,34 +194,34 @@ export default function PrivacyPolicyClient() {
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             type="button"
-            className="w-full flex items-center justify-between p-4 bg-spa-cream rounded-sm border border-spa-petal/60 text-sm font-medium text-spa-text shadow-sm"
+            className="w-full flex items-center justify-between p-4 bg-spa-cream dark:bg-[#231a16] rounded-sm border border-spa-petal/60 dark:border-white/10 text-sm font-medium text-spa-text dark:text-[#f7eee9] shadow-sm"
           >
             <span className="flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-spa-cherry" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" />
               </svg>
-              Table of Contents ({sections.length} Sections)
+              {isAr ? `فهرس بنود السياسة (${sections.length} بنود)` : `Table of Contents (${sections.length} Sections)`}
             </span>
             <span className="text-xs text-spa-cherry font-semibold">
-              {mobileMenuOpen ? 'Hide ▲' : 'Browse ▼'}
+              {mobileMenuOpen ? (isAr ? 'إخفاء ▲' : 'Hide ▲') : (isAr ? 'عرض ▼' : 'Browse ▼')}
             </span>
           </button>
 
           {mobileMenuOpen && (
-            <div className="mt-2 p-3 bg-white border border-spa-petal rounded-sm shadow-md space-y-1">
+            <div className="mt-2 p-3 bg-white dark:bg-[#231a16] border border-spa-petal dark:border-white/10 rounded-sm shadow-md space-y-1">
               {sections.map((section) => (
                 <button
                   key={section.id}
                   onClick={() => scrollToSection(section.id)}
                   type="button"
-                  className={`w-full text-left px-3 py-2 text-xs rounded transition-colors ${
+                  className={`w-full text-left rtl:text-right px-3 py-2 text-xs rounded transition-colors ${
                     activeSection === section.id
-                      ? 'bg-spa-blush text-spa-cherry font-medium'
-                      : 'text-spa-text hover:bg-spa-cream'
+                      ? 'bg-spa-blush dark:bg-[#2e221c] text-spa-cherry dark:text-spa-rose font-medium'
+                      : 'text-spa-text dark:text-[#f7eee9] hover:bg-spa-cream dark:hover:bg-[#2a201b]'
                   }`}
                 >
-                  <span className="text-spa-muted mr-1.5">{section.number}.</span>
-                  {section.title}
+                  <span className="text-spa-muted mr-1.5 rtl:ml-1.5 rtl:mr-0">{section.number}.</span>
+                  {isAr ? section.titleAr : section.title}
                 </button>
               ))}
             </div>
@@ -213,26 +231,28 @@ export default function PrivacyPolicyClient() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Desktop Left Sidebar: Interactive Table of Contents */}
           <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
-            <div className="sticky top-28 bg-white border border-spa-petal/50 rounded-sm p-5 shadow-sm">
+            <div className="sticky top-28 bg-white dark:bg-[#231a16] border border-spa-petal/50 dark:border-white/10 rounded-sm p-5 shadow-sm">
               <div className="mb-4">
-                <h2 className="font-lustria text-sm font-bold uppercase tracking-wider text-spa-text">
-                  Policy Navigation
+                <h2 className="font-lustria text-sm font-bold uppercase tracking-wider text-spa-text dark:text-[#f7eee9]">
+                  {isAr ? 'فهرس بنود السياسة' : 'Policy Navigation'}
                 </h2>
-                <p className="text-[11px] text-spa-muted mt-0.5">Jump directly to any section</p>
+                <p className="text-[11px] text-spa-muted dark:text-[#b5a49c] mt-0.5">
+                  {isAr ? 'انتقال مباشر إلى أي بند' : 'Jump directly to any section'}
+                </p>
               </div>
 
               {/* Quick Filter */}
               <div className="relative mb-4">
                 <input
                   type="text"
-                  placeholder="Filter topics..."
+                  placeholder={isAr ? 'بحث في البنود...' : 'Filter topics...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full text-xs px-3 py-2 pl-8 border border-spa-petal/70 rounded-sm bg-spa-cream/40 focus:outline-none focus:border-spa-rose transition-colors"
+                  className="w-full text-xs px-3 py-2 pl-8 rtl:pr-8 rtl:pl-3 border border-spa-petal/70 dark:border-white/15 rounded-sm bg-spa-cream/40 dark:bg-[#2a201b] text-spa-text dark:text-white focus:outline-none focus:border-spa-rose transition-colors"
                 />
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="w-3.5 h-3.5 text-spa-muted absolute left-2.5 top-2.5"
+                  className="w-3.5 h-3.5 text-spa-muted absolute left-2.5 rtl:right-2.5 rtl:left-auto top-2.5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -249,20 +269,20 @@ export default function PrivacyPolicyClient() {
                       key={section.id}
                       onClick={() => scrollToSection(section.id)}
                       type="button"
-                      className={`w-full text-left px-2.5 py-1.5 rounded text-xs transition-all flex items-center justify-between group ${
+                      className={`w-full text-left rtl:text-right px-2.5 py-1.5 rounded text-xs transition-all flex items-center justify-between group ${
                         isActive
-                          ? 'bg-spa-blush text-spa-cherry font-medium border-l-2 border-spa-cherry pl-3'
-                          : 'text-spa-muted hover:text-spa-text hover:bg-spa-cream/60'
+                          ? 'bg-spa-blush dark:bg-[#2e221c] text-spa-cherry dark:text-spa-rose font-medium border-l-2 rtl:border-r-2 rtl:border-l-0 border-spa-cherry pl-3 rtl:pr-3'
+                          : 'text-spa-muted dark:text-[#b5a49c] hover:text-spa-text dark:hover:text-white hover:bg-spa-cream/60 dark:hover:bg-[#2a201b]'
                       }`}
                     >
                       <span className="truncate">
-                        <span className="font-mono text-[11px] mr-1.5 opacity-60">
+                        <span className="font-mono text-[11px] mr-1.5 rtl:ml-1.5 rtl:mr-0 opacity-60">
                           {section.number}.
                         </span>
-                        {section.title}
+                        {isAr ? section.titleAr : section.title}
                       </span>
                       {isActive && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-spa-cherry ml-2 shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-spa-cherry ml-2 rtl:mr-2 rtl:ml-0 shrink-0" />
                       )}
                     </button>
                   );

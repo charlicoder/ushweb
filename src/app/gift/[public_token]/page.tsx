@@ -2977,7 +2977,7 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
   /* ── Load preferred language ── */
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('ush_gift_lang');
+      const saved = localStorage.getItem('ush_lang') || localStorage.getItem('ush_gift_lang');
       if (saved === 'en' || saved === 'ar') {
         setLang(saved);
       }
@@ -2989,6 +2989,7 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
   const handleSetLang = (l: Lang) => {
     setLang(l);
     try {
+      localStorage.setItem('ush_lang', l);
       localStorage.setItem('ush_gift_lang', l);
     } catch {
       /* ignore */

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { useApp } from '@/context/AppContext';
 import {
   CheckCircleIcon,
   ClipboardDocumentIcon,
@@ -22,6 +23,7 @@ import {
 } from '@/lib/contact';
 
 export default function PaymentSuccessClient() {
+  const { isAr, t } = useApp();
   const searchParams = useSearchParams();
 
   // Extract query parameters
@@ -59,7 +61,7 @@ export default function PaymentSuccessClient() {
     const timer = setTimeout(() => {
       const now = new Date();
       setFormattedDate(
-        now.toLocaleDateString('en-GB', {
+        now.toLocaleDateString(isAr ? 'ar-KW' : 'en-GB', {
           day: 'numeric',
           month: 'short',
           year: 'numeric',
@@ -70,7 +72,7 @@ export default function PaymentSuccessClient() {
       );
     }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAr]);
 
   const handleCopyId = () => {
     if (!paymentId) return;
@@ -84,7 +86,7 @@ export default function PaymentSuccessClient() {
   )}`;
 
   return (
-    <div className="min-h-screen bg-[#faf7f5] text-spa-text antialiased flex flex-col justify-between">
+    <div className="min-h-screen bg-[#faf7f5] dark:bg-[#151210] text-spa-text dark:text-[#EBE5DE] antialiased flex flex-col justify-between transition-colors duration-300">
       {/* Global Header */}
       <Header />
 
@@ -98,7 +100,7 @@ export default function PaymentSuccessClient() {
         <div className="relative z-10 w-full max-w-lg mx-auto">
           {/* Card Box */}
           <div
-            className="bg-white/95 backdrop-blur-md rounded-3xl p-6 sm:p-10 border border-[#D3C0B1]/40 transition-all duration-300"
+            className="bg-white/95 dark:bg-[#2A221E]/95 backdrop-blur-md rounded-3xl p-6 sm:p-10 border border-[#D3C0B1]/40 dark:border-white/10 transition-all duration-300"
             style={{
               boxShadow: '0 20px 50px rgba(84, 60, 48, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
             }}
@@ -106,8 +108,8 @@ export default function PaymentSuccessClient() {
             {/* Top Brand Tag */}
             <div className="flex items-center justify-center gap-2 mb-6">
               <span className="w-1.5 h-1.5 rounded-full bg-spa-rose" />
-              <span className="font-lustria text-xs uppercase tracking-[0.25em] font-semibold text-[#543C30]">
-                Quiet Ush Thai Spa
+              <span className="font-lustria text-xs uppercase tracking-[0.25em] font-semibold text-[#543C30] dark:text-[#D3C0B1]">
+                {t('Quiet Ush Thai Spa', 'معهد كوايت أوش للسبا التايلاندي')}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-spa-rose" />
             </div>
@@ -124,43 +126,50 @@ export default function PaymentSuccessClient() {
 
             {/* Header Titles */}
             <div className="text-center mb-6">
-              <h1 className="font-lustria text-2xl sm:text-3xl font-bold text-spa-text tracking-tight mb-1">
-                Payment Successful
+              <h1 className="font-lustria text-2xl sm:text-3xl font-bold text-spa-text dark:text-[#EBE5DE] tracking-tight mb-1">
+                {t('Payment Successful', 'تم الدفع بنجاح')}
               </h1>
-              <span className="block text-xs font-medium text-spa-cherry tracking-wide mb-3">
-                تم استلام الدفع بنجاح
+              <span className="block text-xs font-medium text-spa-cherry dark:text-spa-petal tracking-wide mb-3">
+                {t('Your transaction has been processed', 'تم تأكيد وإتمام العملية بنجاح')}
               </span>
-              <p className="text-spa-muted text-xs sm:text-sm leading-relaxed max-w-sm mx-auto">
+              <p className="text-spa-muted dark:text-[#D3C0B1]/80 text-xs sm:text-sm leading-relaxed max-w-sm mx-auto">
                 {customMessage ||
-                  'Thank you for choosing USH Spa. Your payment has been received and verified.'}
+                  t(
+                    'Thank you for choosing USH Spa. Your payment has been received and verified.',
+                    'شكراً لاختياركِ أوش سبا. تم استلام وتأكيد دفعتكِ بنجاح.'
+                  )}
               </p>
             </div>
 
             {/* Transaction Details Box */}
-            <div className="bg-[#fdf8f6] rounded-2xl p-4 sm:p-5 border border-spa-petal/60 space-y-3 mb-6">
+            <div className="bg-[#fdf8f6] dark:bg-[#1E1917] rounded-2xl p-4 sm:p-5 border border-spa-petal/60 dark:border-white/10 space-y-3 mb-6">
               {/* Status Row */}
-              <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                <span className="text-spa-muted font-normal">Transaction Status</span>
+              <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                  {t('Transaction Status', 'حالة العملية')}
+                </span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                  Confirmed / مدفوع
+                  {t('Confirmed', 'مؤكد')}
                 </span>
               </div>
 
               {/* Payment ID Row */}
               {paymentId && (
-                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                  <span className="text-spa-muted font-normal">Payment Reference</span>
+                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                  <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                    {t('Payment Reference', 'رقم العملية المرجعي')}
+                  </span>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-medium text-spa-text text-xs sm:text-[13px] bg-white px-2 py-0.5 rounded border border-spa-petal/40">
+                    <span className="font-mono font-medium text-spa-text dark:text-[#EBE5DE] text-xs sm:text-[13px] bg-white dark:bg-[#2A221E] px-2 py-0.5 rounded border border-spa-petal/40 dark:border-white/10">
                       {paymentId}
                     </span>
                     <button
                       type="button"
                       onClick={handleCopyId}
                       aria-label="Copy Payment Reference"
-                      className="p-1 text-spa-muted hover:text-spa-cherry rounded hover:bg-spa-blush transition-colors"
-                      title="Copy Payment ID"
+                      className="p-1 text-spa-muted dark:text-[#D3C0B1] hover:text-spa-cherry rounded hover:bg-spa-blush dark:hover:bg-white/10 transition-colors"
+                      title={t('Copy Payment ID', 'نسخ رقم الدفع')}
                     >
                       {copied ? (
                         <CheckIcon className="w-4 h-4 text-emerald-600" />
@@ -174,9 +183,11 @@ export default function PaymentSuccessClient() {
 
               {/* Invoice Number if available */}
               {(invoiceNumber || invoiceId) && (
-                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                  <span className="text-spa-muted font-normal">Invoice No.</span>
-                  <span className="font-medium text-spa-text">
+                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                  <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                    {t('Invoice No.', 'رقم الفاتورة')}
+                  </span>
+                  <span className="font-medium text-spa-text dark:text-[#EBE5DE]">
                     {invoiceNumber || invoiceId}
                   </span>
                 </div>
@@ -184,9 +195,11 @@ export default function PaymentSuccessClient() {
 
               {/* Booking Reference if available */}
               {bookingId && (
-                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                  <span className="text-spa-muted font-normal">Booking Reference</span>
-                  <span className="font-mono text-xs font-medium text-spa-text truncate max-w-[180px]">
+                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                  <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                    {t('Booking Reference', 'مرجع الحجز')}
+                  </span>
+                  <span className="font-mono text-xs font-medium text-spa-text dark:text-[#EBE5DE] truncate max-w-[180px]">
                     {bookingId}
                   </span>
                 </div>
@@ -194,37 +207,43 @@ export default function PaymentSuccessClient() {
 
               {/* Amount if available */}
               {amount && (
-                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                  <span className="text-spa-muted font-normal">Amount Paid</span>
-                  <span className="font-bold text-spa-cherry text-sm sm:text-base">
+                <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                  <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                    {t('Amount Paid', 'المبلغ المدفوع')}
+                  </span>
+                  <span className="font-bold text-spa-cherry dark:text-spa-petal text-sm sm:text-base">
                     {amount} {currency}
                   </span>
                 </div>
               )}
 
               {/* Date & Time */}
-              <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 text-xs sm:text-sm">
-                <span className="text-spa-muted font-normal">Date & Time</span>
-                <span className="text-spa-text font-medium text-xs sm:text-[13px]">
-                  {formattedDate || 'Verified'}
+              <div className="flex items-center justify-between py-1 border-b border-spa-petal/30 dark:border-white/10 text-xs sm:text-sm">
+                <span className="text-spa-muted dark:text-[#D3C0B1]/75 font-normal">
+                  {t('Date & Time', 'التاريخ والوقت')}
+                </span>
+                <span className="text-spa-text dark:text-[#EBE5DE] font-medium text-xs sm:text-[13px]">
+                  {formattedDate || t('Verified', 'تم التحقق')}
                 </span>
               </div>
 
               {/* Security confirmation */}
-              <div className="flex items-center justify-between pt-1 text-[11px] text-spa-muted">
-                <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+              <div className="flex items-center justify-between pt-1 text-[11px] text-spa-muted dark:text-[#D3C0B1]/70">
+                <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
                   <ShieldCheckIcon className="w-3.5 h-3.5" />
-                  Verified via MyFatoorah
+                  {t('Verified via MyFatoorah', 'تم التحقق عبر ماي فاتورة')}
                 </span>
                 <span>PCI-DSS Secured</span>
               </div>
             </div>
 
             {/* Concierge Info Callout */}
-            <div className="rounded-xl bg-spa-blush/60 border border-spa-petal/40 p-3.5 text-center mb-6">
-              <p className="text-[11px] sm:text-xs text-spa-text/90 leading-relaxed">
-                A confirmation has been recorded with our concierge. You will receive appointment
-                details and receipt updates via SMS or WhatsApp shortly.
+            <div className="rounded-xl bg-spa-blush/60 dark:bg-white/5 border border-spa-petal/40 dark:border-white/10 p-3.5 text-center mb-6">
+              <p className="text-[11px] sm:text-xs text-spa-text/90 dark:text-[#EBE5DE]/90 leading-relaxed">
+                {t(
+                  'A confirmation has been recorded with our concierge. You will receive appointment details and receipt updates via SMS or WhatsApp shortly.',
+                  'تم تسجيل التأكيد لدى خدمة العملاء والاستقبال. ستصلكِ تفاصيل الموعد وتحديثات الإيصال عبر الرسائل النصية أو واتساب قريباً.'
+                )}
               </p>
             </div>
 
@@ -235,7 +254,7 @@ export default function PaymentSuccessClient() {
                 className="w-full inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-[#543C30] hover:bg-[#4E2712] text-white font-medium text-sm transition-all duration-300 shadow-sm hover:shadow-md"
               >
                 <HomeIcon className="w-4 h-4" />
-                Return to USH Spa Home
+                {t('Return to USH Spa Home', 'العودة للصفحة الرئيسية لأوش سبا')}
               </Link>
 
               <div className="grid grid-cols-2 gap-2.5">
@@ -243,25 +262,25 @@ export default function PaymentSuccessClient() {
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-spa-petal hover:border-spa-cherry/40 bg-white hover:bg-spa-blush text-spa-text font-medium text-xs sm:text-sm transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-spa-petal dark:border-white/10 hover:border-spa-cherry/40 bg-white dark:bg-[#1E1917] hover:bg-spa-blush dark:hover:bg-white/10 text-spa-text dark:text-[#EBE5DE] font-medium text-xs sm:text-sm transition-all duration-300"
                 >
                   <ChatBubbleLeftRightIcon className="w-4 h-4 text-emerald-600" />
-                  WhatsApp
+                  {t('WhatsApp', 'واتساب')}
                 </a>
 
                 <a
                   href={USH_PHONE_TEL_HREF}
-                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-spa-petal hover:border-spa-cherry/40 bg-white hover:bg-spa-blush text-spa-text font-medium text-xs sm:text-sm transition-all duration-300"
+                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-spa-petal dark:border-white/10 hover:border-spa-cherry/40 bg-white dark:bg-[#1E1917] hover:bg-spa-blush dark:hover:bg-white/10 text-spa-text dark:text-[#EBE5DE] font-medium text-xs sm:text-sm transition-all duration-300"
                 >
-                  <PhoneIcon className="w-4 h-4 text-spa-cherry" />
-                  Call Us
+                  <PhoneIcon className="w-4 h-4 text-spa-cherry dark:text-spa-petal" />
+                  {t('Call Us', 'اتصل بنا')}
                 </a>
               </div>
             </div>
 
             {/* Footer Support Assistance */}
-            <div className="text-center mt-6 pt-4 border-t border-spa-petal/40 text-[11px] text-spa-muted">
-              Need assistance? Phone: {USH_PHONE_DISPLAY} &bull; Email: {USH_EMAIL_DISPLAY}
+            <div className="text-center mt-6 pt-4 border-t border-spa-petal/40 dark:border-white/10 text-[11px] text-spa-muted dark:text-[#D3C0B1]/70">
+              {t('Need assistance?', 'هل تحتاجين لمساعدة؟')} {t('Phone:', 'الهاتف:')} {USH_PHONE_DISPLAY} &bull; {t('Email:', 'البريد:')} {USH_EMAIL_DISPLAY}
             </div>
           </div>
         </div>
@@ -272,3 +291,4 @@ export default function PaymentSuccessClient() {
     </div>
   );
 }
+

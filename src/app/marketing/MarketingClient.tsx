@@ -5,24 +5,27 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import { useApp } from '@/context/AppContext';
 
 interface TableOfContentItem {
   id: string;
   title: string;
+  titleAr: string;
 }
 
 const tocItems: TableOfContentItem[] = [
-  { id: 'marketing-communications', title: '1. Marketing Communications' },
-  { id: 'promotional-offers', title: '2. Promotional Offers & Campaigns' },
-  { id: 'loyalty-rewards', title: '3. Loyalty & Rewards Program' },
-  { id: 'referral-program', title: '4. Referral Program' },
-  { id: 'gift-cards', title: '5. Gift Cards' },
-  { id: 'communication-channels', title: '6. Communication Channels' },
-  { id: 'managing-preferences', title: '7. Managing Your Preferences' },
-  { id: 'contact-us', title: '8. Contact Us' },
+  { id: 'marketing-communications', title: '1. Marketing Communications', titleAr: '1. المراسلات التسويقية' },
+  { id: 'promotional-offers', title: '2. Promotional Offers & Campaigns', titleAr: '2. العروض الترويجية والحملات' },
+  { id: 'loyalty-rewards', title: '3. Loyalty & Rewards Program', titleAr: '3. برنامج الولاء والمكافآت' },
+  { id: 'referral-program', title: '4. Referral Program', titleAr: '4. برنامج إحالة الصديقات' },
+  { id: 'gift-cards', title: '5. Gift Cards', titleAr: '5. قسائم وبطاقات الهدايا' },
+  { id: 'communication-channels', title: '6. Communication Channels', titleAr: '6. قنوات التواصل المعتمدة' },
+  { id: 'managing-preferences', title: '7. Managing Your Preferences', titleAr: '7. إدارة تفضيلات المراسلات' },
+  { id: 'contact-us', title: '8. Contact Us', titleAr: '8. تواصل معنا' },
 ];
 
 export default function MarketingClient() {
+  const { isAr } = useApp();
   const [copiedEmail, setCopiedEmail] = useState(false);
 
   const scrollToSection = (id: string) => {
@@ -45,11 +48,11 @@ export default function MarketingClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf5f3] text-spa-text antialiased">
+    <div className="min-h-screen bg-[#faf5f3] dark:bg-[#16100d] text-spa-text dark:text-[#f7eee9] antialiased transition-colors duration-300">
       <Header />
 
       {/* Hero Header matching design with brand color theme */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#9c4c47] via-[#b7605a] to-[#efa697] text-white pt-32 pb-20 px-4 sm:px-6">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#9c4c47] via-[#b7605a] to-[#efa697] dark:from-[#3a1d1b] dark:via-[#4a2623] dark:to-[#331c17] text-white pt-32 pb-20 px-4 sm:px-6 transition-colors duration-300">
         {/* Soft background ambient ornaments */}
         <div className="absolute inset-0 opacity-15 pointer-events-none">
           <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white blur-3xl" />
@@ -75,55 +78,57 @@ export default function MarketingClient() {
           </div>
 
           <h1 className="font-lustria text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white mb-3">
-            Marketing Details
+            {isAr ? 'تفاصيل المراسلات التسويقية' : 'Marketing Details'}
           </h1>
 
           <p className="max-w-xl text-sm sm:text-base text-white/90 font-light leading-relaxed">
-            Learn more about our promotional offers, loyalty rewards, and communication policies.
+            {isAr
+              ? 'تعرفي على عروضنا الترويجية، وبرامج المكافآت، وسياسات التواصل وقنوات الإشعارات المعتمدة.'
+              : 'Learn more about our promotional offers, loyalty rewards, and communication policies.'}
           </p>
         </div>
       </section>
 
-      {/* Main Content White Card (Exact layout as attached image) */}
+      {/* Main Content White Card */}
       <main className="relative max-w-4xl mx-auto px-4 sm:px-6 -mt-8 sm:-mt-10 mb-16">
-        <div className="bg-white rounded-t-[32px] sm:rounded-t-[40px] rounded-b-2xl shadow-xl border border-spa-petal/40 p-6 sm:p-10 md:p-12 transition-all">
+        <div className="bg-white dark:bg-[#231a16] rounded-t-[32px] sm:rounded-t-[40px] rounded-b-2xl shadow-xl border border-spa-petal/40 dark:border-white/10 p-6 sm:p-10 md:p-12 transition-all">
           {/* Pill Badge at the top */}
           <div className="flex justify-start mb-6">
-            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-spa-blush text-spa-cherry border border-spa-petal/80 shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-spa-cherry animate-pulse" />
-              Promotional Communications
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-spa-blush dark:bg-[#2d211c] text-spa-cherry dark:text-spa-rose border border-spa-petal/80 dark:border-white/10 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-spa-cherry dark:bg-spa-rose animate-pulse" />
+              {isAr ? 'المراسلات الترويجية الرسمية' : 'Promotional Communications'}
             </span>
           </div>
 
           {/* Intro Description */}
-          <p className="text-spa-text/90 text-sm sm:text-base leading-relaxed mb-6 font-normal">
-            At USH Spa, we love keeping you informed about our latest treatments, seasonal offers, and exclusive membership
-            rewards. This Marketing Details page explains how our marketing programs work, the channels we use, and how
-            you can manage your preferences at any time.
+          <p className="text-spa-text/90 dark:text-[#f7eee9]/90 text-sm sm:text-base leading-relaxed mb-6 font-normal">
+            {isAr
+              ? 'في معهد أوش سبا، يسعدنا دائماً إبقاؤكِ على اطلاع دائم بأحدث الجلسات التايلاندية والعروض الموسمية الحصرية ومكافآت العضوية الخاصة. توضح لكِ هذه الصفحة تفاصيل برامجنا وقنوات التواصل وكيفية التحكم بها.'
+              : 'At USH Spa, we love keeping you informed about our latest treatments, seasonal offers, and exclusive membership rewards. This Marketing Details page explains how our marketing programs work, the channels we use, and how you can manage your preferences at any time.'}
           </p>
 
           {/* Table of Contents Box */}
-          <div className="bg-spa-cream/90 border border-spa-petal/60 rounded-xl p-5 sm:p-6 mb-10 shadow-xs">
-            <h2 className="text-sm sm:text-base font-lustria font-bold text-spa-text mb-3 flex items-center gap-2">
+          <div className="bg-spa-cream/90 dark:bg-[#2c201b] border border-spa-petal/60 dark:border-white/10 rounded-xl p-5 sm:p-6 mb-10 shadow-xs">
+            <h2 className="text-sm sm:text-base font-lustria font-bold text-spa-text dark:text-[#f7eee9] mb-3 flex items-center gap-2">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="w-4 h-4 text-spa-cherry"
+                className="w-4 h-4 text-spa-cherry dark:text-spa-rose"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h7" />
               </svg>
-              Table of Contents
+              {isAr ? 'فهرس المحتويات' : 'Table of Contents'}
             </h2>
             <ul className="space-y-1.5">
               {tocItems.map((item) => (
                 <li key={item.id}>
                   <button
                     onClick={() => scrollToSection(item.id)}
-                    className="text-xs sm:text-sm text-spa-cherry hover:text-spa-text hover:underline transition-colors text-left flex items-center gap-2 py-0.5 cursor-pointer font-medium"
+                    className="text-xs sm:text-sm text-spa-cherry dark:text-spa-rose hover:text-spa-text dark:hover:text-white hover:underline transition-colors text-left rtl:text-right flex items-center gap-2 py-0.5 cursor-pointer font-medium"
                   >
-                    <span>{item.title}</span>
+                    <span>{isAr ? item.titleAr : item.title}</span>
                   </button>
                 </li>
               ))}

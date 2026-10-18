@@ -557,7 +557,7 @@ export default function OrderTrackingPage({
   /* Load stored language preference */
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('ush_order_lang') || localStorage.getItem('ush_gift_lang');
+      const saved = localStorage.getItem('ush_lang') || localStorage.getItem('ush_order_lang') || localStorage.getItem('ush_gift_lang');
       if (saved === 'en' || saved === 'ar') {
         setLang(saved);
       }
@@ -569,6 +569,7 @@ export default function OrderTrackingPage({
   const handleSetLang = (l: Lang) => {
     setLang(l);
     try {
+      localStorage.setItem('ush_lang', l);
       localStorage.setItem('ush_order_lang', l);
       localStorage.setItem('ush_gift_lang', l);
     } catch {

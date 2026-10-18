@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from 'next';
 
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AppProvider } from '@/context/AppContext';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -85,7 +86,9 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        {children}
+        <AppProvider>
+          {children}
+        </AppProvider>
 
         <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fushspa8296back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.20" />
         <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" />

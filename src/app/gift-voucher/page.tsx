@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { useApp } from '@/context/AppContext';
 import {
   GiftIcon,
   SparklesIcon,
@@ -219,8 +220,7 @@ const FALLBACK_MYFATOORAH_METHODS: MyFatoorahMethod[] = [
 ];
 
 export default function GiftVoucherPage() {
-  const [lang, setLang] = useState<'en' | 'ar'>('en');
-  const isAr = lang === 'ar';
+  const { lang, isAr, isDark } = useApp();
 
   // Navigation / Phase
   // phases: 'category' | 'products' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
@@ -760,8 +760,12 @@ export default function GiftVoucherPage() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      style={{ backgroundColor: BG_MAIN, minHeight: '100vh', color: '#1A1A1A' }}
-      className="flex flex-col font-sans pt-[64px] sm:pt-[68px]"
+      style={{
+        backgroundColor: isDark ? '#17110e' : BG_MAIN,
+        minHeight: '100vh',
+        color: isDark ? '#f7eee9' : '#1A1A1A',
+      }}
+      className="flex flex-col font-sans pt-[64px] sm:pt-[68px] transition-colors duration-300"
     >
       {/* ─── SITE MAIN HEADER MENU ─────────────────────────────────────── */}
       <Header />
@@ -769,10 +773,10 @@ export default function GiftVoucherPage() {
       {/* ─── GIFT VOUCHER FLOW SUB-HEADER ───────────────────────────────── */}
       <div
         style={{
-          backgroundColor: HEADER_BG,
-          borderBottom: '1px solid rgba(138, 109, 95, 0.2)',
+          backgroundColor: isDark ? '#261b16' : HEADER_BG,
+          borderBottom: isDark ? '1px solid rgba(239, 166, 151, 0.15)' : '1px solid rgba(138, 109, 95, 0.2)',
         }}
-        className="sticky top-[64px] sm:top-[68px] z-40 shadow-xs"
+        className="sticky top-[64px] sm:top-[68px] z-40 shadow-xs transition-colors duration-300"
       >
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           {/* Back Button + Title */}
@@ -781,8 +785,8 @@ export default function GiftVoucherPage() {
               onClick={handleBackNavigation}
               aria-label="Back"
               style={{
-                backgroundColor: 'rgba(138, 109, 95, 0.15)',
-                color: '#3A2A22',
+                backgroundColor: isDark ? 'rgba(239, 166, 151, 0.15)' : 'rgba(138, 109, 95, 0.15)',
+                color: isDark ? '#f7eee9' : '#3A2A22',
               }}
               className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors flex-shrink-0"
             >
@@ -794,7 +798,7 @@ export default function GiftVoucherPage() {
             </button>
             <div className="min-w-0">
               <h1
-                style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif", color: '#1A1A1A' }}
+                style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif", color: isDark ? '#f7eee9' : '#1A1A1A' }}
                 className="text-lg sm:text-xl font-bold truncate leading-tight"
               >
                 {currentPhase === 'category' && (isAr ? 'قسيمة الهدايا' : 'Gift Voucher')}
@@ -805,7 +809,7 @@ export default function GiftVoucherPage() {
                 {currentPhase === 'make_payment' && (isAr ? 'إتمام الدفع' : 'Make Payment')}
                 {currentPhase === 'completed' && (isAr ? 'تم إنشاء القسيمة بنجاح' : 'Voucher Generated')}
               </h1>
-              <p style={{ color: TEXT_SEC }} className="text-xs truncate">
+              <p style={{ color: isDark ? '#b5a49c' : TEXT_SEC }} className="text-xs truncate">
                 {currentPhase === 'category' && (isAr ? 'اختر الفئة المثالية لهديتك' : 'Select the perfect gift category')}
                 {currentPhase === 'products' && (isAr ? 'انقر على المنتج لاختياره' : 'Tap a presentation box or hamper')}
                 {currentPhase === 'services' && (isAr ? 'تجارب استرخاء ملكية لا تُنسى' : 'Select luxury treatments and packages')}
@@ -815,21 +819,6 @@ export default function GiftVoucherPage() {
                 {currentPhase === 'completed' && (isAr ? 'قسيمة الإهداء جاهزة للمشاركة' : 'Your gift voucher is ready to share')}
               </p>
             </div>
-          </div>
-
-          {/* Right Header Controls (Language switch) */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setLang(isAr ? 'en' : 'ar')}
-              style={{
-                backgroundColor: 'rgba(84, 60, 48, 0.1)',
-                borderColor: 'rgba(84, 60, 48, 0.25)',
-                color: PRIMARY_BROWN,
-              }}
-              className="px-3 py-1.5 rounded-full text-xs font-bold border transition-colors hover:bg-black/10"
-            >
-              {isAr ? 'English' : 'عربي'}
-            </button>
           </div>
         </div>
       </div>

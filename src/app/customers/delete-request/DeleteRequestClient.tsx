@@ -5,8 +5,10 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import { useApp } from '@/context/AppContext';
 
 export default function DeleteRequestClient() {
+  const { isAr } = useApp();
   const [countryCode, setCountryCode] = useState<string>('+965');
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -95,35 +97,43 @@ export default function DeleteRequestClient() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-spa-text antialiased">
+    <div className="min-h-screen bg-white dark:bg-[#16100d] text-spa-text dark:text-[#f7eee9] antialiased transition-colors duration-300">
       <Header />
 
       {/* Main Banner */}
-      <section className="bg-gradient-to-b from-spa-cream via-spa-pearl to-white pt-28 pb-12 border-b border-spa-petal/30">
+      <section className="bg-gradient-to-b from-spa-cream via-spa-pearl to-white dark:from-[#201713] dark:via-[#1a1310] dark:to-[#16100d] pt-28 pb-12 border-b border-spa-petal/30 dark:border-white/10 transition-colors duration-300">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <nav className="flex items-center gap-2 text-xs text-spa-muted mb-4">
-            <Link href="/" className="hover:text-spa-cherry transition-colors">Home</Link>
+          <nav className="flex items-center gap-2 text-xs text-spa-muted dark:text-[#b5a49c] mb-4">
+            <Link href="/" className="hover:text-spa-cherry dark:hover:text-spa-rose transition-colors">
+              {isAr ? 'الرئيسية' : 'Home'}
+            </Link>
             <span>/</span>
-            <Link href="/privacy-policy" className="hover:text-spa-cherry transition-colors">Privacy</Link>
+            <Link href="/privacy-policy" className="hover:text-spa-cherry dark:hover:text-spa-rose transition-colors">
+              {isAr ? 'الخصوصية' : 'Privacy'}
+            </Link>
             <span>/</span>
-            <span className="text-spa-cherry font-medium">Account Deletion</span>
+            <span className="text-spa-cherry dark:text-spa-rose font-medium">
+              {isAr ? 'طلب حذف الحساب' : 'Account Deletion'}
+            </span>
           </nav>
 
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-semibold tracking-wider uppercase mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 text-red-700 dark:text-red-400 text-xs font-semibold tracking-wider uppercase mb-3">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            Google Play Data Safety &bull; Account Erasure Portal
+            {isAr ? 'بوابة حذف الحساب والبيانات • أمان البيانات' : 'Google Play Data Safety • Account Erasure Portal'}
           </div>
 
-          <h1 className="font-lustria text-3xl sm:text-4xl text-spa-text mb-3 leading-tight">
-            Request Account &amp; Data Deletion
+          <h1 className="font-lustria text-3xl sm:text-4xl text-spa-text dark:text-[#f7eee9] mb-3 leading-tight">
+            {isAr ? 'طلب حذف الحساب ومسح البيانات' : 'Request Account & Data Deletion'}
           </h1>
 
-          <p className="text-spa-muted text-sm sm:text-base leading-relaxed mb-6 font-light">
-            Use this official portal to request the permanent deletion of your <strong className="text-spa-text font-medium">USH Spa</strong> mobile app account and all associated personal data.
+          <p className="text-spa-muted dark:text-[#b5a49c] text-sm sm:text-base leading-relaxed mb-6 font-light">
+            {isAr
+              ? 'تتيح لكِ هذه البوابة الرسمية تقديم طلب لحذف حسابكِ نهائياً في تطبيق أوش سبا ومسح كافة بياناتكِ الشخصية المرتبطة به وفقاً لسياسات الخصوصية.'
+              : 'Use this official portal to request the permanent deletion of your USH Spa mobile app account and all associated personal data.'}
           </p>
 
           {/* Store & Developer Identity Reference */}
-          <div className="bg-white border border-spa-petal/60 rounded-sm p-4 text-xs text-spa-muted shadow-2xs">
+          <div className="bg-white dark:bg-[#231a16] border border-spa-petal/60 dark:border-white/10 rounded-sm p-4 text-xs text-spa-muted dark:text-[#b5a49c] shadow-2xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <span className="block font-semibold text-spa-text">App Name:</span>
