@@ -44,7 +44,7 @@ export default function WelcomeSection() {
     const { isAr } = useApp();
 
     const handleReadMore = () => {
-        document.querySelector('#services')?.scrollIntoView({ behavior: 'smooth' });
+        window.location.href = '/services';
     };
 
     return (

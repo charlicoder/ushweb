@@ -17,7 +17,7 @@ export default function Footer() {
 
     const quickLinks = [
         { label: isAr ? 'عن المعهد' : 'About Us', href: '#about' },
-        { label: isAr ? 'خدماتنا' : 'Our Services', href: '#services' },
+        { label: isAr ? 'خدماتنا' : 'Our Services', href: '/services' },
         { label: isAr ? 'حجز المواعيد' : 'Appointments', href: '#booking' },
         { label: isAr ? 'قسيمة إهداء' : 'Gift Voucher', href: '/gift-voucher' },
         { label: isAr ? 'اتصل بنا' : 'Contact Us', href: '/contact-us' },

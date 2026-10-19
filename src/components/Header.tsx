@@ -9,7 +9,7 @@ export default function Header() {
 
     const navItems = [
         { label: isAr ? 'الرئيسية' : 'Home', href: '#hero' },
-        { label: isAr ? 'خدماتنا' : 'Our Services', href: '#services' },
+        { label: isAr ? 'خدماتنا' : 'Our Services', href: '/services' },
         { label: isAr ? 'قسيمة إهداء' : 'Gift Voucher', href: '/gift-voucher' },
         { label: isAr ? 'اتصل بنا' : 'Contact Us', href: '/contact-us' },
     ];

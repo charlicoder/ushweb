@@ -6,6 +6,10 @@ export default function HeroSection() {
     const { isAr } = useApp();
 
     const handleScroll = (href: string) => {
+        if (href.startsWith('/')) {
+            window.location.href = href;
+            return;
+        }
         const el = document.querySelector(href);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     };
@@ -58,7 +62,7 @@ export default function HeroSection() {
                         {isAr ? 'حجز موعد الآن' : 'Book an Appointment'}
                     </button>
                     <button
-                        onClick={() => handleScroll('#services')}
+                        onClick={() => handleScroll('/services')}
                         className="btn-spa btn-tra-white text-base px-8 py-4"
                     >
                         {isAr ? 'استكشاف الخدمات' : 'Explore Services'}

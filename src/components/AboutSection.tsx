@@ -6,6 +6,10 @@ export default function AboutSection() {
     const { isAr } = useApp();
 
     const handleScroll = (href: string) => {
+        if (href.startsWith('/')) {
+            window.location.href = href;
+            return;
+        }
         const el = document.querySelector(href);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
     };
@@ -87,7 +91,7 @@ export default function AboutSection() {
                         </p>
 
                         <button
-                            onClick={() => handleScroll('#services')}
+                            onClick={() => handleScroll('/services')}
                             className="btn-spa btn-rose shadow-md"
                             style={{ fontSize: '0.82rem', padding: '11px 32px', letterSpacing: '0.5px' }}
                         >

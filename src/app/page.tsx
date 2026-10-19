@@ -6,7 +6,6 @@ import ExperienceSection from '@/components/ExperienceSection';
 import BannerSection from '@/components/BannerSection';
 import GallerySection from '@/components/GallerySection';
 import GiftCardsSection from '@/components/GiftCardsSection';
-import ServicesSection from '@/components/ServicesSection';
 import OpenHoursSection from '@/components/OpenHoursSection';
 import PricingSection from '@/components/PricingSection';
 import BookingCTASection from '@/components/BookingCTASection';
@@ -51,9 +50,6 @@ export default function HomePage() {
 
       {/* 6. Gift Cards Section */}
       <GiftCardsSection />
-
-      {/* 7. Services Section */}
-      <ServicesSection />
 
       {/* 8. Open Hours + Booking CTA */}
       <OpenHoursSection />
