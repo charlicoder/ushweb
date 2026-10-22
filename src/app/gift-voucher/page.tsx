@@ -681,6 +681,23 @@ export default function GiftVoucherPage() {
       const json = await res.json();
       const vData = json?.data;
       if (vData) {
+        const formDataToStore = {
+          gift_from: giftFrom.trim(),
+          recipient_name: recipientName.trim(),
+          recipient_phone: fullRecipientPhone,
+          sender_phone: fullSenderPhone,
+        };
+        try {
+          sessionStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
+          localStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
+          if (vData.id) {
+            sessionStorage.setItem(`ush_gift_form_${vData.id}`, JSON.stringify(formDataToStore));
+            localStorage.setItem(`ush_gift_form_${vData.id}`, JSON.stringify(formDataToStore));
+          }
+        } catch {
+          // ignore storage error
+        }
+
         setGeneratedVoucher({
           id: vData.id || vData.voucher_id || 'USH-VOUCHER',
           voucher_code: vData.voucher_code || `USH-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -761,6 +778,28 @@ export default function GiftVoucherPage() {
     setPaymentError('');
     setDirectPaymentUrl('');
 
+    const fullRecipientPhone = `${selectedCountry.dial}${recipientPhone.replace(/^0+/, '').trim()}`;
+    const fullSenderPhone = senderPhone.trim()
+      ? `${senderCountry.dial}${senderPhone.replace(/^0+/, '').trim()}`
+      : '';
+
+    try {
+      const formDataToStore = {
+        gift_from: giftFrom.trim(),
+        recipient_name: recipientName.trim(),
+        recipient_phone: fullRecipientPhone,
+        sender_phone: fullSenderPhone,
+      };
+      sessionStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
+      localStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
+      if (generatedVoucher.id) {
+        sessionStorage.setItem(`ush_gift_form_${generatedVoucher.id}`, JSON.stringify(formDataToStore));
+        localStorage.setItem(`ush_gift_form_${generatedVoucher.id}`, JSON.stringify(formDataToStore));
+      }
+    } catch {
+      // ignore
+    }
+
     try {
       const res = await fetch('/api/gift-voucher/myfatoorah', {
         method: 'POST',
@@ -775,6 +814,9 @@ export default function GiftVoucherPage() {
           customer_phone: senderPhone || recipientPhone || '90010333',
           customer_email: 'info@ushspa.co',
           language: isAr ? 'ar' : 'en',
+          gift_from: giftFrom.trim(),
+          recipient_name: recipientName.trim(),
+          recipient_phone: fullRecipientPhone,
         }),
       });
 

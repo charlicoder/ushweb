@@ -20,6 +20,8 @@ import {
   SparklesIcon,
   UserIcon,
   ChatBubbleLeftRightIcon,
+  ChatBubbleBottomCenterTextIcon,
+  DevicePhoneMobileIcon,
 } from '@heroicons/react/24/outline';
 
 const PRIMARY_BROWN = '#543C30';
@@ -62,6 +64,11 @@ export default function GiftVoucherPaymentSuccessClient() {
   const amountParam = searchParams.get('amount') || '';
   const currencyParam = searchParams.get('currency') || 'KWD';
 
+  // Overwrite values directly from URL parameters sent at payment initiation
+  const paramGiftFrom = searchParams.get('gift_from') || '';
+  const paramRecipientName = searchParams.get('recipient_name') || '';
+  const paramRecipientPhone = searchParams.get('recipient_phone') || '';
+
   const { lang, isAr, isDark } = useApp();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +77,32 @@ export default function GiftVoucherPaymentSuccessClient() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedMessage, setCopiedMessage] = useState(false);
+
+  // Stored form data saved before gateway redirect
+  const [storedFormData, setStoredFormData] = useState<{
+    gift_from?: string;
+    recipient_name?: string;
+    recipient_phone?: string;
+    sender_name?: string;
+    sender_phone?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const byVoucher = voucherId
+        ? sessionStorage.getItem(`ush_gift_form_${voucherId}`) || localStorage.getItem(`ush_gift_form_${voucherId}`)
+        : null;
+      const generic =
+        sessionStorage.getItem('ush_gift_form_data') || localStorage.getItem('ush_gift_form_data');
+      const raw = byVoucher || generic;
+      if (raw) {
+        setStoredFormData(JSON.parse(raw));
+      }
+    } catch {
+      // ignore storage error
+    }
+  }, [voucherId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -124,38 +157,77 @@ export default function GiftVoucherPaymentSuccessClient() {
     };
   }, [voucherId, paymentId, invoiceId]);
 
+  // Priority rule: Do NOT take sender or recipient name from server or response,
+  // overwrite them with form data. Use "Gift From" field as sender name if not null/empty.
   const recipientName =
-    voucher?.recipient_data?.name || (isAr ? 'المستلم الكريم' : 'Recipient');
+    paramRecipientName ||
+    storedFormData?.recipient_name ||
+    voucher?.recipient_data?.name ||
+    (isAr ? 'المستلم الكريم' : 'Recipient');
+
   const recipientPhone =
-    voucher?.recipient_phone || voucher?.recipient_data?.phone_number || '';
+    paramRecipientPhone ||
+    storedFormData?.recipient_phone ||
+    voucher?.recipient_phone ||
+    voucher?.recipient_data?.phone_number ||
+    '';
+
   const senderName =
-    voucher?.sender_data?.name || voucher?.gift_from || (isAr ? 'فاعل خير' : 'Guest');
-  const senderPhone = voucher?.sender_data?.phone_number || '';
+    paramGiftFrom ||
+    storedFormData?.gift_from ||
+    voucher?.gift_from ||
+    storedFormData?.sender_name ||
+    voucher?.sender_data?.name ||
+    (isAr ? 'مُهدَى بكل حب' : 'Guest');
+
+  const senderPhone =
+    storedFormData?.sender_phone ||
+    voucher?.sender_data?.phone_number ||
+    '';
+
   const totalAmount = voucher?.total_amount || amountParam || '0.000';
   const currency = voucher?.currency || currencyParam || 'KWD';
-  const voucherCode = voucher?.voucher_number || voucherId.slice(0, 8);
+  const voucherCode = voucher?.voucher_number || searchParams.get('voucher_code') || voucherId.slice(0, 8);
   const secretCode = voucher?.secret_code || '';
+  const voucherCodeDisplay = secretCode || voucherCode;
 
   // Public gift page URL
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const publicVoucherUrl = voucher?.public_token
     ? `${origin}/gift/${voucher.public_token}`
+    : voucherId
+    ? `${origin}/gift/${voucherId}`
     : `${origin}/gift-voucher`;
 
   const cleanRecipientPhone = recipientPhone.replace(/\D+/g, '');
 
-  const whatsappShareText = isAr
-    ? `مرحباً ${recipientName} 🌸\nأهدتك ${senderName} قسيمة تجربة سبا ملكية فاخرة من Quiet Ush Thai Spa (USH Spa) بقيمة ${totalAmount} ${currency}.\n\nكود القسيمة: ${secretCode}\n\nيمكنك استعراض تفاصيل القسيمة عبر الرابط التالي:\n${publicVoucherUrl}\n\nنأمل لك قضاء أمتع أوقات الاسترخاء!`
-    : `Hello ${recipientName} 🌸\n${senderName} has sent you a luxury spa gift voucher from Quiet Ush Thai Spa (USH Spa) valued at ${totalAmount} ${currency}.\n\nVoucher Code: ${secretCode}\n\nView and redeem your gift card here:\n${publicVoucherUrl}\n\nWishing you blissful moments!`;
+  // Preloaded message MUST be in Arabic and MUST NOT include any pricing information
+  const preloadedShareMessage =
+    `مرحباً ${recipientName} 🌸\n` +
+    `أهدتك ${senderName} قسيمة تجربة سبا فاخرة من Quiet Ush Thai Spa (USH Spa).\n\n` +
+    `كود القسيمة: ${voucherCodeDisplay}\n\n` +
+    `يمكنك استعراض تفاصيل القسيمة عبر الرابط التالي:\n` +
+    `${publicVoucherUrl}\n\n` +
+    `نأمل لك قضاء أمتع أوقات الاسترخاء والدلال! ✨`;
 
   const whatsappUrl = cleanRecipientPhone
-    ? `https://wa.me/${cleanRecipientPhone}?text=${encodeURIComponent(whatsappShareText)}`
-    : `https://wa.me/?text=${encodeURIComponent(whatsappShareText)}`;
+    ? `https://wa.me/${cleanRecipientPhone}?text=${encodeURIComponent(preloadedShareMessage)}`
+    : `https://wa.me/?text=${encodeURIComponent(preloadedShareMessage)}`;
+
+  const smsUrl = cleanRecipientPhone
+    ? `sms:${cleanRecipientPhone}?&body=${encodeURIComponent(preloadedShareMessage)}`
+    : `sms:?&body=${encodeURIComponent(preloadedShareMessage)}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(publicVoucherUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleCopyMessage = () => {
+    navigator.clipboard.writeText(preloadedShareMessage);
+    setCopiedMessage(true);
+    setTimeout(() => setCopiedMessage(false), 2500);
   };
 
   const handleCopyCode = () => {
@@ -305,7 +377,7 @@ export default function GiftVoucherPaymentSuccessClient() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div className="p-3 bg-white rounded-xl border border-stone-200/80 space-y-1">
                   <span style={{ color: TEXT_SEC }} className="block font-bold">
-                    {isAr ? 'مُهدَى من (المشتري):' : 'Gifted From (Sender):'}
+                    {isAr ? 'مُهدَى من (المرسل):' : 'Gifted From (Sender):'}
                   </span>
                   <span className="font-bold text-stone-800 text-sm block">{senderName}</span>
                   {senderPhone && <span style={{ color: TEXT_SEC }}>{senderPhone}</span>}
@@ -350,10 +422,49 @@ export default function GiftVoucherPaymentSuccessClient() {
                 className="w-full py-3.5 rounded-full font-bold text-sm sm:text-base flex items-center justify-center gap-2 hover:opacity-95 transition-opacity cursor-pointer"
               >
                 <ShareIcon className="w-5 h-5" />
-                <span>{isAr ? 'مشاركة القسيمة مع المستلم الآن' : 'Share Voucher with Recipient Now'}</span>
+                <span>{isAr ? 'خيارات مشاركة القسيمة (واتساب / SMS)' : 'Share Voucher Options (WhatsApp / SMS)'}</span>
               </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ backgroundColor: '#25D366', color: '#FFFFFF' }}
+                  className="py-3 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 hover:opacity-95"
+                >
+                  <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                  <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                </a>
+
+                <a
+                  href={smsUrl}
+                  style={{ backgroundColor: '#0284c7', color: '#FFFFFF' }}
+                  className="py-3 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 hover:opacity-95"
+                >
+                  <DevicePhoneMobileIcon className="w-4 h-4" />
+                  <span>{isAr ? 'رسالة SMS' : 'SMS'}</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleCopyMessage}
+                  style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+                  className="py-3 px-3 rounded-xl border font-bold flex items-center justify-center gap-1.5 hover:bg-white cursor-pointer"
+                >
+                  {copiedMessage ? (
+                    <>
+                      <CheckIcon className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+                      <span>{isAr ? 'تم نسخ الرسالة!' : 'Message Copied!'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-stone-600" />
+                      <span>{isAr ? 'نسخ نص SMS' : 'Copy SMS'}</span>
+                    </>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={handleCopyLink}
@@ -368,11 +479,13 @@ export default function GiftVoucherPaymentSuccessClient() {
                   ) : (
                     <>
                       <DocumentDuplicateIcon className="w-4 h-4 text-stone-600" />
-                      <span>{isAr ? 'نسخ رابط القسيمة' : 'Copy Voucher Link'}</span>
+                      <span>{isAr ? 'نسخ الرابط' : 'Copy Link'}</span>
                     </>
                   )}
                 </button>
+              </div>
 
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={handlePrint}
@@ -445,6 +558,10 @@ export default function GiftVoucherPaymentSuccessClient() {
                 <span className="font-bold text-stone-500">{isAr ? 'المستلم:' : 'Recipient:'}</span>
                 <span className="font-extrabold text-stone-800 text-sm">{recipientName}</span>
               </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-stone-500">{isAr ? 'مُهدَى من:' : 'Gift From:'}</span>
+                <span className="font-extrabold text-stone-800 text-sm">{senderName}</span>
+              </div>
               {recipientPhone && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-stone-500">{isAr ? 'رقم الهاتف:' : 'Mobile:'}</span>
@@ -453,11 +570,7 @@ export default function GiftVoucherPaymentSuccessClient() {
               )}
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-stone-500">{isAr ? 'كود القسيمة:' : 'Voucher Code:'}</span>
-                <span className="font-mono font-black text-emerald-800 text-sm tracking-wider">{secretCode || '••••••'}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs border-t pt-2 border-stone-100">
-                <span className="font-bold text-stone-500">{isAr ? 'المبلغ المدفوع:' : 'Total Amount:'}</span>
-                <span className="font-bold text-emerald-700">{totalAmount} {currency}</span>
+                <span className="font-mono font-black text-emerald-800 text-sm tracking-wider">{voucherCodeDisplay || '••••••'}</span>
               </div>
             </div>
 
@@ -477,8 +590,43 @@ export default function GiftVoucherPaymentSuccessClient() {
                 className="w-full py-3.5 rounded-full font-bold text-sm sm:text-base flex items-center justify-center gap-2 hover:opacity-95 transition-opacity"
               >
                 <ChatBubbleLeftRightIcon className="w-5 h-5" />
-                <span>{isAr ? 'مشاركة فورية عبر واتساب' : 'Share Instantly via WhatsApp'}</span>
+                <span>{isAr ? 'مشاركة فورية عبر واتساب (WhatsApp)' : 'Share Instantly via WhatsApp'}</span>
               </a>
+
+              {/* SMS Share CTA */}
+              <a
+                href={smsUrl}
+                onClick={() => setShowShareModal(false)}
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#FFFFFF',
+                  boxShadow: '0 4px 14px rgba(2, 132, 199, 0.3)',
+                }}
+                className="w-full py-3.5 rounded-full font-bold text-sm sm:text-base flex items-center justify-center gap-2 hover:opacity-95 transition-opacity"
+              >
+                <DevicePhoneMobileIcon className="w-5 h-5" />
+                <span>{isAr ? 'مشاركة عبر رسالة نصية (SMS)' : 'Share via SMS'}</span>
+              </a>
+
+              {/* Copy Preloaded SMS Message */}
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                style={{ backgroundColor: '#FFFFFF', borderColor: BORDER_COLOR }}
+                className="w-full py-3 rounded-full border text-xs sm:text-sm font-bold text-stone-800 flex items-center justify-center gap-2 hover:bg-stone-50 transition-colors cursor-pointer"
+              >
+                {copiedMessage ? (
+                  <>
+                    <CheckIcon className="w-4 h-4 text-emerald-600 stroke-[3]" />
+                    <span className="text-emerald-700">{isAr ? 'تم نسخ نص الرسالة الجاهزة بنجاح!' : 'SMS Message Copied Successfully!'}</span>
+                  </>
+                ) : (
+                  <>
+                    <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-stone-600" />
+                    <span>{isAr ? 'نسخ نص الرسالة الجاهزة (SMS)' : 'Copy Preloaded SMS Message'}</span>
+                  </>
+                )}
+              </button>
 
               {/* Copy Shareable Link */}
               <button
@@ -500,7 +648,7 @@ export default function GiftVoucherPaymentSuccessClient() {
                 )}
               </button>
 
-              {/* Maybe Later */}
+              {/* Close */}
               <button
                 type="button"
                 onClick={() => setShowShareModal(false)}

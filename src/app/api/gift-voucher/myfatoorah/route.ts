@@ -96,6 +96,9 @@ export async function POST(request: NextRequest) {
       customer_phone,
       customer_email,
       language = 'en',
+      gift_from,
+      recipient_name,
+      recipient_phone,
     } = body;
 
     if (!voucher_id) {
@@ -124,9 +127,17 @@ export async function POST(request: NextRequest) {
 
     const cleanOrigin = origin.startsWith('http') ? origin : `https://${origin}`;
 
-    const callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?voucher_id=${encodeURIComponent(
-      voucher_id
-    )}&voucher_code=${encodeURIComponent(voucher_code || '')}&amount=${numericAmount}&currency=${encodeURIComponent(currency)}`;
+    const callBackParams = new URLSearchParams({
+      voucher_id: String(voucher_id),
+      voucher_code: String(voucher_code || ''),
+      amount: String(numericAmount),
+      currency: String(currency),
+    });
+    if (gift_from) callBackParams.set('gift_from', String(gift_from));
+    if (recipient_name) callBackParams.set('recipient_name', String(recipient_name));
+    if (recipient_phone) callBackParams.set('recipient_phone', String(recipient_phone));
+
+    const callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?${callBackParams.toString()}`;
     const errorUrl = `${cleanOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
       voucher_id
     )}&amount=${numericAmount}&currency=${encodeURIComponent(currency)}`;

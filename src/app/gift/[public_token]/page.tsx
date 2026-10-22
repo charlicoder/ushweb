@@ -1906,6 +1906,9 @@ function StatusBadge({ status, expired, lang = 'en' }: { status: string; expired
   );
 }
 
+// Feature flag: set to true to unhide/show the "Download the USH Spa App" section and "OR" divider again
+const SHOW_APP_DOWNLOAD_SECTION = false;
+
 /* ─────────────────────────────── App Download CTA ──────────────────── */
 
 function AppCTA({
@@ -1962,9 +1965,15 @@ function AppCTA({
           lineHeight: 1.6,
           fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
         }}>
-          {isAr
-            ? 'يمكنك حجز موعدك بسهولة من خلال أحد الخيارين أدناه:'
-            : 'Choose one of the two options below to book your appointment:'}
+          {SHOW_APP_DOWNLOAD_SECTION ? (
+            isAr
+              ? 'يمكنك حجز موعدك بسهولة من خلال أحد الخيارين أدناه:'
+              : 'Choose one of the two options below to book your appointment:'
+          ) : (
+            isAr
+              ? 'يمكنك حجز موعدك بسهولة عبر التواصل مع مركز الخدمة أدناه:'
+              : 'Contact our concierge team below to book your appointment:'
+          )}
         </p>
 
         {urgencyLine && (
@@ -1984,100 +1993,104 @@ function AppCTA({
         {/* ── Two Redemption Options ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-          {/* Download the App */}
-          <div style={{
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(211,192,177,0.35)',
-            borderRadius: 18,
-            padding: '18px 14px 16px',
-            textAlign: 'center',
-          }}>
+          {/* Download the App (Hidden for now - set SHOW_APP_DOWNLOAD_SECTION = true to show) */}
+          {SHOW_APP_DOWNLOAD_SECTION && (
             <div style={{
-              fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
-              color: '#FFFFFF',
-              fontSize: '1.05rem',
-              fontWeight: 700,
-              marginBottom: 4,
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(211,192,177,0.35)',
+              borderRadius: 18,
+              padding: '18px 14px 16px',
+              textAlign: 'center',
             }}>
-              {isAr ? 'تحميل تطبيق USH Spa' : 'Download the USH Spa App'}
+              <div style={{
+                fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif",
+                color: '#FFFFFF',
+                fontSize: '1.05rem',
+                fontWeight: 700,
+                marginBottom: 4,
+              }}>
+                {isAr ? 'تحميل تطبيق USH Spa' : 'Download the USH Spa App'}
+              </div>
+              <p style={{
+                fontSize: '0.8rem',
+                color: '#D3C0B1',
+                marginBottom: 12,
+                lineHeight: 1.5,
+                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+              }}>
+                {isAr
+                  ? 'حمّل التطبيق واحجز جلستك بكل سهولة خلال ثوانٍ.'
+                  : 'Download the app and book your session in seconds.'}
+              </p>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <a
+                  id="gift-app-store-link"
+                  href="https://apps.apple.com/us/app/ushspa/id6771279814"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="app-btn"
+                  style={{ flex: '1 1 140px', padding: '10px 14px' }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.77 1 .08 2.05-.52 2.68-1.27z"/>
+                  </svg>
+                  <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                    <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                      {isAr ? 'تحميل من' : 'DOWNLOAD ON THE'}
+                    </div>
+                    <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
+                      App Store
+                    </div>
+                  </div>
+                </a>
+
+                <a
+                  id="gift-play-store-link"
+                  href="https://play.google.com/store/apps/details?id=com.spaush.ushspa"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="app-btn"
+                  style={{ flex: '1 1 140px', padding: '10px 14px' }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
+                    <path d="M3.609 1.814L13.792 12 3.61 22.186c-.328-.31-.518-.763-.518-1.298V3.112c0-.535.19-.988.517-1.298zM15.207 13.415l2.296 2.296-12.01 6.844 9.714-9.14zm0-2.83L5.493 1.445l12.01 6.844-2.296 2.296zm1.414 1.415l3.208 1.828c.84.478.84 1.258 0 1.737l-3.208 1.828-2.008-2.008 2.008-2.008z"/>
+                  </svg>
+                  <div style={{ textAlign: isAr ? 'right' : 'left' }}>
+                    <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+                      {isAr ? 'تحميل من' : 'GET IT ON'}
+                    </div>
+                    <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
+                      Google Play
+                    </div>
+                  </div>
+                </a>
+              </div>
             </div>
-            <p style={{
-              fontSize: '0.8rem',
-              color: '#D3C0B1',
-              marginBottom: 12,
-              lineHeight: 1.5,
-              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+          )}
+
+          {/* Divider (Hidden for now - set SHOW_APP_DOWNLOAD_SECTION = true to show) */}
+          {SHOW_APP_DOWNLOAD_SECTION && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              margin: '2px 0',
             }}>
-              {isAr
-                ? 'حمّل التطبيق واحجز جلستك بكل سهولة خلال ثوانٍ.'
-                : 'Download the app and book your session in seconds.'}
-            </p>
-
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <a
-                id="gift-app-store-link"
-                href="https://apps.apple.com/us/app/ushspa/id6771279814"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="app-btn"
-                style={{ flex: '1 1 140px', padding: '10px 14px' }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.67-1.09 1.74-.95 2.77 1 .08 2.05-.52 2.68-1.27z"/>
-                </svg>
-                <div style={{ textAlign: isAr ? 'right' : 'left' }}>
-                  <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                    {isAr ? 'تحميل من' : 'DOWNLOAD ON THE'}
-                  </div>
-                  <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
-                    App Store
-                  </div>
-                </div>
-              </a>
-
-              <a
-                id="gift-play-store-link"
-                href="https://play.google.com/store/apps/details?id=com.spaush.ushspa"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="app-btn"
-                style={{ flex: '1 1 140px', padding: '10px 14px' }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#4E2712">
-                  <path d="M3.609 1.814L13.792 12 3.61 22.186c-.328-.31-.518-.763-.518-1.298V3.112c0-.535.19-.988.517-1.298zM15.207 13.415l2.296 2.296-12.01 6.844 9.714-9.14zm0-2.83L5.493 1.445l12.01 6.844-2.296 2.296zm1.414 1.415l3.208 1.828c.84.478.84 1.258 0 1.737l-3.208 1.828-2.008-2.008 2.008-2.008z"/>
-                </svg>
-                <div style={{ textAlign: isAr ? 'right' : 'left' }}>
-                  <div style={{ fontSize: '0.58rem', color: '#4E2712', opacity: 0.7, letterSpacing: 0.8, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                    {isAr ? 'تحميل من' : 'GET IT ON'}
-                  </div>
-                  <div style={{ fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontSize: '0.9rem', fontWeight: 700, color: '#4E2712' }}>
-                    Google Play
-                  </div>
-                </div>
-              </a>
+              <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
+              <span style={{
+                color: '#D3C0B1',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                letterSpacing: 1.5,
+                textTransform: 'uppercase',
+                fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
+              }}>
+                {isAr ? 'أو' : 'OR'}
+              </span>
+              <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
             </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            margin: '2px 0',
-          }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
-            <span style={{
-              color: '#D3C0B1',
-              fontSize: '0.74rem',
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              textTransform: 'uppercase',
-              fontFamily: isAr ? "'Cairo', sans-serif" : undefined,
-            }}>
-              {isAr ? 'أو' : 'OR'}
-            </span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(211,192,177,0.3)' }} />
-          </div>
+          )}
 
           {/* Contact Call Center */}
           <div style={{
