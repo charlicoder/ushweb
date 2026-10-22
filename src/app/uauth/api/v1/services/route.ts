@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
-const BASE_URL = (
-  process.env.BASE_TRACE_API_URL ||
-  process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-  'http://127.0.0.1:8000'
-).replace(/\/+$/, '');
-
-const USH_TOKEN = process.env.USH_TOKEN || process.env.API_APP_TOKEN || 'hello-world';
-
 export async function GET(req: NextRequest) {
+  const BASE_URL = getBaseApiUrl();
+  const USH_TOKEN = getUshToken();
   const qs = req.nextUrl.searchParams.toString();
   const url = `${BASE_URL}/uauth/api/v1/services/${qs ? `?${qs}` : ''}`;
 

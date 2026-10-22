@@ -11,6 +11,7 @@ const rawPhone =
 export const USH_PHONE_DISPLAY = rawPhone.trim();
 export const USH_PHONE_E164 = USH_PHONE_DISPLAY.replace(/[^\d+]/g, "");
 export const USH_PHONE_TEL_HREF = `tel:${USH_PHONE_E164}`;
+export const USH_WHATSAPP_HREF = `https://wa.me/${USH_PHONE_E164.replace(/^\+/, '')}`;
 
 const rawEmail =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL ||

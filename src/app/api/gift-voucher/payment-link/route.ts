@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,13 +18,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = (
-      process.env.BASE_TRACE_API_URL ||
-      process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-      'http://127.0.0.1:8000'
-    ).replace(/\/+$/, '');
-
-    const ushToken = process.env.USH_TOKEN || 'hello-world';
+    const baseUrl = getBaseApiUrl();
+    const ushToken = getUshToken();
     const authHeader = request.headers.get('Authorization') || request.headers.get('authorization') || '';
 
     const headers: Record<string, string> = {
@@ -68,28 +64,13 @@ export async function POST(request: NextRequest) {
       console.warn('[gift-payment-link] Upstream creation failed, falling back:', upstreamErr);
     }
 
-    // Graceful fallback payment link
-    const linkId = crypto.randomUUID();
-    const linkNumber = `PL-${Date.now().toString().slice(-6)}`;
-    const checkoutHost = process.env.NEXT_PUBLIC_APP_URL || 'https://ushspa.co';
-    const paymentUrl = `${checkoutHost}/payment-links/checkout?link_id=${linkId}&target_id=${targetId}&target_type=voucher&amount=${amount || '0'}`;
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: linkId,
-        link_number: linkNumber,
-        status: 'initiated',
-        payment_url: paymentUrl,
-        gateway: 'MyFatoorah',
-        provider: 'MyFatoorah',
-        amount: Number(amount) || 0,
-        currency: 'KWD',
-        target_type: targetType,
-        target_id: targetId,
-        created_at: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        success: false,
+        error: { message: 'Unable to generate payment link. Please contact support.' },
       },
-    });
+      { status: 502 }
+    );
   } catch (error) {
     console.error('[gift-payment-link] Unhandled error:', error);
     return NextResponse.json(

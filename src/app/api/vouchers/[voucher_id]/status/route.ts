@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,13 +11,8 @@ export async function PATCH(
     const { voucher_id } = await params;
     const body = await request.json().catch(() => ({}));
 
-    const baseUrl = (
-      process.env.BASE_TRACE_API_URL ||
-      process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-      'http://127.0.0.1:8000'
-    ).replace(/\/+$/, '');
-
-    const ushToken = process.env.USH_TOKEN || 'hello-world';
+    const baseUrl = getBaseApiUrl();
+    const ushToken = getUshToken();
     const authHeader =
       request.headers.get('Authorization') || request.headers.get('authorization') || '';
 

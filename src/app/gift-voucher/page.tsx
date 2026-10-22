@@ -27,6 +27,13 @@ import {
   ArrowTopRightOnSquareIcon,
   ShareIcon,
 } from '@heroicons/react/24/outline';
+import {
+  USH_PHONE_DISPLAY,
+  USH_PHONE_TEL_HREF,
+  USH_WHATSAPP_HREF,
+  USH_EMAIL_DISPLAY,
+  USH_EMAIL_MAILTO_HREF,
+} from '@/lib/contact';
 
 // ─── Design Tokens (strictly matching ushspa mobile app) ─────────────────────
 const BG_MAIN = '#EAE5DF';
@@ -172,52 +179,75 @@ interface MyFatoorahMethod {
   CurrencyIso: string;
 }
 
-const FALLBACK_MYFATOORAH_METHODS: MyFatoorahMethod[] = [
-  {
-    PaymentMethodId: 1,
-    PaymentMethodEn: 'KNET',
-    PaymentMethodAr: 'كي نت',
-    PaymentMethodCode: 'kn',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/kn.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-  {
-    PaymentMethodId: 2,
-    PaymentMethodEn: 'Credit / Debit Card (VISA / Mastercard)',
-    PaymentMethodAr: 'فيزا / ماستركارد',
-    PaymentMethodCode: 'vm',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/vm.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-  {
-    PaymentMethodId: 11,
-    PaymentMethodEn: 'Apple Pay',
-    PaymentMethodAr: 'أبل باي',
-    PaymentMethodCode: 'ap',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/ap.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-  {
-    PaymentMethodId: 32,
-    PaymentMethodEn: 'GooglePay',
-    PaymentMethodAr: 'جوجل باي',
-    PaymentMethodCode: 'gp',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/gp.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-];
+// ─── Contact Support Card Component ──────────────────────────────────────────
+function SupportContactCard({
+  isAr,
+  title,
+  message,
+}: {
+  isAr: boolean;
+  title?: string;
+  message?: string;
+}) {
+  const defaultTitle = isAr
+    ? 'البيانات غير متوفرة حالياً'
+    : 'Data is currently unavailable';
+  const defaultMessage = isAr
+    ? 'تعذر الاتصال بالخادم أو أن البيانات المطلوبة غير متوفرة حالياً. يسعد فريق الدعم لدينا بمساعدتك مباشرة في اختيار وتأكيد طلب الإهداء.'
+    : 'Unable to reach the server or data is currently unavailable. Our support team is ready to assist you directly with your gift voucher order.';
+
+  return (
+    <div
+      style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+      className="rounded-2xl p-6 sm:p-8 text-center border shadow-sm max-w-xl mx-auto my-6"
+    >
+      <div
+        style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)', color: ACCENT_BROWN }}
+        className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+      >
+        <PhoneIcon className="w-7 h-7" />
+      </div>
+
+      <h3 className="font-bold text-lg sm:text-xl text-[#1A1A1A] mb-2">
+        {title || defaultTitle}
+      </h3>
+
+      <p style={{ color: TEXT_SEC }} className="text-sm leading-relaxed mb-6">
+        {message || defaultMessage}
+      </p>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a
+          href={USH_PHONE_TEL_HREF}
+          style={{ backgroundColor: PRIMARY_BROWN }}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
+        >
+          <PhoneIcon className="w-4 h-4" />
+          <span>{isAr ? 'اتصل بنا:' : 'Call Us:'} {USH_PHONE_DISPLAY}</span>
+        </a>
+
+        <a
+          href={USH_WHATSAPP_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ backgroundColor: '#25D366' }}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
+        >
+          <ChatBubbleBottomCenterTextIcon className="w-4 h-4" />
+          <span>{isAr ? 'واتساب الدعم' : 'WhatsApp Support'}</span>
+        </a>
+
+        <a
+          href={USH_EMAIL_MAILTO_HREF}
+          style={{ backgroundColor: CARD_SELECTED_BG, borderColor: BORDER_COLOR, color: PRIMARY_BROWN }}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl border font-semibold text-sm flex items-center justify-center gap-2 hover:bg-stone-100 transition-colors"
+        >
+          <span>{isAr ? 'البريد الإلكتروني' : 'Email Us'}</span>
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function GiftVoucherPage() {
   const { lang, isAr, isDark } = useApp();
@@ -270,7 +300,7 @@ export default function GiftVoucherPage() {
   const [generatedVoucher, setGeneratedVoucher] = useState<GeneratedVoucher | null>(null);
 
   // MyFatoorah Payment state
-  const [myFatoorahMethods, setMyFatoorahMethods] = useState<MyFatoorahMethod[]>(FALLBACK_MYFATOORAH_METHODS);
+  const [myFatoorahMethods, setMyFatoorahMethods] = useState<MyFatoorahMethod[]>([]);
   const [selectedMethodId, setSelectedMethodId] = useState<number>(1);
   const [isLoadingMethods, setIsLoadingMethods] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -699,9 +729,23 @@ export default function GiftVoucherPage() {
             } else {
               setSelectedMethodId(json.data.payment_methods[0].PaymentMethodId);
             }
+          } else {
+            setMyFatoorahMethods([]);
+            setPaymentError(
+              json?.error?.message ||
+                (isAr
+                  ? 'وسائل الدفع غير متوفرة حالياً. يرجى التواصل مع فريق الدعم.'
+                  : 'Payment methods are currently unavailable. Please contact our support team.')
+            );
           }
         } catch (err) {
-          console.warn('Failed to load dynamic MyFatoorah methods, using defaults:', err);
+          console.warn('Failed to load dynamic MyFatoorah methods:', err);
+          setMyFatoorahMethods([]);
+          setPaymentError(
+            isAr
+              ? 'تعذر الاتصال ببوابة الدفع. يرجى التواصل مع فريق الدعم.'
+              : 'Failed to connect to payment gateway. Please contact our support team.'
+          );
         } finally {
           setIsLoadingMethods(false);
         }
@@ -930,16 +974,15 @@ export default function GiftVoucherPage() {
                 </p>
               </div>
             ) : categories.length === 0 ? (
-              <div
-                style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-                className="rounded-2xl p-8 text-center border"
-              >
-                <GiftIcon style={{ color: ACCENT_BROWN }} className="w-12 h-12 mx-auto mb-3" />
-                <h3 className="font-bold text-lg">{isAr ? 'لا توجد فئات حالياً' : 'No categories available'}</h3>
-                <p style={{ color: TEXT_SEC }} className="text-sm mt-1">
-                  {isAr ? 'يرجى العودة لاحقاً' : 'Please check back soon'}
-                </p>
-              </div>
+              <SupportContactCard
+                isAr={isAr}
+                title={isAr ? 'فئات الإهداء غير متوفرة حالياً' : 'Gift categories are currently unavailable'}
+                message={
+                  isAr
+                    ? 'تعذر تحميل فئات قسائم الهدايا أو الاتصال بالخادم. يرجى التواصل مع فريق الدعم لدينا وسنسعد بمساعدتك مباشرة في اختيار وتأكيد طلبك.'
+                    : 'Unable to load gift voucher categories or connect to the server. Please contact our support team and we will be happy to assist you directly.'
+                }
+              />
             ) : (
               <div className="flex flex-col gap-3.5 sm:grid sm:grid-cols-1 md:grid-cols-2 sm:gap-6">
                 {categories.map((cat) => {
@@ -1094,6 +1137,16 @@ export default function GiftVoucherPage() {
                   {isAr ? 'جاري تحميل المنتجات...' : 'Loading gift products...'}
                 </p>
               </div>
+            ) : products.length === 0 ? (
+              <SupportContactCard
+                isAr={isAr}
+                title={isAr ? 'منتجات التغليف غير متوفرة حالياً' : 'Packaging products are currently unavailable'}
+                message={
+                  isAr
+                    ? 'تعذر تحميل منتجات التغليف الفاخرة أو الاتصال بالخادم. يرجى التواصل مع فريق الدعم لمساعدتك في تخصيص وتأكيد طلبك.'
+                    : 'Packaging products are currently unavailable. Please contact our support team to assist you with customizing your order.'
+                }
+              />
             ) : (
               <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
                 {products.map((prod) => {
@@ -1298,13 +1351,15 @@ export default function GiftVoucherPage() {
                 </p>
               </div>
             ) : services.length === 0 ? (
-              <div
-                style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-                className="rounded-2xl p-8 text-center border"
-              >
-                <SparklesIcon style={{ color: ACCENT_BROWN }} className="w-10 h-10 mx-auto mb-2" />
-                <h4 className="font-bold text-base">{isAr ? 'لا توجد خدمات متاحة' : 'No services found'}</h4>
-              </div>
+              <SupportContactCard
+                isAr={isAr}
+                title={isAr ? 'خدمات السبا غير متوفرة حالياً' : 'Spa treatments are currently unavailable'}
+                message={
+                  isAr
+                    ? 'تعذر تحميل قائمة الخدمات المتاحة أو الاتصال بالخادم. يرجى التواصل مع فريق الدعم لدينا لمساعدتك في حجز الخدمة المطلوبة.'
+                    : 'Spa treatments are currently unavailable or the server is unreachable. Please contact our support team to assist you with booking.'
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {services.map((svc) => {
@@ -1505,6 +1560,16 @@ export default function GiftVoucherPage() {
                 <div className="py-6 text-center text-xs" style={{ color: TEXT_SEC }}>
                   {isAr ? 'جاري تحميل الغرف...' : 'Loading arrangements...'}
                 </div>
+              ) : arrangements.length === 0 ? (
+                <SupportContactCard
+                  isAr={isAr}
+                  title={isAr ? 'خيارات الغرف غير متوفرة حالياً' : 'Room arrangements are currently unavailable'}
+                  message={
+                    isAr
+                      ? 'تعذر تحميل خيارات الغرف للفرع المحدد أو الاتصال بالخادم. يرجى التواصل مع فريق الدعم لإتمام الترتيبات.'
+                      : 'Room arrangements are currently unavailable for this branch. Please contact our support team to assist you.'
+                  }
+                />
               ) : (
                 <div className="space-y-2.5">
                   {arrangements.map((arr) => {
@@ -2126,9 +2191,19 @@ export default function GiftVoucherPage() {
                       {isAr ? 'جاري تحميل وسائل الدفع المتاحة...' : 'Loading available payment methods...'}
                     </p>
                   </div>
+                ) : myFatoorahMethods.length === 0 ? (
+                  <SupportContactCard
+                    isAr={isAr}
+                    title={isAr ? 'وسائل الدفع غير متوفرة حالياً' : 'Payment methods are currently unavailable'}
+                    message={
+                      isAr
+                        ? 'تعذر الاتصال ببوابة الدفع حالياً. يرجى التواصل مع فريق الدعم لمساعدتك في إتمام الدفع وتأكيد القسيمة.'
+                        : 'Unable to connect to the payment gateway. Please contact our support team to help you complete the payment and confirm your voucher.'
+                    }
+                  />
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(myFatoorahMethods.length > 0 ? myFatoorahMethods : FALLBACK_MYFATOORAH_METHODS).map((method) => {
+                    {myFatoorahMethods.map((method) => {
                       const isSelected = selectedMethodId === method.PaymentMethodId;
                       const title = isAr ? method.PaymentMethodAr : method.PaymentMethodEn;
 

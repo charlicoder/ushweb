@@ -1,5 +1,6 @@
 import { USH_EMAIL_DISPLAY } from '@/lib/contact';
 import { NextRequest, NextResponse } from 'next/server';
+import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,13 +38,8 @@ export async function POST(request: NextRequest) {
     const cleanPassword = password.trim();
 
     // Check if upstream backend URL is configured
-    const baseUrl = (
-      process.env.BASE_TRACE_API_URL ||
-      process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-      'https://api.ushspa.co'
-    ).replace(/\/+$/, '');
-
-    const ushToken = process.env.USH_TOKEN || '';
+    const baseUrl = getBaseApiUrl();
+    const ushToken = getUshToken();
 
     // Attempt to forward request to upstream backend if available
     let upstreamSuccess = false;

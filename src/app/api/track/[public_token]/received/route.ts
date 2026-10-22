@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBaseApiUrl } from '@/lib/api';
 
 export async function POST(
   request: NextRequest,
@@ -7,11 +8,7 @@ export async function POST(
   try {
     const { public_token } = await params;
     const body = await request.json().catch(() => ({}));
-    const baseUrl = (
-      process.env.BASE_TRACE_API_URL ||
-      process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-      'http://127.0.0.1:8000'
-    ).replace(/\/+$/, '');
+    const baseUrl = getBaseApiUrl();
 
     const primaryUrl = `${baseUrl}/booknpay/api/v1/track/${encodeURIComponent(public_token)}/received/`;
     const fallbackUrl = `${baseUrl}/api/v1/track/${encodeURIComponent(public_token)}/received/`;

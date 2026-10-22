@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,42 +22,6 @@ function getMyFatoorahConfig() {
   return { apiUrl, apiKey };
 }
 
-// Fallback payment methods if MyFatoorah InitiatePayment is unavailable
-const FALLBACK_PAYMENT_METHODS = [
-  {
-    PaymentMethodId: 1,
-    PaymentMethodEn: 'KNET',
-    PaymentMethodAr: 'كي نت',
-    PaymentMethodCode: 'kn',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/kn.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-  {
-    PaymentMethodId: 2,
-    PaymentMethodEn: 'Credit / Debit Card (VISA / Mastercard)',
-    PaymentMethodAr: 'فيزا / ماستركارد',
-    PaymentMethodCode: 'vm',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/vm.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-  {
-    PaymentMethodId: 11,
-    PaymentMethodEn: 'Apple Pay',
-    PaymentMethodAr: 'أبل باي',
-    PaymentMethodCode: 'ap',
-    ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/ap.png',
-    IsDirectPayment: false,
-    ServiceCharge: 0,
-    TotalAmount: 0,
-    CurrencyIso: 'KWD',
-  },
-];
 
 /**
  * GET: Retrieve active payment methods from MyFatoorah InitiatePayment
@@ -98,17 +63,14 @@ export async function GET(request: NextRequest) {
       console.warn('[myfatoorah-initiate] Upstream initiate error:', apiErr);
     }
 
-    // Return fallback list with updated amount
-    return NextResponse.json({
-      success: true,
-      data: {
-        payment_methods: FALLBACK_PAYMENT_METHODS.map((m) => ({
-          ...m,
-          TotalAmount: amount,
-          CurrencyIso: currency,
-        })),
+    return NextResponse.json(
+      {
+        success: false,
+        data: { payment_methods: [] },
+        error: { message: 'Unable to load payment methods. Please contact support.' },
       },
-    });
+      { status: 502 }
+    );
   } catch (err) {
     console.error('[myfatoorah-initiate] Unexpected error:', err);
     return NextResponse.json(
@@ -238,13 +200,8 @@ export async function POST(request: NextRequest) {
 
     // Best-effort: update voucher in ushbooknpay with payment details
     try {
-      const baseUrl = (
-        process.env.BASE_TRACE_API_URL ||
-        process.env.NEXT_PUBLIC_BASE_TRACE_API_URL ||
-        'http://127.0.0.1:8000'
-      ).replace(/\/+$/, '');
-
-      const ushToken = process.env.USH_TOKEN || 'hello-world';
+      const baseUrl = getBaseApiUrl();
+      const ushToken = getUshToken();
       await fetch(`${baseUrl}/booknpay/api/v1/vouchers/${voucher_id}/`, {
         method: 'PATCH',
         headers: {
