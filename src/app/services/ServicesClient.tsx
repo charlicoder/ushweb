@@ -13,7 +13,6 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   GiftIcon,
-  CalendarDaysIcon,
   CheckBadgeIcon,
   ChevronRightIcon,
   ArrowPathIcon,
@@ -566,23 +565,15 @@ export default function ServicesClient() {
                         </button>
                       </div>
 
-                      {/* Quick Action Buttons */}
-                      <div className="grid grid-cols-2 gap-2">
+                      {/* Quick Action Button */}
+                      <div>
                         <Link
                           href={`/gift-voucher?service_id=${service.id}`}
-                          className="flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl bg-[#C5A059] hover:bg-[#b08d47] text-white text-xs font-bold shadow-xs transition text-center"
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#C5A059] hover:bg-[#b08d47] text-white text-xs font-bold shadow-xs transition text-center"
                         >
                           <GiftIcon className="w-3.5 h-3.5 text-white shrink-0" />
                           <span className="text-white">{isAr ? 'إهداء قسيمة' : 'Gift as Voucher'}</span>
                         </Link>
-
-                        <a
-                          href="/#booking"
-                          className="flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-xl bg-[#543C30] hover:bg-[#684b3d] text-white text-xs font-bold shadow-xs transition text-center"
-                        >
-                          <CalendarDaysIcon className="w-3.5 h-3.5 text-white shrink-0" />
-                          <span className="text-white">{isAr ? 'حجز موعد' : 'Book Now'}</span>
-                        </a>
                       </div>
                     </div>
                   </div>
@@ -793,19 +784,11 @@ export default function ServicesClient() {
 
               <Link
                 href={`/gift-voucher?service_id=${selectedService.id}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#C5A059] hover:bg-[#b08d47] text-white text-xs font-bold shadow-xs transition"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#C5A059] hover:bg-[#b08d47] text-white text-xs font-bold shadow-xs transition"
               >
                 <GiftIcon className="w-4 h-4 text-white shrink-0" />
                 <span className="text-white">{isAr ? 'إهداء كقسيمة' : 'Gift as Voucher'}</span>
               </Link>
-
-              <a
-                href="/#booking"
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#543C30] hover:bg-[#684b3d] text-white text-xs font-bold shadow-xs transition"
-              >
-                <CalendarDaysIcon className="w-4 h-4 text-white shrink-0" />
-                <span className="text-white">{isAr ? 'حجز موعد الآن' : 'Book Appointment'}</span>
-              </a>
             </div>
           </div>
         </div>

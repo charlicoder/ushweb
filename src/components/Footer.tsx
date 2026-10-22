@@ -4,12 +4,36 @@ import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAI
 import { useApp } from '@/context/AppContext';
 
 const instagramImages = [
-    { src: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=150&q=80', alt: 'USH Spa massage therapy session' },
-    { src: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150&q=80', alt: 'USH Spa facial treatment' },
-    { src: 'https://images.unsplash.com/photo-1519823551278-64ac92734fb1?w=150&q=80', alt: 'USH Spa aromatherapy oils' },
-    { src: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=150&q=80', alt: 'USH Spa hot stone massage' },
-    { src: 'https://images.unsplash.com/photo-1552693673-1bf958298935?w=150&q=80', alt: 'USH Spa body scrub treatment' },
-    { src: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=150&q=80', alt: 'USH Spa luxury suite' },
+    {
+        src: '/images/instagram/insta-01.jpg',
+        href: 'https://www.instagram.com/p/Da-_bM8Mwn2/',
+        alt: 'USH Spa Kuwait Instagram - Mind & Body Rejuvenation',
+    },
+    {
+        src: '/images/instagram/insta-02.jpg',
+        href: 'https://www.instagram.com/reel/DRFYtJUDFTA/',
+        alt: 'USH Spa Kuwait Instagram - Pure Sanctuary & Relaxation',
+    },
+    {
+        src: '/images/instagram/insta-03.jpg',
+        href: 'https://www.instagram.com/p/DbJZXqXjFWL/',
+        alt: 'USH Spa Kuwait Instagram - Luxury Suite & Spa Experience',
+    },
+    {
+        src: '/images/instagram/insta-04.jpg',
+        href: 'https://www.instagram.com/p/DQmWqx_jNoQ/',
+        alt: 'USH Spa Kuwait Instagram - Japanese Hair Detox & Scalp Care',
+    },
+    {
+        src: '/images/instagram/insta-05.jpg',
+        href: 'https://www.instagram.com/reel/DRNLIrCjK_t/',
+        alt: 'USH Spa Kuwait Instagram - Authentic Thai Wellness Therapy',
+    },
+    {
+        src: '/images/instagram/insta-06.jpg',
+        href: 'https://www.instagram.com/p/DR4mbNpDHcG/',
+        alt: 'USH Spa Kuwait Instagram - Quiet Ush Thai Spa for Women',
+    },
 ];
 
 export default function Footer() {
@@ -17,7 +41,7 @@ export default function Footer() {
 
     const quickLinks = [
         { label: isAr ? 'عن المعهد' : 'About Us', href: '#about' },
-        { label: isAr ? 'خدماتنا' : 'Our Services', href: '/services' },
+        // { label: isAr ? 'خدماتنا' : 'Our Services', href: '/services' },
         { label: isAr ? 'حجز المواعيد' : 'Appointments', href: '#booking' },
         { label: isAr ? 'قسيمة إهداء' : 'Gift Voucher', href: '/gift-voucher' },
         { label: isAr ? 'اتصل بنا' : 'Contact Us', href: '/contact-us' },
@@ -38,7 +62,10 @@ export default function Footer() {
     };
 
     return (
-        <footer className="bg-spa-text dark:bg-[#120c09] text-white pt-16 pb-6 transition-colors duration-300">
+        <footer
+            style={{ backgroundColor: '#543C30' }}
+            className="bg-[#543C30] text-white pt-16 pb-6 transition-colors duration-300"
+        >
             <div className="max-w-6xl mx-auto px-4">
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-white/10">
                     {/* Brand */}
@@ -91,8 +118,14 @@ export default function Footer() {
                                 </p>
                                 <p>
                                     {isAr ? 'انستغرام:' : 'Instagram:'}{' '}
-                                    <a href="#" style={{ color: '#efa697' }} className="hover:opacity-80 transition-opacity duration-300">
-                                        @ushspa
+                                    <a
+                                        href="https://www.instagram.com/ush_spa/?hl=en"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: '#efa697' }}
+                                        className="hover:opacity-80 transition-opacity duration-300"
+                                    >
+                                        @ush_spa
                                     </a>
                                 </p>
                             </div>
@@ -121,16 +154,33 @@ export default function Footer() {
 
                     {/* Instagram */}
                     <div>
-                        <h6 className="font-lustria text-base mb-6 text-white">
-                            {isAr ? 'معرض انستغرام' : 'Instagram'}
-                        </h6>
+                        <div className="flex items-center justify-between mb-4">
+                            <h6 className="font-lustria text-base text-white">
+                                {isAr ? 'معرض انستغرام' : 'Instagram'}
+                            </h6>
+                            <a
+                                href="https://www.instagram.com/ush_spa/?hl=en"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs hover:underline text-[#efa697]"
+                            >
+                                @ush_spa
+                            </a>
+                        </div>
                         <div className="grid grid-cols-3 gap-1.5">
                             {instagramImages.map((img, idx) => (
-                                <a key={idx} href="#" className="block overflow-hidden rounded-sm">
+                                <a
+                                    key={idx}
+                                    href={img.href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block overflow-hidden rounded-md group relative shadow-xs"
+                                    title={img.alt}
+                                >
                                     <img
                                         src={img.src}
                                         alt={img.alt}
-                                        className="w-full h-16 object-cover hover:scale-110 transition-transform duration-300"
+                                        className="w-full h-18 object-cover group-hover:scale-110 transition-transform duration-300"
                                     />
                                 </a>
                             ))}
@@ -163,12 +213,14 @@ export default function Footer() {
                     <div className="flex items-center gap-4">
                         {[
                             { label: 'Facebook', href: '#' },
-                            { label: 'Instagram', href: '#' },
+                            { label: 'Instagram', href: 'https://www.instagram.com/ush_spa/?hl=en' },
                             { label: 'Twitter', href: '#' },
                         ].map((social, idx) => (
                             <span key={social.label} className="flex items-center gap-4">
                                 <a
                                     href={social.href}
+                                    target={social.href.startsWith('http') ? '_blank' : undefined}
+                                    rel={social.href.startsWith('http') ? 'noopener noreferrer' : undefined}
                                     className="text-white/60 text-xs hover:text-spa-rose transition-colors duration-300"
                                 >
                                     {social.label}

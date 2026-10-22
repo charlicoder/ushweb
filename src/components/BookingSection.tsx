@@ -50,7 +50,8 @@ export default function BookingSection() {
                             )}
                         </p>
 
-                        {/* App Download CTA */}
+                        {/* App Download CTA - Hidden for now: can be unhidden later */}
+                        {/*
                         <div className="bg-white dark:bg-[#231a16] p-6 rounded-xl shadow-spa border border-spa-petal/40 dark:border-white/10 mb-8 transition-colors duration-300">
                             <h5 className="font-lustria text-lg text-spa-text dark:text-[#f7eee9] mb-2 font-bold transition-colors duration-300">
                                 {isAr ? '📱 الحجز الفوري عبر تطبيق الهاتف الذكي' : '📱 Book via Our Mobile App'}
@@ -62,6 +63,7 @@ export default function BookingSection() {
                             </p>
                             <AppDownloadButtons />
                         </div>
+                        */}
 
                         {/* Contact & Legal Entity Info */}
                         <div className="flex flex-col gap-3.5 bg-spa-cream/60 dark:bg-[#231a16]/80 p-5 rounded-xl border border-spa-petal/50 dark:border-white/10 transition-colors duration-300">

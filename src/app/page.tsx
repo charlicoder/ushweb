@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import WelcomeSection from '@/components/WelcomeSection';
@@ -18,6 +19,9 @@ import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 
 export default function HomePage() {
+  // Always redirect home / to /gift-voucher
+  redirect('/gift-voucher');
+
   return (
     <main className="overflow-x-hidden">
       {/* Global Header */}

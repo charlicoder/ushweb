@@ -420,7 +420,8 @@ export default function ContactUsClient() {
                 </div>
               </div>
 
-              {/* Mobile App Download Card */}
+              {/* Mobile App Download Card - Hidden for now: can be unhidden later */}
+              {/*
               <div className="bg-white dark:bg-[#2b201b] rounded-xl p-5 border border-spa-petal/50 dark:border-white/10">
                 <h4 className="font-lustria text-sm font-bold text-spa-text dark:text-[#f7eee9] mb-1">
                   {isAr ? '📱 احجزي فوراً عبر تطبيق الهاتف الذكي' : '📱 Book Instantly with the Mobile App'}
@@ -432,6 +433,7 @@ export default function ContactUsClient() {
                 </p>
                 <AppDownloadButtons />
               </div>
+              */}
             </div>
           </div>
         </section>
