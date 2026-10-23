@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
         // origin (e.g. during staging or behind a CDN in production).
         source: '/api/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: 'https://apidev.ushspa.co' },
+          { key: 'Access-Control-Allow-Origin', value: 'https://api.ushspa.co' },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
