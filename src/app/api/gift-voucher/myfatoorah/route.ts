@@ -23,6 +23,81 @@ function getMyFatoorahConfig() {
 }
 
 
+interface MyFatoorahRawMethod {
+  PaymentMethodId: number;
+  PaymentMethodEn: string;
+  PaymentMethodAr: string;
+  PaymentMethodCode: string;
+  ImageUrl?: string;
+  IsDirectPayment?: boolean;
+  ServiceCharge?: number;
+  TotalAmount?: number;
+  CurrencyIso?: string;
+  [key: string]: any;
+}
+
+/**
+ * Filter out to only two methods:
+ * 1. KNET
+ * 2. Apple Pay (only one if multiple are returned)
+ */
+function filterAllowedPaymentMethods(methods: MyFatoorahRawMethod[]): MyFatoorahRawMethod[] {
+  if (!Array.isArray(methods)) return [];
+
+  // 1. KNET
+  const knet = methods.find((m) => {
+    const code = (m.PaymentMethodCode || '').toLowerCase().trim();
+    const en = (m.PaymentMethodEn || '').toLowerCase().trim();
+    const ar = (m.PaymentMethodAr || '').toLowerCase().trim();
+    return (
+      code === 'kn' ||
+      code === 'knet' ||
+      en.includes('knet') ||
+      ar.includes('كي نت') ||
+      ar.includes('كينت') ||
+      m.PaymentMethodId === 1
+    );
+  });
+
+  // 2. Apple Pay (pick only one)
+  const applePayCandidates = methods.filter((m) => {
+    const code = (m.PaymentMethodCode || '').toLowerCase().trim();
+    const en = (m.PaymentMethodEn || '').toLowerCase().trim();
+    const ar = (m.PaymentMethodAr || '').toLowerCase().trim();
+    return (
+      code === 'ap' ||
+      code === 'applepay' ||
+      en.includes('apple pay') ||
+      en.includes('applepay') ||
+      ar.includes('أبل') ||
+      ar.includes('ابل')
+    );
+  });
+
+  const applePay =
+    applePayCandidates.find((m) => (m.PaymentMethodEn || '').toLowerCase().trim() === 'apple pay') ||
+    applePayCandidates.find((m) => (m.PaymentMethodCode || '').toLowerCase().trim() === 'ap') ||
+    applePayCandidates[0];
+
+  const result: MyFatoorahRawMethod[] = [];
+  if (knet) {
+    result.push({
+      ...knet,
+      PaymentMethodEn: 'KNET',
+      PaymentMethodAr: knet.PaymentMethodAr || 'كي نت',
+    });
+  }
+  if (applePay) {
+    result.push({
+      ...applePay,
+      PaymentMethodEn: 'Apple Pay',
+      PaymentMethodAr: 'أبل باي',
+    });
+  }
+
+  return result;
+}
+
 /**
  * GET: Retrieve active payment methods from MyFatoorah InitiatePayment
  */
@@ -51,10 +126,11 @@ export async function GET(request: NextRequest) {
       if (res.ok) {
         const data = await res.json();
         if (data?.IsSuccess && Array.isArray(data?.Data?.PaymentMethods)) {
+          const filtered = filterAllowedPaymentMethods(data.Data.PaymentMethods);
           return NextResponse.json({
             success: true,
             data: {
-              payment_methods: data.Data.PaymentMethods,
+              payment_methods: filtered,
             },
           });
         }

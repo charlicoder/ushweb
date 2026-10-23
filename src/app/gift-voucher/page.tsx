@@ -179,6 +179,68 @@ interface MyFatoorahMethod {
   CurrencyIso: string;
 }
 
+/**
+ * Filter out payment methods to only two:
+ * 1. KNET
+ * 2. Apple Pay (only one if multiple are returned)
+ */
+function filterAllowedPaymentMethods(methods: MyFatoorahMethod[]): MyFatoorahMethod[] {
+  if (!Array.isArray(methods)) return [];
+
+  // 1. KNET
+  const knet = methods.find((m) => {
+    const code = (m.PaymentMethodCode || '').toLowerCase().trim();
+    const en = (m.PaymentMethodEn || '').toLowerCase().trim();
+    const ar = (m.PaymentMethodAr || '').toLowerCase().trim();
+    return (
+      code === 'kn' ||
+      code === 'knet' ||
+      en.includes('knet') ||
+      ar.includes('كي نت') ||
+      ar.includes('كينت') ||
+      m.PaymentMethodId === 1
+    );
+  });
+
+  // 2. Apple Pay (pick only one)
+  const applePayCandidates = methods.filter((m) => {
+    const code = (m.PaymentMethodCode || '').toLowerCase().trim();
+    const en = (m.PaymentMethodEn || '').toLowerCase().trim();
+    const ar = (m.PaymentMethodAr || '').toLowerCase().trim();
+    return (
+      code === 'ap' ||
+      code === 'applepay' ||
+      en.includes('apple pay') ||
+      en.includes('applepay') ||
+      ar.includes('أبل') ||
+      ar.includes('ابل')
+    );
+  });
+
+  const applePay =
+    applePayCandidates.find((m) => (m.PaymentMethodEn || '').toLowerCase().trim() === 'apple pay') ||
+    applePayCandidates.find((m) => (m.PaymentMethodCode || '').toLowerCase().trim() === 'ap') ||
+    applePayCandidates[0];
+
+  const result: MyFatoorahMethod[] = [];
+  if (knet) {
+    result.push({
+      ...knet,
+      PaymentMethodEn: 'KNET',
+      PaymentMethodAr: knet.PaymentMethodAr || 'كي نت',
+    });
+  }
+  if (applePay) {
+    result.push({
+      ...applePay,
+      PaymentMethodEn: 'Apple Pay',
+      PaymentMethodAr: 'أبل باي',
+    });
+  }
+
+  return result;
+}
+
 // ─── Contact Support Card Component ──────────────────────────────────────────
 function SupportContactCard({
   isAr,
@@ -739,12 +801,28 @@ export default function GiftVoucherPage() {
           );
           const json = await res.json();
           if (json?.success && Array.isArray(json?.data?.payment_methods) && json.data.payment_methods.length > 0) {
-            setMyFatoorahMethods(json.data.payment_methods);
-            const knet = json.data.payment_methods.find((m: MyFatoorahMethod) => m.PaymentMethodId === 1);
-            if (knet) {
-              setSelectedMethodId(1);
+            const filtered = filterAllowedPaymentMethods(json.data.payment_methods);
+            if (filtered.length > 0) {
+              setMyFatoorahMethods(filtered);
+              const knet = filtered.find(
+                (m: MyFatoorahMethod) =>
+                  m.PaymentMethodId === 1 ||
+                  m.PaymentMethodCode?.toLowerCase() === 'kn' ||
+                  m.PaymentMethodEn.toLowerCase().includes('knet')
+              );
+              if (knet) {
+                setSelectedMethodId(knet.PaymentMethodId);
+              } else {
+                setSelectedMethodId(filtered[0].PaymentMethodId);
+              }
             } else {
-              setSelectedMethodId(json.data.payment_methods[0].PaymentMethodId);
+              setMyFatoorahMethods([]);
+              setPaymentError(
+                json?.error?.message ||
+                  (isAr
+                    ? 'وسائل الدفع غير متوفرة حالياً. يرجى التواصل مع فريق الدعم.'
+                    : 'Payment methods are currently unavailable. Please contact our support team.')
+              );
             }
           } else {
             setMyFatoorahMethods([]);
