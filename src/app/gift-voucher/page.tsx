@@ -9,6 +9,8 @@ import {
   SparklesIcon,
   ChevronRightIcon,
   ChevronLeftIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   CheckIcon,
   ClockIcon,
   BuildingStorefrontIcon,
@@ -401,6 +403,7 @@ export default function GiftVoucherPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedGender, setSelectedGender] = useState<'female' | 'male' | 'all'>('female');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [isServiceDetailsOpen, setIsServiceDetailsOpen] = useState(true);
   const [detailService, setDetailService] = useState<Service | null>(null);
   const [isLoadingServiceDetail, setIsLoadingServiceDetail] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
@@ -526,6 +529,24 @@ export default function GiftVoucherPage() {
       }
     }
   }, [services, isAr]);
+
+  // Auto-enrich selectedService with benefits and full descriptions if missing
+  useEffect(() => {
+    if (currentPhase === 'details' && selectedService && !selectedService.benefits && !selectedService.session_benefits) {
+      let isCancelled = false;
+      fetch(`/api/gift-voucher/services/${selectedService.id}?lang=${lang}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (!isCancelled && json?.success && json?.data) {
+            setSelectedService((prev) => (prev && prev.id === selectedService.id ? { ...prev, ...json.data } : prev));
+          }
+        })
+        .catch((err) => console.warn('[enrich selectedService] error:', err));
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [currentPhase, selectedService?.id, lang]);
 
   // ─── Fetch Arrangements for Selected Service & Branch ──────────────────────
   const loadArrangements = async (serviceId: string, branchId: string) => {
@@ -1702,64 +1723,166 @@ export default function GiftVoucherPage() {
                 backgroundColor: CARD_BG,
                 borderColor: BORDER_COLOR,
               }}
-              className="rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-xs"
+              className="rounded-2xl border p-4 sm:p-5 shadow-xs relative transition-all"
             >
-              <img
-                src={
-                  selectedService.primary_image ||
-                  'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80'
-                }
-                alt={selectedService.name}
-                className="w-full sm:w-28 sm:h-28 h-40 rounded-xl object-cover flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <span style={{ color: ACCENT_BROWN }} className="text-xs font-bold uppercase tracking-wider block">
-                  {isAr ? 'الخدمة المختارة' : 'Selected Treatment'}
-                </span>
-                <h3
-                  style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
-                  className="text-lg sm:text-xl font-bold text-[#1A1A1A] my-1"
-                >
-                  {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
-                </h3>
-                <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm line-clamp-2 leading-relaxed">
-                  {(isAr ? selectedService.description_ar : selectedService.description_en) || selectedService.description}
-                </p>
-                <div className="flex items-center gap-3 mt-2 text-xs font-semibold">
-                  <span className="flex items-center gap-1">
-                    <ClockIcon className="w-3.5 h-3.5 text-[#A37854]" />
-                    {selectedService.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
-                  </span>
-                  <span>•</span>
-                  <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm">
-                    {serviceBasePrice.toFixed(decimals)} {currency}
-                  </span>
-                </div>
+              {/* Top-Right Corner Action: Change Treatment */}
+              <button
+                type="button"
+                onClick={() => setCurrentPhase('services')}
+                style={{ color: ACCENT_BROWN }}
+                className={`absolute top-4 sm:top-5 ${isAr ? 'left-4 sm:left-5' : 'right-4 sm:right-5'} text-xs sm:text-sm font-bold hover:underline z-10 inline-flex items-center gap-1.5 transition-colors cursor-pointer`}
+              >
+                <span>{isAr ? 'تغيير الخدمة' : 'Change Treatment'}</span>
+                <ArrowPathIcon className="w-3.5 h-3.5 opacity-75" />
+              </button>
 
-                {/* View Service Details Button */}
-                <div className="mt-3 pt-3 border-t border-stone-200/70 flex items-center justify-between flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openServiceDetail(selectedService)}
-                    style={{
-                      borderColor: PRIMARY_BROWN,
-                      color: PRIMARY_BROWN,
-                      backgroundColor: 'rgba(84, 60, 48, 0.05)',
-                    }}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border hover:bg-stone-200/60 transition-colors shadow-2xs"
+              {/* Top Service Summary Section */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                {selectedService.primary_image ? (
+                  <img
+                    src={selectedService.primary_image}
+                    alt={(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
+                    className="w-full sm:w-28 sm:h-28 h-40 rounded-xl object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div
+                    style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)' }}
+                    className="w-full sm:w-28 sm:h-28 h-40 rounded-xl flex items-center justify-center flex-shrink-0"
                   >
-                    <SparklesIcon className="w-4 h-4 text-[#A37854]" />
-                    <span>{isAr ? 'عرض تفاصيل ومميزات الخدمة' : 'View Service Details'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPhase('services')}
-                    style={{ color: ACCENT_BROWN }}
-                    className="text-xs font-bold hover:underline"
+                    <SparklesIcon style={{ color: PRIMARY_BROWN }} className="w-10 h-10 opacity-60" />
+                  </div>
+                )}
+                <div className={`flex-1 min-w-0 ${isAr ? 'sm:pe-32' : 'sm:pe-32'}`}>
+                  <span style={{ color: ACCENT_BROWN }} className="text-xs font-bold uppercase tracking-wider block">
+                    {isAr ? 'الخدمة المختارة' : 'Selected Treatment'}
+                  </span>
+                  <h3
+                    style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
+                    className="text-lg sm:text-xl font-bold text-[#1A1A1A] my-1"
                   >
-                    {isAr ? 'تغيير الخدمة' : 'Change Treatment'}
-                  </button>
+                    {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
+                  </h3>
+                  <div className="flex items-center gap-3 mt-2 text-xs font-semibold">
+                    <span className="flex items-center gap-1">
+                      <ClockIcon className="w-3.5 h-3.5 text-[#A37854]" />
+                      {selectedService.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
+                    </span>
+                    <span>•</span>
+                    <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm">
+                      {serviceBasePrice.toFixed(decimals)} {currency}
+                    </span>
+                  </div>
                 </div>
+              </div>
+
+              {/* Accordion Details Section (kept open by default) */}
+              {isServiceDetailsOpen && (
+                <div className="mt-4 pt-4 border-t border-stone-200/70 space-y-4">
+                  {/* Service Description */}
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">
+                      {isAr ? 'وصف الخدمة' : 'Description'}
+                    </span>
+                    <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm leading-relaxed whitespace-pre-line">
+                      {(isAr ? selectedService.description_ar : selectedService.description_en) ||
+                        selectedService.description ||
+                        (isAr ? 'جلسة علاجية مميزة وفاخرة مقدمة من يو إس إتش سبا.' : 'Signature therapeutic spa treatment by USH Spa.')}
+                    </p>
+                  </div>
+
+                  {/* Customer Benefits Section */}
+                  {(selectedService.benefits ||
+                    selectedService.customer_benefits ||
+                    selectedService.benefits_ar ||
+                    selectedService.benefits_en) && (
+                    <div
+                      style={{
+                        backgroundColor: '#F5ECE3',
+                        borderColor: 'rgba(163, 120, 84, 0.22)',
+                      }}
+                      className="rounded-2xl p-3.5 sm:p-4 border space-y-2"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <SparklesIcon style={{ color: ACCENT_BROWN }} className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider">
+                          {isAr ? 'فوائد ومميزات الخدمة (Customer Benefits)' : 'Customer Benefits'}
+                        </span>
+                      </div>
+                      <ServiceBenefitsList
+                        rawBenefits={
+                          isAr
+                            ? selectedService.benefits_ar || selectedService.benefits || selectedService.customer_benefits
+                            : selectedService.benefits_en || selectedService.benefits || selectedService.customer_benefits
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Session Benefits Section */}
+                  {(selectedService.session_benefits ||
+                    selectedService.session_benefits_ar ||
+                    selectedService.session_benefits_en) && (
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(163, 120, 84, 0.08)',
+                        borderColor: 'rgba(163, 120, 84, 0.22)',
+                      }}
+                      className="rounded-2xl p-3.5 sm:p-4 border space-y-2"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheckIcon style={{ color: ACCENT_BROWN }} className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider">
+                          {isAr ? 'نتائج وفوائد الجلسة (Session Benefits)' : 'Session Benefits'}
+                        </span>
+                      </div>
+                      <ServiceBenefitsList
+                        rawBenefits={
+                          isAr
+                            ? selectedService.session_benefits_ar || selectedService.session_benefits
+                            : selectedService.session_benefits_en || selectedService.session_benefits
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bottom Accordion Action with Arrow Icon at Bottom Right */}
+              <div className="mt-3 pt-3 border-t border-stone-200/60 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setIsServiceDetailsOpen((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#543C30] hover:text-[#A37854] transition-colors cursor-pointer"
+                >
+                  <SparklesIcon className="w-3.5 h-3.5 text-[#A37854]" />
+                  <span>
+                    {isServiceDetailsOpen
+                      ? (isAr ? 'إخفاء تفاصيل ومميزات الخدمة' : 'Hide Service Details')
+                      : (isAr ? 'عرض تفاصيل ومميزات الخدمة' : 'Show Service Details')}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsServiceDetailsOpen((prev) => !prev)}
+                  aria-label={
+                    isServiceDetailsOpen
+                      ? (isAr ? 'إخفاء تفاصيل الخدمة' : 'Collapse Details')
+                      : (isAr ? 'عرض تفاصيل الخدمة' : 'Expand Details')
+                  }
+                  style={{
+                    backgroundColor: 'rgba(84, 60, 48, 0.08)',
+                    borderColor: 'rgba(163, 120, 84, 0.25)',
+                    color: PRIMARY_BROWN,
+                  }}
+                  className="w-8 h-8 rounded-full border flex items-center justify-center hover:bg-stone-200/80 transition-all shadow-2xs cursor-pointer flex-shrink-0"
+                >
+                  {isServiceDetailsOpen ? (
+                    <ChevronUpIcon className="w-4 h-4 stroke-[2.5]" />
+                  ) : (
+                    <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
+                  )}
+                </button>
               </div>
             </div>
 
