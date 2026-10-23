@@ -139,6 +139,8 @@ interface Service {
   name_en?: string;
   name_ar?: string;
   description?: string;
+  description_en?: string;
+  description_ar?: string;
   duration_minutes?: number;
   currency?: string;
   base_price?: string | number;
@@ -149,6 +151,13 @@ interface Service {
   is_for_female?: boolean;
   is_for_male?: boolean;
   branches?: Branch[];
+  benefits?: string | Array<{ key?: string; value?: string } | string> | null;
+  benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
+  benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
+  customer_benefits?: string | Array<{ key?: string; value?: string } | string> | null;
+  session_benefits?: string | Array<{ key?: string; value?: string } | string> | null;
+  session_benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
+  session_benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
 }
 
 interface GeneratedVoucher {
@@ -311,6 +320,62 @@ function SupportContactCard({
   );
 }
 
+function ServiceBenefitsList({
+  rawBenefits,
+}: {
+  rawBenefits: string | Array<{ key?: string; value?: string } | string> | null | undefined;
+}) {
+  if (!rawBenefits) return null;
+
+  if (Array.isArray(rawBenefits)) {
+    return (
+      <ul className="space-y-2">
+        {rawBenefits.map((item, idx) => {
+          const text =
+            typeof item === 'string'
+              ? item
+              : `${item.key ? item.key + ': ' : ''}${item.value || ''}`;
+          if (!text.trim()) return null;
+          return (
+            <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-[#4A403A] leading-relaxed">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#A37854] mt-2 flex-shrink-0" />
+              <span>{text}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
+  if (typeof rawBenefits === 'string') {
+    const lines = rawBenefits
+      .split('\n')
+      .map((l) => l.trim().replace(/^[-•*]\s*/, ''))
+      .filter(Boolean);
+
+    if (lines.length > 1) {
+      return (
+        <ul className="space-y-2">
+          {lines.map((line, idx) => (
+            <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-[#4A403A] leading-relaxed">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#A37854] mt-2 flex-shrink-0" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <p className="text-xs sm:text-sm text-[#4A403A] leading-relaxed whitespace-pre-line">
+        {rawBenefits}
+      </p>
+    );
+  }
+
+  return null;
+}
+
 export default function GiftVoucherPage() {
   const { lang, isAr, isDark } = useApp();
 
@@ -336,7 +401,30 @@ export default function GiftVoucherPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [selectedGender, setSelectedGender] = useState<'female' | 'male' | 'all'>('female');
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [detailService, setDetailService] = useState<Service | null>(null);
+  const [isLoadingServiceDetail, setIsLoadingServiceDetail] = useState(false);
   const [isLoadingServices, setIsLoadingServices] = useState(false);
+
+  const openServiceDetail = async (svc: Service) => {
+    setDetailService(svc);
+    // Enrich with detailed service info (benefits, session_benefits, full description) if missing
+    if (!svc.benefits && !svc.session_benefits) {
+      setIsLoadingServiceDetail(true);
+      try {
+        const res = await fetch(`/api/gift-voucher/services/${svc.id}?lang=${lang}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            setDetailService((prev) => (prev && prev.id === svc.id ? { ...prev, ...json.data } : prev));
+          }
+        }
+      } catch (err) {
+        console.warn('[openServiceDetail] failed to enrich service:', err);
+      } finally {
+        setIsLoadingServiceDetail(false);
+      }
+    }
+  };
 
   // Arrangements & Details State
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -370,22 +458,23 @@ export default function GiftVoucherPage() {
   const [directPaymentUrl, setDirectPaymentUrl] = useState('');
 
   // ─── Fetch Categories ───────────────────────────────────────────────────────
-  useEffect(() => {
-    async function loadCategories() {
-      setIsLoadingCategories(true);
-      try {
-        const res = await fetch('/api/gift-voucher/categories');
-        const json = await res.json();
-        const list = Array.isArray(json?.data) ? json.data : [];
-        setCategories(list);
-      } catch (err) {
-        console.error('Error loading categories:', err);
-      } finally {
-        setIsLoadingCategories(false);
-      }
+  const loadCategories = async (currentLang: string = lang) => {
+    setIsLoadingCategories(true);
+    try {
+      const res = await fetch(`/api/gift-voucher/categories?lang=${currentLang}`);
+      const json = await res.json();
+      const list = Array.isArray(json?.data) ? json.data : [];
+      setCategories(list);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    } finally {
+      setIsLoadingCategories(false);
     }
-    loadCategories();
-  }, []);
+  };
+
+  useEffect(() => {
+    loadCategories(lang);
+  }, [lang]);
 
   // ─── Fetch Products (when entering physical flow) ──────────────────────────
   const loadProducts = async () => {
@@ -403,10 +492,10 @@ export default function GiftVoucherPage() {
   };
 
   // ─── Fetch Services ────────────────────────────────────────────────────────
-  const loadServices = async (gender: 'female' | 'male' | 'all') => {
+  const loadServices = async (gender: 'female' | 'male' | 'all' = selectedGender, currentLang: string = lang) => {
     setIsLoadingServices(true);
     try {
-      const res = await fetch(`/api/gift-voucher/services?gender=${gender}`);
+      const res = await fetch(`/api/gift-voucher/services?gender=${gender}&lang=${currentLang}`);
       const json = await res.json();
       const list = Array.isArray(json?.data) ? json.data : [];
       setServices(list);
@@ -416,6 +505,27 @@ export default function GiftVoucherPage() {
       setIsLoadingServices(false);
     }
   };
+
+  // Keep services refreshed whenever language or gender changes
+  useEffect(() => {
+    loadServices(selectedGender, lang);
+  }, [lang, selectedGender]);
+
+  // Synchronize selectedService and detailService whenever services list changes or isAr toggles
+  useEffect(() => {
+    if (selectedService) {
+      const match = services.find((s) => s.id === selectedService.id);
+      if (match) {
+        setSelectedService((prev) => (prev ? { ...prev, ...match } : match));
+      }
+    }
+    if (detailService) {
+      const match = services.find((s) => s.id === detailService.id);
+      if (match) {
+        setDetailService((prev) => (prev ? { ...prev, ...match } : match));
+      }
+    }
+  }, [services, isAr]);
 
   // ─── Fetch Arrangements for Selected Service & Branch ──────────────────────
   const loadArrangements = async (serviceId: string, branchId: string) => {
@@ -1484,6 +1594,7 @@ export default function GiftVoucherPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {services.map((svc) => {
                   const name = (isAr ? svc.name_ar : svc.name_en) || svc.name;
+                  const desc = (isAr ? svc.description_ar : svc.description_en) || svc.description;
                   const price = svc.current_price || svc.base_price || '0';
                   const isSelected = selectedService?.id === svc.id;
 
@@ -1519,11 +1630,11 @@ export default function GiftVoucherPage() {
                           {name}
                         </h3>
                         <p style={{ color: TEXT_SEC }} className="text-xs line-clamp-2 leading-relaxed mb-2">
-                          {svc.description}
+                          {desc}
                         </p>
 
                         {/* Badges Row */}
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
                           <span
                             style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)', color: ACCENT_BROWN }}
                             className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md"
@@ -1537,6 +1648,22 @@ export default function GiftVoucherPage() {
                           >
                             {price} {svc.currency || 'KWD'}
                           </span>
+                        </div>
+
+                        {/* View Details Action Link */}
+                        <div className="pt-1.5 border-t border-stone-200/60">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openServiceDetail(svc);
+                            }}
+                            style={{ color: PRIMARY_BROWN }}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold hover:underline transition-colors"
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" />
+                            <span>{isAr ? 'عرض التفاصيل والمميزات' : 'View Service Details'}</span>
+                          </button>
                         </div>
                       </div>
 
@@ -1596,7 +1723,7 @@ export default function GiftVoucherPage() {
                   {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
                 </h3>
                 <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm line-clamp-2 leading-relaxed">
-                  {selectedService.description}
+                  {(isAr ? selectedService.description_ar : selectedService.description_en) || selectedService.description}
                 </p>
                 <div className="flex items-center gap-3 mt-2 text-xs font-semibold">
                   <span className="flex items-center gap-1">
@@ -1607,6 +1734,31 @@ export default function GiftVoucherPage() {
                   <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm">
                     {serviceBasePrice.toFixed(decimals)} {currency}
                   </span>
+                </div>
+
+                {/* View Service Details Button */}
+                <div className="mt-3 pt-3 border-t border-stone-200/70 flex items-center justify-between flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openServiceDetail(selectedService)}
+                    style={{
+                      borderColor: PRIMARY_BROWN,
+                      color: PRIMARY_BROWN,
+                      backgroundColor: 'rgba(84, 60, 48, 0.05)',
+                    }}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border hover:bg-stone-200/60 transition-colors shadow-2xs"
+                  >
+                    <SparklesIcon className="w-4 h-4 text-[#A37854]" />
+                    <span>{isAr ? 'عرض تفاصيل ومميزات الخدمة' : 'View Service Details'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPhase('services')}
+                    style={{ color: ACCENT_BROWN }}
+                    className="text-xs font-bold hover:underline"
+                  >
+                    {isAr ? 'تغيير الخدمة' : 'Change Treatment'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -2748,6 +2900,179 @@ export default function GiftVoucherPage() {
               >
                 {isAr ? 'اختيار هذا المنتج والمتابعة' : 'Select This Product & Continue'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── SERVICE DETAILS MODAL (Description, Customer Benefits, Session Benefits) ──── */}
+      {detailService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div
+            onClick={() => setDetailService(null)}
+            className="absolute inset-0 cursor-pointer"
+          />
+          <div
+            style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+            className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-3xl border shadow-2xl p-6 z-10 space-y-4"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-stone-200">
+              <span style={{ color: ACCENT_BROWN }} className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <SparklesIcon className="w-4 h-4" />
+                {isAr ? 'تفاصيل الخدمة ومميزاتها' : 'Spa Treatment Details'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDetailService(null)}
+                className="p-1 rounded-full text-stone-500 hover:text-stone-800 hover:bg-stone-200/50 transition-colors"
+                aria-label={isAr ? 'إغلاق' : 'Close'}
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Image */}
+            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-stone-200 shadow-inner">
+              <img
+                src={
+                  detailService.primary_image ||
+                  'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=800&q=80'
+                }
+                alt={(isAr ? detailService.name_ar : detailService.name_en) || detailService.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Modal Title & Price / Duration */}
+            <div>
+              <h3
+                style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
+                className="text-lg sm:text-xl font-bold text-[#1A1A1A]"
+              >
+                {(isAr ? detailService.name_ar : detailService.name_en) || detailService.name}
+              </h3>
+              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                <span
+                  style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)', color: ACCENT_BROWN }}
+                  className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
+                >
+                  <ClockIcon className="w-3.5 h-3.5" />
+                  {detailService.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
+                </span>
+                <span style={{ color: PRIMARY_BROWN }} className="text-base font-extrabold">
+                  {detailService.current_price || detailService.base_price || '0'} {detailService.currency || 'KWD'}
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Description */}
+            <div className="space-y-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-stone-500 block">
+                {isAr ? 'وصف الخدمة' : 'Description'}
+              </span>
+              <p style={{ color: TEXT_SEC }} className="text-sm leading-relaxed whitespace-pre-line">
+                {(isAr ? detailService.description_ar : detailService.description_en) ||
+                  detailService.description ||
+                  (isAr ? 'جلسة علاجية مميزة وفاخرة مقدمة من يو إس إتش سبا.' : 'Signature therapeutic spa treatment by USH Spa.')}
+              </p>
+            </div>
+
+            {/* Customer Benefits Section */}
+            {(detailService.benefits ||
+              detailService.customer_benefits ||
+              detailService.benefits_ar ||
+              detailService.benefits_en) && (
+              <div
+                style={{
+                  backgroundColor: '#F5ECE3',
+                  borderColor: 'rgba(163, 120, 84, 0.22)',
+                }}
+                className="rounded-2xl p-4 border space-y-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <SparklesIcon style={{ color: ACCENT_BROWN }} className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider">
+                    {isAr ? 'فوائد ومميزات الخدمة (Customer Benefits)' : 'Customer Benefits'}
+                  </span>
+                </div>
+                <ServiceBenefitsList
+                  rawBenefits={
+                    isAr
+                      ? detailService.benefits_ar || detailService.benefits || detailService.customer_benefits
+                      : detailService.benefits_en || detailService.benefits || detailService.customer_benefits
+                  }
+                />
+              </div>
+            )}
+
+            {/* Session Benefits Section */}
+            {(detailService.session_benefits ||
+              detailService.session_benefits_ar ||
+              detailService.session_benefits_en) && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(163, 120, 84, 0.08)',
+                  borderColor: 'rgba(163, 120, 84, 0.22)',
+                }}
+                className="rounded-2xl p-4 border space-y-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheckIcon style={{ color: ACCENT_BROWN }} className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider">
+                    {isAr ? 'نتائج وفوائد الجلسة (Session Benefits)' : 'Session Benefits'}
+                  </span>
+                </div>
+                <ServiceBenefitsList
+                  rawBenefits={
+                    isAr
+                      ? detailService.session_benefits_ar || detailService.session_benefits
+                      : detailService.session_benefits_en || detailService.session_benefits
+                  }
+                />
+              </div>
+            )}
+
+            {/* Loading indicator if fetching more details */}
+            {isLoadingServiceDetail && (
+              <div className="flex items-center justify-center gap-2 py-1 text-xs text-stone-500">
+                <ArrowPathIcon className="w-3.5 h-3.5 animate-spin text-[#A37854]" />
+                <span>{isAr ? 'جاري تحميل تفاصيل الخدمة...' : 'Loading full service details...'}</span>
+              </div>
+            )}
+
+            {/* Modal Action button */}
+            <div className="pt-2">
+              {currentPhase === 'services' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = detailService;
+                    setDetailService(null);
+                    handleSelectService(s);
+                  }}
+                  style={{
+                    backgroundColor: PRIMARY_BROWN,
+                    color: '#FFFFFF',
+                  }}
+                  className="w-full py-3.5 rounded-full font-bold text-sm transition-opacity hover:opacity-95 shadow-md flex items-center justify-center gap-2"
+                >
+                  <CheckIcon className="w-4 h-4 stroke-[3]" />
+                  <span>{isAr ? 'اختيار هذه الخدمة والمتابعة' : 'Select This Treatment & Continue'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDetailService(null)}
+                  style={{
+                    backgroundColor: PRIMARY_BROWN,
+                    color: '#FFFFFF',
+                  }}
+                  className="w-full py-3 rounded-full font-bold text-sm transition-opacity hover:opacity-95 shadow-md"
+                >
+                  {isAr ? 'إغلاق' : 'Close'}
+                </button>
+              )}
             </div>
           </div>
         </div>
