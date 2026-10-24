@@ -768,6 +768,14 @@ export default function GiftVoucherPage() {
     e.preventDefault();
     setFormError('');
 
+    if (!giftFrom.trim()) {
+      setFormError(isAr ? 'يرجى إدخال اسمك (المُهدِي)' : 'Please enter your name (Gift From)');
+      return;
+    }
+    if (!senderPhone.trim()) {
+      setFormError(isAr ? 'يرجى إدخال رقم هاتفك' : 'Please enter your phone number');
+      return;
+    }
     if (!recipientName.trim()) {
       setFormError(isAr ? 'يرجى إدخال اسم المستلم' : 'Please enter the recipient full name');
       return;
@@ -2319,10 +2327,11 @@ export default function GiftVoucherPage() {
                 {/* Gift From */}
                 <div>
                   <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5">
-                    {isAr ? 'مُهدَى من (اسمك)' : 'Gift From (Your Name)'}
+                    {isAr ? 'مُهدَى من (اسمك) *' : 'Gift From (Your Name) *'}
                   </label>
                   <input
                     type="text"
+                    required
                     value={giftFrom}
                     onChange={(e) => setGiftFrom(e.target.value)}
                     placeholder={isAr ? 'مثال: نورة الأحمد' : 'e.g. Sarah Al-Ahmad'}
@@ -2334,7 +2343,7 @@ export default function GiftVoucherPage() {
                 {/* Sender Mobile Number */}
                 <div>
                   <label className="block text-xs font-bold text-[#1A1A1A] mb-1.5">
-                    {isAr ? 'رقم هاتفك (المرسل)' : 'Your Phone Number'}
+                    {isAr ? 'رقم هاتفك (المرسل) *' : 'Your Phone Number *'}
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -2354,6 +2363,7 @@ export default function GiftVoucherPage() {
                     </select>
                     <input
                       type="tel"
+                      required
                       value={senderPhone}
                       onChange={(e) => setSenderPhone(e.target.value)}
                       placeholder={isAr ? '90000000' : '90000000'}

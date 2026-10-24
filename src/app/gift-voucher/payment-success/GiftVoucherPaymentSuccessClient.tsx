@@ -622,33 +622,6 @@ export default function GiftVoucherPaymentSuccessClient() {
               </p>
             </div>
 
-            {/* Recipient Snapshot Box */}
-            <div className="p-4 bg-white rounded-2xl border border-stone-200 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-stone-500">{isAr ? 'المستلم:' : 'Recipient:'}</span>
-                <span className="font-extrabold text-stone-800 text-sm">{recipientName}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-stone-500">{isAr ? 'مُهدَى من:' : 'Gift From:'}</span>
-                <span className="font-extrabold text-stone-800 text-sm">{senderName}</span>
-              </div>
-              {recipientPhone && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-stone-500">{isAr ? 'رقم الهاتف:' : 'Mobile:'}</span>
-                  <span className="font-mono text-stone-700">{recipientPhone}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-stone-500">{isAr ? 'كود القسيمة:' : 'Voucher Code:'}</span>
-                <span className="font-mono font-black text-emerald-800 text-sm tracking-wider">{voucherCodeDisplay || '••••••'}</span>
-              </div>
-            </div>
-
-            {/* Message Preview Box */}
-            <div className="p-3.5 bg-white/80 rounded-2xl border border-stone-200/90 text-xs text-stone-800 whitespace-pre-line text-start max-h-40 overflow-y-auto font-sans leading-relaxed shadow-inner">
-              {preloadedShareMessage}
-            </div>
-
             {/* Action Buttons */}
             <div className="space-y-2.5 pt-1">
               {/* WhatsApp Share CTA */}
