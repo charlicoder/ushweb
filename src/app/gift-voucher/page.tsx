@@ -153,8 +153,8 @@ interface Service {
   base_price?: string | number;
   current_price?: string | number;
   primary_image?: string;
-  extra_minutes?: number;
-  price_for_extra_minutes?: string;
+  extra_minutes?: number | string | null;
+  price_for_extra_minutes?: string | number | null;
   is_for_female?: boolean;
   is_for_male?: boolean;
   branches?: Branch[];
@@ -611,10 +611,19 @@ export default function GiftVoucherPage() {
 
   const extraMinutesRate = useMemo(() => {
     if (selectedService?.price_for_extra_minutes) {
-      return parseFloat(selectedService.price_for_extra_minutes) || 15.0;
+      return parseFloat(String(selectedService.price_for_extra_minutes)) || 15.0;
     }
     return 15.0;
   }, [selectedService]);
+
+  // Extra time is offered only when the service defines both values (> 0)
+  const hasExtraTime =
+    (Number(selectedService?.extra_minutes) || 0) > 0 &&
+    (Number(selectedService?.price_for_extra_minutes) || 0) > 0;
+
+  useEffect(() => {
+    if (!hasExtraTime && selectedExtraMinutes !== 0) setSelectedExtraMinutes(0);
+  }, [hasExtraTime, selectedExtraMinutes]);
 
   const extraTimePrice = useMemo(() => {
     if (selectedExtraMinutes <= 0) return 0;
@@ -2103,6 +2112,7 @@ export default function GiftVoucherPage() {
             )}
 
             {/* Extra Time Selection */}
+            {hasExtraTime && (
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
               className="rounded-2xl border p-5 space-y-3"
@@ -2115,8 +2125,8 @@ export default function GiftVoucherPage() {
                   {extraMinutesRate.toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                {[0, 15, 30, 60].map((mins) => {
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 30, 60].map((mins) => {
                   const isSelected = selectedExtraMinutes === mins;
                   return (
                     <button
@@ -2136,6 +2146,7 @@ export default function GiftVoucherPage() {
                 })}
               </div>
             </div>
+            )}
 
             {/* Sticky/Bottom Cost Bar */}
             <div

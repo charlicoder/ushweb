@@ -65,6 +65,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Active branches only (/branches/ returns status=active). If it can't be
+    // loaded, leave each service's branches unfiltered.
+    let activeBranchIds: Set<string> | null = null;
+    try {
+      const bUrl = new URL(`${baseUrl}/uauth/api/v1/branches/`);
+      bUrl.searchParams.set('page_size', '200');
+      const bRes = await fetch(bUrl.toString(), {
+        headers: { 'Accept': 'application/json', 'X-USHSPA-TOKEN': ushToken },
+        cache: 'no-store',
+      });
+      if (bRes.ok) {
+        const bData = await bRes.json().catch(() => null);
+        const bList: any[] = Array.isArray(bData)
+          ? bData
+          : (bData?.results ?? bData?.data?.results ?? bData?.data ?? []);
+        const ids = (Array.isArray(bList) ? bList : [])
+          .map((b: any) => String(b?.id ?? b?.branch_id ?? ''))
+          .filter(Boolean);
+        if (ids.length > 0) activeBranchIds = new Set(ids);
+      }
+    } catch {
+      activeBranchIds = null;
+    }
+
     const arMap = new Map<string, any>(rawListAr.map((item: any) => [String(item.id), item]));
     const enMap = new Map<string, any>(rawListEn.map((item: any) => [String(item.id), item]));
 
@@ -107,7 +131,9 @@ export async function GET(request: NextRequest) {
         current_price: item.current_price || item.base_price || '0',
         currency: item.currency || 'KWD',
         branches: Array.isArray(item.branches)
-          ? item.branches.map((b: any) => ({
+          ? item.branches
+              .filter((b: any) => !activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || '')))
+              .map((b: any) => ({
               id: String(b.branch_id || b.id || ''),
               branch_id: String(b.branch_id || b.id || ''),
               name: b.name || '',
