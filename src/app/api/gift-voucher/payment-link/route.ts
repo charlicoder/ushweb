@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'X-USHSPA-TOKEN': ushToken,
+      'USHSPA-TOKEN': ushToken,
+      'USH_TOKEN': ushToken,
     };
     if (authHeader) {
       headers['Authorization'] = authHeader;
@@ -37,6 +39,9 @@ export async function POST(request: NextRequest) {
         `${baseUrl}/booknpay/api/v1/payment-links/`,
         `${baseUrl}/payment-links/`,
       ];
+      if (baseUrl.includes(':8000')) {
+        endpoints.push('http://127.0.0.1:8003/api/v1/payment-links/');
+      }
 
       for (const endpoint of endpoints) {
         try {

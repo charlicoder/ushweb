@@ -39,11 +39,16 @@ interface VoucherData {
   status?: string;
   secret_code?: string;
   public_token?: string;
+  public_url?: string;
   gift_from?: string;
   gift_message?: string;
+  sender_name?: string;
   sender_data?: { name?: string; phone_number?: string };
+  sender_details?: { name?: string; phone_number?: string };
+  recipient_name?: string;
   recipient_phone?: string;
   recipient_data?: { name?: string; phone_number?: string };
+  recipient_details?: { name?: string; phone_number?: string };
   service_data?: { name?: string; name_ar?: string; duration?: number };
   branch_data?: { name?: string; name_ar?: string };
   expire_date?: string;
@@ -80,29 +85,43 @@ export default function GiftVoucherPaymentSuccessClient() {
   const [copiedMessage, setCopiedMessage] = useState(false);
 
   // Stored form data saved before gateway redirect
-  const [storedFormData, setStoredFormData] = useState<{
-    gift_from?: string;
-    recipient_name?: string;
-    recipient_phone?: string;
-    sender_name?: string;
-    sender_phone?: string;
-  } | null>(null);
+  const [storedFormData, setStoredFormData] = useState<Record<string, any> | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw =
+        sessionStorage.getItem('ush_gift_form_data') ||
+        localStorage.getItem('ush_gift_form_data');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     try {
-      const byVoucher = voucherId
-        ? sessionStorage.getItem(`ush_gift_form_${voucherId}`) || localStorage.getItem(`ush_gift_form_${voucherId}`)
-        : null;
-      const generic =
-        sessionStorage.getItem('ush_gift_form_data') || localStorage.getItem('ush_gift_form_data');
-      const raw = byVoucher || generic;
-      if (raw) {
-        setStoredFormData(JSON.parse(raw));
+      const keysToTry = [
+        voucherId ? `ush_gift_form_${voucherId}` : null,
+        voucher?.id ? `ush_gift_form_${voucher?.id}` : null,
+        voucher?.voucher_number ? `ush_gift_form_${voucher?.voucher_number}` : null,
+        'ush_gift_form_data',
+      ].filter(Boolean) as string[];
+
+      for (const k of keysToTry) {
+        const raw = sessionStorage.getItem(k) || localStorage.getItem(k);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+              setStoredFormData((prev) => ({ ...parsed, ...(prev || {}) }));
+              break;
+            }
+          } catch {}
+        }
       }
     } catch {
       // ignore storage error
     }
-  }, [voucherId]);
+  }, [voucherId, voucher?.id, voucher?.voucher_number]);
 
   useEffect(() => {
     let isMounted = true;
@@ -157,58 +176,109 @@ export default function GiftVoucherPaymentSuccessClient() {
     };
   }, [voucherId, paymentId, invoiceId]);
 
-  // Priority rule: Do NOT take sender or recipient name from server or response,
-  // overwrite them with form data. Use "Gift From" field as sender name if not null/empty.
-  const recipientName =
-    paramRecipientName ||
-    storedFormData?.recipient_name ||
-    voucher?.recipient_data?.name ||
-    (isAr ? 'المستلم الكريم' : 'Recipient');
+  // Priority rule: recipient_name and sender_name must come from the form data not coming from database.
+  // For example:
+  // - gift_from from form data replaces sender name if not null/empty
+  // - To (from ushspa) / Recipient's Full Name * (from ushweb) replaces recipient_name if not null/empty
+  const formRecipientName =
+    paramRecipientName?.trim() ||
+    searchParams.get('to')?.trim() ||
+    searchParams.get('recipient')?.trim() ||
+    storedFormData?.recipient_name?.trim() ||
+    storedFormData?.to?.trim() ||
+    storedFormData?.recipient_full_name?.trim() ||
+    storedFormData?.recipientName?.trim() ||
+    '';
 
-  const recipientPhone =
-    paramRecipientPhone ||
-    storedFormData?.recipient_phone ||
-    voucher?.recipient_phone ||
-    voucher?.recipient_data?.phone_number ||
+  const recipientName =
+    formRecipientName ||
+    voucher?.recipient_data?.name?.trim() ||
+    voucher?.recipient_name?.trim() ||
+    voucher?.recipient_details?.name?.trim() ||
+    (isAr ? 'المستلمة الكريمة' : 'Recipient');
+
+  const formSenderName =
+    paramGiftFrom?.trim() ||
+    searchParams.get('sender_name')?.trim() ||
+    searchParams.get('from')?.trim() ||
+    storedFormData?.gift_from?.trim() ||
+    storedFormData?.giftFrom?.trim() ||
+    storedFormData?.sender_name?.trim() ||
+    storedFormData?.senderName?.trim() ||
     '';
 
   const senderName =
-    paramGiftFrom ||
-    storedFormData?.gift_from ||
-    voucher?.gift_from ||
-    storedFormData?.sender_name ||
-    voucher?.sender_data?.name ||
+    formSenderName ||
+    voucher?.gift_from?.trim() ||
+    voucher?.sender_data?.name?.trim() ||
+    voucher?.sender_name?.trim() ||
+    voucher?.sender_details?.name?.trim() ||
     (isAr ? 'مُهدَى بكل حب' : 'Guest');
 
+  const formRecipientPhone =
+    paramRecipientPhone?.trim() ||
+    searchParams.get('phone')?.trim() ||
+    storedFormData?.recipient_phone?.trim() ||
+    storedFormData?.recipientPhone?.trim() ||
+    '';
+
+  const recipientPhone =
+    formRecipientPhone ||
+    voucher?.recipient_phone?.trim() ||
+    voucher?.recipient_data?.phone_number?.trim() ||
+    voucher?.recipient_details?.phone_number?.trim() ||
+    '';
+
   const senderPhone =
-    storedFormData?.sender_phone ||
-    voucher?.sender_data?.phone_number ||
+    storedFormData?.sender_phone?.trim() ||
+    voucher?.sender_data?.phone_number?.trim() ||
     '';
 
   const totalAmount = voucher?.total_amount || amountParam || '0.000';
   const currency = voucher?.currency || currencyParam || 'KWD';
-  const voucherCode = voucher?.voucher_number || searchParams.get('voucher_code') || voucherId.slice(0, 8);
-  const secretCode = voucher?.secret_code || '';
+  const voucherCode =
+    voucher?.voucher_number ||
+    searchParams.get('voucher_code') ||
+    storedFormData?.voucher_code ||
+    voucherId.slice(0, 8);
+  const secretCode =
+    voucher?.secret_code ||
+    searchParams.get('secret_code') ||
+    storedFormData?.secret_code ||
+    '';
   const voucherCodeDisplay = secretCode || voucherCode;
 
   // Public gift page URL
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const publicVoucherUrl = voucher?.public_token
-    ? `${origin}/gift/${voucher.public_token}`
+  const origin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || 'https://ushspa.co';
+  const publicToken =
+    voucher?.public_token ||
+    searchParams.get('public_token') ||
+    storedFormData?.public_token;
+  const publicVoucherUrl = publicToken
+    ? `${origin}/gift/${publicToken}`
+    : voucher?.public_url
+    ? (voucher.public_url.startsWith('http') ? voucher.public_url : `${origin}${voucher.public_url}`)
     : voucherId
     ? `${origin}/gift/${voucherId}`
     : `${origin}/gift-voucher`;
 
   const cleanRecipientPhone = recipientPhone.replace(/\D+/g, '');
 
-  // Preloaded message MUST be in Arabic and MUST NOT include any pricing information
+  // Preloaded message format matching exact specification
   const preloadedShareMessage =
-    `مرحباً ${recipientName} 🌸\n` +
-    `أهدتك ${senderName} قسيمة تجربة سبا فاخرة من Quiet Ush Thai Spa (USH Spa).\n\n` +
-    `كود القسيمة: ${voucherCodeDisplay}\n\n` +
-    `يمكنك استعراض تفاصيل القسيمة عبر الرابط التالي:\n` +
+    `A Gift of Serenity ✨\n\n` +
+    `${recipientName} العزيزة،\n` +
+    `أُعدّ لكِ هذا الإهداء من ${senderName}، لتنعمي \n` +
+    `بتجربة من الرفاهية والاسترخاء \n` +
+    `في ush wellness .. \n\n` +
+    `Gift Code: ${voucherCodeDisplay}\n` +
+    `للاطلاع على تفاصيل الإهداء\n\n` +
     `${publicVoucherUrl}\n\n` +
-    `نأمل لك قضاء أمتع أوقات الاسترخاء والدلال! ✨`;
+    `لحظاتٌ لكِ وحدكِ، \n` +
+    `من الهدوء والعناية والدلال 🤍`;
 
   const whatsappUrl = cleanRecipientPhone
     ? `https://wa.me/${cleanRecipientPhone}?text=${encodeURIComponent(preloadedShareMessage)}`
@@ -572,6 +642,11 @@ export default function GiftVoucherPaymentSuccessClient() {
                 <span className="font-bold text-stone-500">{isAr ? 'كود القسيمة:' : 'Voucher Code:'}</span>
                 <span className="font-mono font-black text-emerald-800 text-sm tracking-wider">{voucherCodeDisplay || '••••••'}</span>
               </div>
+            </div>
+
+            {/* Message Preview Box */}
+            <div className="p-3.5 bg-white/80 rounded-2xl border border-stone-200/90 text-xs text-stone-800 whitespace-pre-line text-start max-h-40 overflow-y-auto font-sans leading-relaxed shadow-inner">
+              {preloadedShareMessage}
             </div>
 
             {/* Action Buttons */}

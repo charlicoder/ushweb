@@ -879,6 +879,10 @@ export default function GiftVoucherPage() {
           recipient_name: recipientName.trim(),
           recipient_phone: fullRecipientPhone,
           sender_phone: fullSenderPhone,
+          secret_code: vData.secret_code || '',
+          voucher_code: vData.voucher_code || '',
+          public_token: vData.public_token || '',
+          public_url: vData.public_url || '',
         };
         try {
           sessionStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
@@ -910,7 +914,11 @@ export default function GiftVoucherPage() {
         setDirectPaymentUrl('');
         setCurrentPhase('make_payment');
       } else {
-        setFormError(isAr ? 'فشل إنشاء القسيمة، يرجى المحاولة ثانية' : 'Failed to generate voucher. Please try again.');
+        const errorDetail = json?.error?.message || json?.message;
+        setFormError(
+          errorDetail ||
+            (isAr ? 'فشل إنشاء القسيمة، يرجى المحاولة ثانية' : 'Failed to generate voucher. Please try again.')
+        );
       }
     } catch (err) {
       console.error('Order error:', err);
@@ -998,6 +1006,10 @@ export default function GiftVoucherPage() {
         recipient_name: recipientName.trim(),
         recipient_phone: fullRecipientPhone,
         sender_phone: fullSenderPhone,
+        secret_code: generatedVoucher.secret_code || '',
+        voucher_code: generatedVoucher.voucher_code || '',
+        public_token: generatedVoucher.public_token || '',
+        public_url: generatedVoucher.public_url || '',
       };
       sessionStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
       localStorage.setItem('ush_gift_form_data', JSON.stringify(formDataToStore));
@@ -1016,6 +1028,8 @@ export default function GiftVoucherPage() {
         body: JSON.stringify({
           voucher_id: generatedVoucher.id,
           voucher_code: generatedVoucher.voucher_code,
+          secret_code: generatedVoucher.secret_code,
+          public_token: generatedVoucher.public_token,
           payment_method_id: selectedMethodId,
           amount: grandTotal.toFixed(decimals),
           currency,

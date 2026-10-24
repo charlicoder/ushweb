@@ -165,6 +165,8 @@ export async function POST(request: NextRequest) {
     const {
       voucher_id,
       voucher_code,
+      secret_code,
+      public_token,
       payment_method_id,
       amount,
       currency = 'KWD',
@@ -195,28 +197,47 @@ export async function POST(request: NextRequest) {
     const { apiUrl, apiKey } = getMyFatoorahConfig();
 
     // Determine host origin for callback
-    const origin =
-      request.headers.get('origin') ||
+    const host =
       request.headers.get('x-forwarded-host') ||
+      request.headers.get('host') ||
+      '';
+    const proto =
+      request.headers.get('x-forwarded-proto') ||
+      (host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https');
+
+    let cleanOrigin =
+      request.headers.get('origin') ||
+      (host ? `${proto}://${host}` : '') ||
       process.env.NEXT_PUBLIC_APP_URL ||
       'http://localhost:3001';
 
-    const cleanOrigin = origin.startsWith('http') ? origin : `https://${origin}`;
+    cleanOrigin = cleanOrigin.trim().replace(/\/+$/, '');
+    if (!cleanOrigin.startsWith('http://') && !cleanOrigin.startsWith('https://')) {
+      cleanOrigin = `https://${cleanOrigin}`;
+    }
 
-    const callBackParams = new URLSearchParams({
-      voucher_id: String(voucher_id),
-      voucher_code: String(voucher_code || ''),
-      amount: String(numericAmount),
-      currency: String(currency),
-    });
-    if (gift_from) callBackParams.set('gift_from', String(gift_from));
-    if (recipient_name) callBackParams.set('recipient_name', String(recipient_name));
-    if (recipient_phone) callBackParams.set('recipient_phone', String(recipient_phone));
+    // Keep CallBackUrl and ErrorUrl strictly under MyFatoorah max length limit (254 chars)
+    let callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?voucher_id=${encodeURIComponent(
+      String(voucher_id)
+    )}`;
+    let errorUrl = `${cleanOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
+      String(voucher_id)
+    )}`;
 
-    const callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?${callBackParams.toString()}`;
-    const errorUrl = `${cleanOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
-      voucher_id
-    )}&amount=${numericAmount}&currency=${encodeURIComponent(currency)}`;
+    // Absolute fallback guard in case origin is unusually long
+    if (callBackUrl.length > 254) {
+      const fallbackOrigin = (process.env.NEXT_PUBLIC_APP_URL || 'https://ushspa.co').replace(/\/+$/, '');
+      callBackUrl = `${fallbackOrigin}/gift-voucher/payment-success?voucher_id=${encodeURIComponent(
+        String(voucher_id)
+      )}`.slice(0, 254);
+    }
+
+    if (errorUrl.length > 254) {
+      const fallbackOrigin = (process.env.NEXT_PUBLIC_APP_URL || 'https://ushspa.co').replace(/\/+$/, '');
+      errorUrl = `${fallbackOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
+        String(voucher_id)
+      )}`.slice(0, 254);
+    }
 
     // Clean phone number
     let cleanMobile = String(customer_phone || '').replace(/\D+/g, '');
@@ -228,24 +249,24 @@ export async function POST(request: NextRequest) {
       cleanMobile = '90010333';
     }
 
-    const customerReference = voucher_code || voucher_id;
+    const customerReference = String(voucher_code || voucher_id).slice(0, 50);
 
     const executePayload = {
       PaymentMethodId: Number(payment_method_id) || 1, // Default to KNET (1)
-      CustomerName: customer_name || 'Valued Guest',
+      CustomerName: String(customer_name || 'Valued Guest').slice(0, 50),
       DisplayCurrencyIso: currency,
       MobileCountryCode: countryCode,
-      CustomerMobile: cleanMobile,
-      CustomerEmail: customer_email || 'info@ushspa.co',
+      CustomerMobile: cleanMobile.slice(0, 11),
+      CustomerEmail: String(customer_email || 'info@ushspa.co').slice(0, 50),
       InvoiceValue: numericAmount,
       CallBackUrl: callBackUrl,
       ErrorUrl: errorUrl,
       Language: language === 'ar' ? 'ar' : 'en',
       CustomerReference: customerReference,
-      UserDefinedField: voucher_id,
+      UserDefinedField: String(voucher_id).slice(0, 50),
       InvoiceItems: [
         {
-          ItemName: `USH Spa Gift Voucher - ${customerReference}`,
+          ItemName: `USH Spa Gift Voucher - ${customerReference}`.slice(0, 100),
           Quantity: 1,
           UnitPrice: numericAmount,
         },
@@ -289,20 +310,34 @@ export async function POST(request: NextRequest) {
     try {
       const baseUrl = getBaseApiUrl();
       const ushToken = getUshToken();
-      await fetch(`${baseUrl}/booknpay/api/v1/vouchers/${voucher_id}/`, {
+      const patchHeaders = {
+        'Content-Type': 'application/json',
+        'X-USHSPA-TOKEN': ushToken,
+        'USHSPA-TOKEN': ushToken,
+        'USH_TOKEN': ushToken,
+      };
+      const patchBody = JSON.stringify({
+        payment_id: String(invoiceId),
+        payment_url: paymentUrl,
+        payment_provider: 'MyFatoorah',
+        status: 'payment_pending',
+      });
+
+      const patchRes = await fetch(`${baseUrl}/booknpay/api/v1/vouchers/${voucher_id}/`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-USHSPA-TOKEN': ushToken,
-        },
-        body: JSON.stringify({
-          payment_id: String(invoiceId),
-          payment_url: paymentUrl,
-          payment_provider: 'MyFatoorah',
-          status: 'payment_pending',
-        }),
+        headers: patchHeaders,
+        body: patchBody,
         cache: 'no-store',
       });
+
+      if (!patchRes.ok && baseUrl.includes(':8000')) {
+        await fetch(`http://127.0.0.1:8003/api/v1/vouchers/${voucher_id}/`, {
+          method: 'PATCH',
+          headers: patchHeaders,
+          body: patchBody,
+          cache: 'no-store',
+        }).catch(() => {});
+      }
     } catch (patchErr) {
       console.warn('[myfatoorah-execute] Failed to update voucher status in upstream:', patchErr);
     }

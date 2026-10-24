@@ -16,6 +16,8 @@ export async function POST(request: NextRequest) {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       'X-USHSPA-TOKEN': ushToken,
+      'USHSPA-TOKEN': ushToken,
+      'USH_TOKEN': ushToken,
     };
     if (authHeader) {
       headers['Authorization'] = authHeader;
@@ -50,7 +52,8 @@ export async function POST(request: NextRequest) {
       addons: Array.isArray(body.addons) ? body.addons : [],
       ordered_items: Array.isArray(body.ordered_items) ? body.ordered_items : null,
       extra_time: Number(body.extra_time) || 0,
-      price_for_extra_time: body.price_for_extra_time || null,
+      price_for_extra_time:
+        body.price_for_extra_time != null ? String(body.price_for_extra_time) : null,
       gift_from: senderName,
       sender_data: {
         name: senderName,
@@ -68,32 +71,77 @@ export async function POST(request: NextRequest) {
       gift_template: body.gift_template || null,
     };
 
-    const res = await fetch(`${baseUrl}/booknpay/api/v1/vouchers/`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(sanitizedPayload),
-      cache: 'no-store',
-    });
+    // Candidate upstream endpoints (primary gateway + direct fallback if gateway is unresponsive)
+    const primaryUrl = `${baseUrl}/booknpay/api/v1/vouchers/`;
+    const candidateUrls: string[] = [primaryUrl];
 
-    if (res.ok) {
-      const data = await res.json();
-      return NextResponse.json(data);
+    if (baseUrl.includes(':8000')) {
+      // In local Docker environment, Kong is on 8000 and ushbooknpay is directly on 8003
+      candidateUrls.push('http://127.0.0.1:8003/api/v1/vouchers/');
+    } else {
+      candidateUrls.push(`${baseUrl}/api/v1/vouchers/`);
     }
 
-    const errorData = await res.json().catch(() => ({}));
-    console.error('[gift-create-voucher] Upstream rejected voucher creation:', res.status, errorData);
+    let lastErrorData: any = null;
+    let lastStatus = 502;
+
+    for (let i = 0; i < candidateUrls.length; i++) {
+      const targetUrl = candidateUrls[i];
+      try {
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(sanitizedPayload),
+          cache: 'no-store',
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          return NextResponse.json(data);
+        }
+
+        lastStatus = res.status;
+        lastErrorData = await res.json().catch(() => ({}));
+
+        // If gateway returned 502/503/504, try the next fallback URL
+        if ((res.status === 502 || res.status === 503 || res.status === 504) && i < candidateUrls.length - 1) {
+          console.warn(`[gift-create-voucher] Endpoint ${targetUrl} failed with ${res.status}, trying fallback...`);
+          continue;
+        }
+
+        console.error('[gift-create-voucher] Upstream rejected voucher creation:', res.status, lastErrorData);
+        return NextResponse.json(
+          lastErrorData.error
+            ? lastErrorData
+            : {
+                success: false,
+                error: {
+                  code: 'UPSTREAM_ERROR',
+                  message: lastErrorData.message || 'Failed to create gift voucher in database.',
+                  detail: lastErrorData,
+                },
+              },
+          { status: res.status }
+        );
+      } catch (networkErr) {
+        console.warn(`[gift-create-voucher] Network error connecting to ${targetUrl}:`, networkErr);
+        if (i < candidateUrls.length - 1) {
+          continue;
+        }
+        throw networkErr;
+      }
+    }
+
     return NextResponse.json(
-      errorData.error
-        ? errorData
-        : {
-            success: false,
-            error: {
-              code: 'UPSTREAM_ERROR',
-              message: errorData.message || 'Failed to create gift voucher in database.',
-              detail: errorData,
-            },
-          },
-      { status: res.status }
+      {
+        success: false,
+        error: {
+          code: 'UPSTREAM_ERROR',
+          message: lastErrorData?.message || 'Failed to connect to voucher service.',
+          detail: lastErrorData,
+        },
+      },
+      { status: lastStatus }
     );
   } catch (error) {
     console.error('[gift-create-voucher] Unhandled error creating voucher:', error);
