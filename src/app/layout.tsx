@@ -1,6 +1,7 @@
 import { USH_PHONE_DISPLAY, USH_EMAIL_DISPLAY } from '@/lib/contact';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -15,6 +16,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-TCEYFNDWNQ';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -115,6 +118,19 @@ fbq('track', 'PageView');`,
         <AppProvider>
           {children}
         </AppProvider>
+
+        {/* Google tag (gtag.js) */}
+        <Script
+          id="ga-gtag-src"
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+        />
+        <Script id="ga-gtag-init" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${GA_ID}');`}
+        </Script>
 
         <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fushspa8296back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.20" />
         <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" />
