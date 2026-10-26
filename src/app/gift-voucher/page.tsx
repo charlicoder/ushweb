@@ -24,6 +24,7 @@ import {
   ShieldCheckIcon,
   PrinterIcon,
   CheckCircleIcon,
+  CubeIcon,
   LinkIcon,
   DocumentDuplicateIcon,
   ArrowTopRightOnSquareIcon,
@@ -122,6 +123,8 @@ interface Addon {
   name_en?: string;
   name_ar?: string;
   description?: string;
+  description_en?: string;
+  description_ar?: string;
   price: string;
   currency: string;
   duration_minutes?: number;
@@ -158,6 +161,8 @@ interface Service {
   is_for_female?: boolean;
   is_for_male?: boolean;
   branches?: Branch[];
+  addons?: Addon[];
+  add_ons?: Addon[];
   benefits?: string | Array<{ key?: string; value?: string } | string> | null;
   benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
   benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
@@ -165,6 +170,7 @@ interface Service {
   session_benefits?: string | Array<{ key?: string; value?: string } | string> | null;
   session_benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
   session_benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
+  is_packaged_services?: boolean;
 }
 
 interface GeneratedVoucher {
@@ -383,6 +389,41 @@ function ServiceBenefitsList({
   return null;
 }
 
+const DEFAULT_ADDON_DESCRIPTIONS: Record<string, { en: string; ar: string }> = {
+  'ear candling': {
+    en: 'Earwax Removal Hearing Improvement Relief of Ear Pressure or Blockage Headache or Stress Relief',
+    ar: 'تنظيف الأذن وتحسين السمع وتخفيف ضغط الأذن أو انسدادها وتخفيف الصداع والإجهاد',
+  },
+  'kasat hwa': {
+    en: 'Also known as dry cupping, this is an ancient therapeutic technique that uses special cups placed on the skin to stimulate blood circulation & naturally promote overall health. This method helps to: Improve blood flow, Relieve muscle pain, and Support the body\'s natural healing process.',
+    ar: 'المعروفة أيضاً بالحجامة الجافة، وهي تقنية علاجية قديمة تستخدم كؤوساً خاصة توضع على الجلد لتحفيز الدورة الدموية وتعزيز الصحة العامة بشكل طبيعي. تساعد هذه الطريقة على: تحسين تدفق الدم، وتخفيف آلام العضلات، ودعم عملية الشفاء الطبيعية للجسم.',
+  },
+  'hot oil': {
+    en: 'Warm essential oil blend tailored to deeply nourish skin and relax tired muscles.',
+    ar: 'مزيج من الزيوت العطرية الدافئة لتغذية البشرة بعمق واسترخاء العضلات المتعبة.',
+  },
+  'aromatherapy': {
+    en: 'Therapeutic pure botanical essences to restore mental calm and elevate the senses.',
+    ar: 'خلاصات نباتية نقية علاجية لاستعادة الهدوء النفسي وتنشيط الحواس.',
+  },
+  'jacuzzi': {
+    en: 'Hydrotherapy whirlpool session with warm bubbling jets to melt tension.',
+    ar: 'جلسة جاكوزي دافئة ومائية مريحة لإذابة التوتر وإرخاء الجسم بالكامل.',
+  },
+};
+
+function getAddonDescription(addon: Addon, isAr: boolean): string {
+  const directDesc = (isAr ? addon.description_ar : addon.description_en) || addon.description || '';
+  if (directDesc.trim()) return directDesc.trim();
+  const rawName = (addon.name_en || addon.name || '').toLowerCase().trim();
+  for (const [key, val] of Object.entries(DEFAULT_ADDON_DESCRIPTIONS)) {
+    if (rawName.includes(key)) {
+      return isAr ? val.ar : val.en;
+    }
+  }
+  return '';
+}
+
 export default function GiftVoucherPage() {
   const { lang, isAr, isDark } = useApp();
 
@@ -568,14 +609,20 @@ export default function GiftVoucherPage() {
         : [];
       setArrangements(arrs);
 
-      if (arrs.length > 0) {
+      if (selectedService?.is_packaged_services) {
+        setAvailableAddons([]);
+        setSelectedAddonIds([]);
+      } else if (arrs.length > 0) {
         setSelectedArrangement(arrs[0]);
-        // Extract addons from first arrangement
-        const firstAddons = arrs[0].addons || [];
+        // Extract addons from first arrangement or fallback to service addons
+        const firstAddons = (arrs[0].addons && arrs[0].addons.length > 0)
+          ? arrs[0].addons
+          : (selectedService?.addons || selectedService?.add_ons || []);
         setAvailableAddons(firstAddons);
       } else {
         setSelectedArrangement(null);
-        setAvailableAddons([]);
+        const svcAddons = selectedService?.addons || selectedService?.add_ons || [];
+        setAvailableAddons(svcAddons);
       }
     } catch (err) {
       console.error('Error loading arrangements:', err);
@@ -729,10 +776,13 @@ export default function GiftVoucherPage() {
 
   const handleArrangementChange = (arr: Arrangement) => {
     setSelectedArrangement(arr);
-    if (arr.addons) {
+    if (!selectedService?.is_packaged_services && arr.addons) {
       setAvailableAddons(arr.addons);
       // Keep only valid selected addons
       setSelectedAddonIds((prev) => prev.filter((id) => arr.addons?.some((a) => a.id === id)));
+    } else {
+      setAvailableAddons([]);
+      setSelectedAddonIds([]);
     }
   };
 
@@ -2055,24 +2105,23 @@ export default function GiftVoucherPage() {
             </div>
 
             {/* Optional Luxury Add-ons */}
-            {availableAddons.length > 0 && (
+            {!selectedService.is_packaged_services && availableAddons.length > 0 && (
               <div
                 style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-                className="rounded-2xl border p-5 space-y-3"
+                className="rounded-2xl border p-5 space-y-4"
               >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-base text-[#1A1A1A]">
-                    {isAr ? 'إضافات سبا اختيارية فاخرة' : 'Optional Luxury Add-ons'}
+                <div className="flex items-center gap-2">
+                  <CubeIcon className="w-5 h-5 text-[#543C30] shrink-0" />
+                  <h4 className="font-extrabold text-sm tracking-wider uppercase text-[#543C30]">
+                    {isAr ? 'إضافات (اختيارية)' : 'ADD-ONS (OPTIONAL)'}
                   </h4>
-                  <span style={{ color: TEXT_SEC }} className="text-xs">
-                    {isAr ? 'اختر ما يناسب هديتك' : 'Select optional extras'}
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-3">
                   {availableAddons.map((addon) => {
                     const isChecked = selectedAddonIds.includes(addon.id);
                     const addName = (isAr ? addon.name_ar : addon.name_en) || addon.name;
+                    const addDesc = getAddonDescription(addon, isAr);
 
                     return (
                       <div
@@ -2080,30 +2129,54 @@ export default function GiftVoucherPage() {
                         onClick={() => toggleAddon(addon.id)}
                         style={{
                           backgroundColor: isChecked ? CARD_SELECTED_BG : '#FFFFFF',
-                          borderColor: isChecked ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
+                          borderColor: isChecked ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.25)',
                           borderWidth: isChecked ? 2 : 1,
                         }}
-                        className="p-3.5 rounded-xl border cursor-pointer flex items-center justify-between gap-3 transition-colors"
+                        className="p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all hover:shadow-xs select-none"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded text-[#543C30] focus:ring-[#543C30] cursor-pointer"
-                          />
-                          <div className="min-w-0">
-                            <div className="text-sm font-bold text-[#1A1A1A] truncate">{addName}</div>
-                            {addon.duration_minutes ? (
-                              <div style={{ color: TEXT_SEC }} className="text-[11px]">
-                                +{addon.duration_minutes} {isAr ? 'دقيقة' : 'mins'}
-                              </div>
+                        <div className="flex items-start gap-3.5">
+                          {/* Checkbox */}
+                          <div className="pt-0.5 shrink-0">
+                            <div
+                              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                                isChecked
+                                  ? 'bg-[#543C30] border-[#543C30] text-white'
+                                  : 'border-[#C2A289] bg-white'
+                              }`}
+                            >
+                              {isChecked && <CheckIcon className="w-3.5 h-3.5 stroke-[3]" />}
+                            </div>
+                          </div>
+
+                          {/* Details Column */}
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="text-sm font-extrabold uppercase tracking-wide text-[#1A1A1A]">
+                              {addName}
+                            </div>
+
+                            {addDesc ? (
+                              <p
+                                style={{ color: TEXT_SEC }}
+                                className="text-xs leading-relaxed text-[#735A4C]"
+                              >
+                                {addDesc}
+                              </p>
                             ) : null}
+
+                            <div className="flex items-center gap-3 pt-1 text-xs">
+                              <span className="inline-flex items-center gap-1 font-medium text-[#735A4C]">
+                                <ClockIcon className="w-3.5 h-3.5 text-[#A37854]" />
+                                <span>{addon.duration_minutes || 15} {isAr ? 'دقيقة' : 'min'}</span>
+                              </span>
+                              <span
+                                style={{ color: PRIMARY_BROWN }}
+                                className="font-extrabold text-xs"
+                              >
+                                +{parseFloat(addon.price || '0').toFixed(decimals)} {currency}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <span style={{ color: PRIMARY_BROWN }} className="font-bold text-xs flex-shrink-0">
-                          +{parseFloat(addon.price || '0').toFixed(decimals)} {currency}
-                        </span>
                       </div>
                     );
                   })}

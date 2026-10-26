@@ -70,7 +70,32 @@ export async function GET(
     const sessionBenefitsEn = rawEn?.session_benefits || raw?.session_benefits || null;
     const sessionBenefitsAr = rawAr?.session_benefits || raw?.session_benefits_ar || sessionBenefitsEn;
 
+    const rawAddonsEn = Array.isArray(rawEn?.addons) ? rawEn.addons : Array.isArray(rawEn?.add_ons) ? rawEn.add_ons : [];
+    const rawAddonsAr = Array.isArray(rawAr?.addons) ? rawAr.addons : Array.isArray(rawAr?.add_ons) ? rawAr.add_ons : [];
+    const baseAddons = rawAddonsEn.length > 0 ? rawAddonsEn : (Array.isArray(raw?.addons) ? raw.addons : Array.isArray(raw?.add_ons) ? raw.add_ons : []);
+
+    const normalizedAddons = baseAddons.map((a: any, idx: number) => {
+      const arMatch = rawAddonsAr.find((x: any) => String(x.id) === String(a.id)) || rawAddonsAr[idx] || {};
+      const aNameEn = a.name_en || a.name || '';
+      const aNameAr = arMatch.name_ar || arMatch.name || a.name_ar || aNameEn;
+      const aDescEn = a.description_en || a.description || '';
+      const aDescAr = arMatch.description_ar || arMatch.description || a.description_ar || aDescEn;
+      return {
+        id: String(a.id),
+        name: isRequestedAr ? aNameAr : aNameEn,
+        name_en: aNameEn,
+        name_ar: aNameAr,
+        description: isRequestedAr ? aDescAr : aDescEn,
+        description_en: aDescEn,
+        description_ar: aDescAr,
+        duration_minutes: a.duration_minutes || 15,
+        price: String(a.price || '0'),
+        currency: a.currency || 'KWD',
+      };
+    });
+
     const normalized = {
+      addons: normalizedAddons,
       ...raw,
       id: String(raw.id),
       name: isRequestedAr ? nameAr : nameEn,

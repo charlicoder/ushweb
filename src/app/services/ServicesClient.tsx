@@ -529,7 +529,7 @@ export default function ServicesClient() {
                       </p>
 
                       {/* Add-ons indicator */}
-                      {service.addons && service.addons.length > 0 && (
+                      {!service.is_packaged_services && service.addons && service.addons.length > 0 && (
                         <div className="mb-4 inline-flex items-center gap-1.5 text-[11px] text-[#A37854] bg-[#FAF5EE] dark:bg-[#281e19] px-2.5 py-1 rounded-lg border border-[#A37854]/20">
                           <TagIcon className="w-3.5 h-3.5" />
                           <span>
@@ -742,7 +742,7 @@ export default function ServicesClient() {
               )}
 
               {/* Addons List */}
-              {selectedService.addons && selectedService.addons.length > 0 && (
+              {!selectedService.is_packaged_services && selectedService.addons && selectedService.addons.length > 0 && (
                 <div>
                   <h4 className="font-lustria text-sm font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <TagIcon className="w-4 h-4 text-[#A37854]" />
