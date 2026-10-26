@@ -2076,12 +2076,6 @@ export default function GiftVoucherPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-sm text-[#1A1A1A]">{arrName}</span>
-                            <span
-                              style={{ backgroundColor: 'rgba(84, 60, 48, 0.08)', color: PRIMARY_BROWN }}
-                              className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full"
-                            >
-                              {arr.arrangement_type || 'Suite'}
-                            </span>
                           </div>
                           {arrDesc && (
                             <p style={{ color: TEXT_SEC }} className="text-xs mt-1 line-clamp-1">
