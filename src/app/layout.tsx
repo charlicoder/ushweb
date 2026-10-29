@@ -1,4 +1,4 @@
-import { USH_PHONE_DISPLAY, USH_EMAIL_DISPLAY } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_EMAIL_DISPLAY, USH_ADDRESS } from '@/lib/contact';
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
@@ -60,9 +60,9 @@ const businessJsonLd = {
   email: USH_EMAIL_DISPLAY,
   address: {
     '@type': 'PostalAddress',
-    streetAddress: 'Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman',
-    addressLocality: 'Kuwait city, Sharq',
-    postalCode: '15300',
+    streetAddress: `${USH_ADDRESS.buildingEn}, ${USH_ADDRESS.streetEn}, Block ${USH_ADDRESS.block}, Plot ${USH_ADDRESS.plot}, ${USH_ADDRESS.unitsEn}`,
+    addressLocality: `${USH_ADDRESS.areaEn}, ${USH_ADDRESS.governorateEn}`,
+    postalCode: '53700',
     addressCountry: 'KW',
   },
   openingHoursSpecification: [

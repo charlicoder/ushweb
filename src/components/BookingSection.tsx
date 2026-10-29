@@ -1,6 +1,14 @@
 'use client';
 
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import {
+    USH_PHONE_DISPLAY,
+    USH_PHONE_TEL_HREF,
+    USH_BUSINESS_PHONE_DISPLAY,
+    USH_BUSINESS_PHONE_TEL_HREF,
+    USH_EMAIL_DISPLAY,
+    USH_EMAIL_MAILTO_HREF,
+    USH_ADDRESS,
+} from '@/lib/contact';
 import { useState } from 'react';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
 import { useApp } from '@/context/AppContext';
@@ -80,11 +88,25 @@ export default function BookingSection() {
                                     {isAr ? 'يعمل تحت الاسم التجاري: أوش سبا (USH Spa)' : 'Operating as USH Spa'}
                                 </p>
                             </div>
-                            <div className="flex items-center gap-3 text-spa-muted dark:text-[#b5a49c] text-sm">
-                                <span className="text-spa-rose text-lg">📞</span>
-                                <a href={USH_PHONE_TEL_HREF} className="hover:text-spa-cherry dark:hover:text-white font-medium transition-colors">
-                                    {USH_PHONE_DISPLAY}
-                                </a>
+                            <div className="flex flex-col gap-1 text-spa-muted dark:text-[#b5a49c] text-sm">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-spa-rose text-lg">📞</span>
+                                    <div>
+                                        <span className="text-xs text-spa-cherry dark:text-spa-rose block">{isAr ? 'خدمة العملاء ومركز الاتصال:' : 'Support & Call Center:'}</span>
+                                        <a href={USH_PHONE_TEL_HREF} className="hover:text-spa-cherry dark:hover:text-white font-medium transition-colors">
+                                            {USH_PHONE_DISPLAY}
+                                        </a>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <span className="text-spa-rose text-lg">📱</span>
+                                    <div>
+                                        <span className="text-xs text-spa-cherry dark:text-spa-rose block">{isAr ? 'تواصل المالك / إدارة الأعمال:' : 'Owner / Business:'}</span>
+                                        <a href={USH_BUSINESS_PHONE_TEL_HREF} className="hover:text-spa-cherry dark:hover:text-white font-medium transition-colors">
+                                            {USH_BUSINESS_PHONE_DISPLAY}
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                             <div className="flex items-center gap-3 text-spa-muted dark:text-[#b5a49c] text-sm">
                                 <span className="text-spa-rose text-lg">✉️</span>
@@ -96,10 +118,21 @@ export default function BookingSection() {
                                 <span className="text-spa-rose text-lg mt-0.5">📍</span>
                                 <div>
                                     <p className="font-medium text-spa-text dark:text-[#f7eee9]">
-                                        {isAr ? 'شارع الشهداء، قطعة 04، مبنى 32' : 'Al-Shuhada Street'}
+                                        {isAr ? USH_ADDRESS.buildingAr : USH_ADDRESS.buildingEn}
                                     </p>
-                                    <p>{isAr ? 'مبنى ناصر أحمد عبد اللطيف العثمان' : 'Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman'}</p>
-                                    <p>{isAr ? 'مدينة الكويت، الشرق 15300، دولة الكويت' : 'Kuwait city, Sharq 15300, Kuwait'}</p>
+                                    <p>
+                                        {isAr
+                                            ? `${USH_ADDRESS.streetAr}، قطعة ${USH_ADDRESS.block}، قسيمة ${USH_ADDRESS.plot}`
+                                            : `${USH_ADDRESS.streetEn}, Block ${USH_ADDRESS.block}, Plot ${USH_ADDRESS.plot}`}
+                                    </p>
+                                    <p>
+                                        {isAr
+                                            ? `${USH_ADDRESS.areaAr}، محافظة ${USH_ADDRESS.governorateAr}، ${USH_ADDRESS.countryAr}`
+                                            : `${USH_ADDRESS.areaEn}, ${USH_ADDRESS.governorateEn} Governorate, ${USH_ADDRESS.countryEn}`}
+                                    </p>
+                                    <p className="text-xs text-spa-muted/80 dark:text-[#b5a49c]/80">
+                                        {isAr ? USH_ADDRESS.unitsAr : USH_ADDRESS.unitsEn}
+                                    </p>
                                 </div>
                             </div>
                         </div>

@@ -1,6 +1,14 @@
 'use client';
 
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import {
+    USH_PHONE_DISPLAY,
+    USH_PHONE_TEL_HREF,
+    USH_BUSINESS_PHONE_DISPLAY,
+    USH_BUSINESS_PHONE_TEL_HREF,
+    USH_EMAIL_DISPLAY,
+    USH_EMAIL_MAILTO_HREF,
+    USH_ADDRESS,
+} from '@/lib/contact';
 import { useApp } from '@/context/AppContext';
 
 const instagramImages = [
@@ -99,9 +107,21 @@ export default function Footer() {
                                 {isAr ? 'معهد كوايت أوش للسبا الصحي التايلاندي للنساء' : 'Quiet Ush Thai Spa Health Institute for Women'}
                             </p>
                             <p className="text-white/80">
-                                {isAr ? 'شارع الشهداء، قطعة 04، قسيمة 32' : 'Al-Shuhada Street'}<br />
-                                {isAr ? 'مبنى ناصر أحمد عبد اللطيف العثمان' : 'Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman'}<br />
-                                {isAr ? 'مدينة الكويت، الشرق 15300، دولة الكويت' : 'Kuwait city, Sharq 15300, Kuwait'}
+                                {isAr ? (
+                                    <>
+                                        {USH_ADDRESS.buildingAr}<br />
+                                        {USH_ADDRESS.streetAr}، قطعة {USH_ADDRESS.block}، قسيمة {USH_ADDRESS.plot}<br />
+                                        {USH_ADDRESS.areaAr}، محافظة {USH_ADDRESS.governorateAr}، {USH_ADDRESS.countryAr}<br />
+                                        <span className="text-white/60 text-[11px]">{USH_ADDRESS.unitsAr}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        {USH_ADDRESS.buildingEn}<br />
+                                        {USH_ADDRESS.streetEn}, Block {USH_ADDRESS.block}, Plot {USH_ADDRESS.plot}<br />
+                                        {USH_ADDRESS.areaEn}, {USH_ADDRESS.governorateEn} Governorate, {USH_ADDRESS.countryEn}<br />
+                                        <span className="text-white/60 text-[11px]">{USH_ADDRESS.unitsEn}</span>
+                                    </>
+                                )}
                             </p>
                             <div className="mt-2 flex flex-col gap-1.5 text-xs">
                                 <p>
@@ -111,9 +131,15 @@ export default function Footer() {
                                     </a>
                                 </p>
                                 <p>
-                                    {isAr ? 'الهاتف:' : 'Phone:'}{' '}
+                                    {isAr ? 'خدمة العملاء ومركز الاتصال:' : 'Support & Call Center:'}{' '}
                                     <a href={USH_PHONE_TEL_HREF} className="hover:text-spa-rose transition-colors">
                                         {USH_PHONE_DISPLAY}
+                                    </a>
+                                </p>
+                                <p>
+                                    {isAr ? 'تواصل المالك / إدارة الأعمال:' : 'Owner / Business Contact:'}{' '}
+                                    <a href={USH_BUSINESS_PHONE_TEL_HREF} className="hover:text-spa-rose transition-colors">
+                                        {USH_BUSINESS_PHONE_DISPLAY}
                                     </a>
                                 </p>
                                 <p>

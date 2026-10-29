@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_BUSINESS_PHONE_DISPLAY, USH_BUSINESS_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF, USH_ADDRESS } from '@/lib/contact';
 import { useApp } from '@/context/AppContext';
 
 interface TableOfContentItem {
@@ -652,13 +652,19 @@ export default function MarketingClient() {
                     <span className="font-semibold text-spa-text">Entity:</span> Quiet Ush Thai Spa Health Institute for Women (USH Spa)
                   </p>
                   <p>
-                    <span className="font-semibold text-spa-text">Phone:</span>{' '}
+                    <span className="font-semibold text-spa-text">Support / Call Center:</span>{' '}
                     <a href={USH_PHONE_TEL_HREF} className="text-spa-cherry hover:underline">
                       {USH_PHONE_DISPLAY}
                     </a>
                   </p>
                   <p>
-                    <span className="font-semibold text-spa-text">Location:</span> Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman, Kuwait city, Sharq 15300, Kuwait
+                    <span className="font-semibold text-spa-text">Owner / Business:</span>{' '}
+                    <a href={USH_BUSINESS_PHONE_TEL_HREF} className="text-spa-cherry hover:underline">
+                      {USH_BUSINESS_PHONE_DISPLAY}
+                    </a>
+                  </p>
+                  <p>
+                    <span className="font-semibold text-spa-text">Registered Address (5 Units):</span> {USH_ADDRESS.buildingEn}, {USH_ADDRESS.streetEn}, Block {USH_ADDRESS.block}, Plot {USH_ADDRESS.plot}, {USH_ADDRESS.areaEn}, {USH_ADDRESS.governorateEn} Governorate, {USH_ADDRESS.unitsEn}, {USH_ADDRESS.countryEn}
                   </p>
                   <p>
                     <span className="font-semibold text-spa-text">Website:</span>{' '}

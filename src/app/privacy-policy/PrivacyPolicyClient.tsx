@@ -4,7 +4,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { USH_PHONE_DISPLAY, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import {
+  USH_PHONE_DISPLAY,
+  USH_PHONE_TEL_HREF,
+  USH_BUSINESS_PHONE_DISPLAY,
+  USH_BUSINESS_PHONE_TEL_HREF,
+  USH_EMAIL_DISPLAY,
+  USH_EMAIL_MAILTO_HREF,
+  USH_ADDRESS,
+} from '@/lib/contact';
 import { useApp } from '@/context/AppContext';
 
 interface Section {
@@ -341,7 +349,7 @@ export default function PrivacyPolicyClient() {
                 </h2>
               </div>
               <p className="text-sm leading-relaxed text-spa-muted">
-                Welcome to <strong className="text-spa-text">USH Spa</strong> (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), operated by <strong className="text-spa-text">Quiet Ush Thai Spa Health Institute for Women</strong>, registered in the State of Kuwait at Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman, Kuwait city, Sharq 15300, Kuwait. We are committed to honoring the trust you place in us when using our mobile application (the &ldquo;App&rdquo;) and associated web and online booking services.
+                Welcome to <strong className="text-spa-text">USH Spa</strong> (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), operated by <strong className="text-spa-text">Quiet Ush Thai Spa Health Institute for Women</strong>, registered across 5 units in the State of Kuwait at {USH_ADDRESS.buildingEn}, {USH_ADDRESS.streetEn}, Block {USH_ADDRESS.block}, Plot {USH_ADDRESS.plot}, {USH_ADDRESS.areaEn}, {USH_ADDRESS.governorateEn} Governorate, {USH_ADDRESS.unitsEn}, {USH_ADDRESS.countryEn}. We are committed to honoring the trust you place in us when using our mobile application (the &ldquo;App&rdquo;) and associated web and online booking services.
               </p>
               <p className="text-sm leading-relaxed text-spa-muted">
                 This Privacy Policy applies to personal data collected through:
@@ -838,14 +846,19 @@ export default function PrivacyPolicyClient() {
                       <p className="flex items-start gap-2">
                         <span className="text-spa-cherry mt-0.5">📍</span>
                         <span>
-                          Al-Shuhada Street, Block 04, Building 32<br />
-                          Nasser Ahmed Abdul Latif Al-Othman<br />
-                          Kuwait city, Sharq 15300, Kuwait
+                          {USH_ADDRESS.buildingEn}<br />
+                          {USH_ADDRESS.streetEn}, Block {USH_ADDRESS.block}, Plot {USH_ADDRESS.plot}<br />
+                          {USH_ADDRESS.areaEn}, {USH_ADDRESS.governorateEn} Governorate, {USH_ADDRESS.countryEn}<br />
+                          <span className="text-spa-muted/80">{USH_ADDRESS.unitsEn}</span>
                         </span>
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">📞</span>
-                        <span>Phone / WhatsApp: <a href={USH_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_PHONE_DISPLAY}</a></span>
+                        <span>Support / Call Center: <a href={USH_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_PHONE_DISPLAY}</a></span>
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <span className="text-spa-cherry">📱</span>
+                        <span>Owner / Business: <a href={USH_BUSINESS_PHONE_TEL_HREF} className="text-spa-text hover:text-spa-cherry font-medium">{USH_BUSINESS_PHONE_DISPLAY}</a></span>
                       </p>
                       <p className="flex items-center gap-2">
                         <span className="text-spa-cherry">✉️</span>

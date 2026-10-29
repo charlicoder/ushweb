@@ -5,12 +5,25 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AppDownloadButtons from '@/components/AppDownloadButtons';
 import { useApp } from '@/context/AppContext';
-import { USH_PHONE_DISPLAY, USH_PHONE_E164, USH_PHONE_TEL_HREF, USH_EMAIL_DISPLAY, USH_EMAIL_MAILTO_HREF } from '@/lib/contact';
+import {
+  USH_SUPPORT_PHONE_DISPLAY,
+  USH_SUPPORT_PHONE_E164,
+  USH_SUPPORT_PHONE_TEL_HREF,
+  USH_SUPPORT_WHATSAPP_HREF,
+  USH_BUSINESS_PHONE_DISPLAY,
+  USH_BUSINESS_PHONE_E164,
+  USH_BUSINESS_PHONE_TEL_HREF,
+  USH_BUSINESS_WHATSAPP_HREF,
+  USH_EMAIL_DISPLAY,
+  USH_EMAIL_MAILTO_HREF,
+  USH_ADDRESS,
+} from '@/lib/contact';
 
 export default function ContactUsClient() {
   const { isAr } = useApp();
   const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedSupportPhone, setCopiedSupportPhone] = useState(false);
+  const [copiedBusinessPhone, setCopiedBusinessPhone] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,10 +39,16 @@ export default function ContactUsClient() {
     setTimeout(() => setCopiedEmail(false), 2500);
   };
 
-  const copyPhone = () => {
-    navigator.clipboard.writeText(USH_PHONE_E164);
-    setCopiedPhone(true);
-    setTimeout(() => setCopiedPhone(false), 2500);
+  const copySupportPhone = () => {
+    navigator.clipboard.writeText(USH_SUPPORT_PHONE_E164);
+    setCopiedSupportPhone(true);
+    setTimeout(() => setCopiedSupportPhone(false), 2500);
+  };
+
+  const copyBusinessPhone = () => {
+    navigator.clipboard.writeText(USH_BUSINESS_PHONE_E164);
+    setCopiedBusinessPhone(true);
+    setTimeout(() => setCopiedBusinessPhone(false), 2500);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -83,38 +102,43 @@ export default function ContactUsClient() {
                 📍
               </div>
               <span className="text-[11px] uppercase tracking-wider font-semibold text-spa-cherry dark:text-spa-rose block mb-1">
-                {isAr ? 'الموقع الرسمي' : 'Official Location'}
+                {isAr ? 'الموقع الرسمي المعتمد' : 'Official Location'}
               </span>
               <h3 className="font-lustria text-base font-bold text-spa-text dark:text-[#f7eee9] mb-2">
-                {isAr ? 'عنوان المركز' : 'Business Address'}
+                {isAr ? 'بيانات العنوان التفصيلية' : 'Detailed Address'}
               </h3>
-              <p className="text-xs font-semibold text-spa-text dark:text-[#f7eee9] mb-1">
+              <p className="text-xs font-semibold text-spa-text dark:text-[#f7eee9] mb-2">
                 {isAr
                   ? 'معهد كوايت أوش للسبا الصحي التايلاندي للنساء'
                   : 'Quiet Ush Thai Spa Health Institute for Women'}
               </p>
-              <address className="not-italic text-xs text-spa-muted dark:text-[#b5a49c] leading-relaxed mb-4">
+              <div className="text-xs text-spa-muted dark:text-[#b5a49c] leading-relaxed mb-4 space-y-1">
+                <p className="font-semibold text-spa-cherry dark:text-spa-rose text-[11px]">
+                  {isAr
+                    ? 'المقر مسجل في 5 وحدات / شقق بالدور الأول:'
+                    : 'Registered across 5 units on Floor 01:'}
+                </p>
                 {isAr ? (
                   <>
-                    شارع الشهداء<br />
-                    قطعة 04، قسيمة 32<br />
-                    مبنى ناصر أحمد عبد اللطيف العثمان<br />
-                    مدينة الكويت، الشرق 15300<br />
-                    دولة الكويت
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">المحافظة:</span> {USH_ADDRESS.governorateAr}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">المنطقة:</span> {USH_ADDRESS.areaAr} (قطعة {USH_ADDRESS.block}، قسيمة {USH_ADDRESS.plot})</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">الشارع:</span> {USH_ADDRESS.streetAr}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">المبنى:</span> {USH_ADDRESS.buildingAr}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">الوحدات:</span> {USH_ADDRESS.unitsAr}</p>
                   </>
                 ) : (
                   <>
-                    Al-Shuhada Street<br />
-                    Block 04, Building 32<br />
-                    Nasser Ahmed Abdul Latif Al-Othman<br />
-                    Kuwait city, Sharq 15300<br />
-                    State of Kuwait
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">Governorate:</span> {USH_ADDRESS.governorateEn}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">Area / District:</span> {USH_ADDRESS.areaEn} (Block {USH_ADDRESS.block}, Plot {USH_ADDRESS.plot})</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">Street:</span> {USH_ADDRESS.streetEn}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">Building:</span> {USH_ADDRESS.buildingEn}</p>
+                    <p><span className="font-medium text-spa-text dark:text-[#f7eee9]">Total Units:</span> {USH_ADDRESS.unitsEn}</p>
                   </>
                 )}
-              </address>
+              </div>
             </div>
             <a
-              href="https://maps.google.com/?q=Al-Shuhada+Street,+Sharq,+Kuwait+City"
+              href={USH_ADDRESS.mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-spa-cherry dark:text-spa-rose hover:text-spa-rose transition-colors py-2 px-3 rounded-lg bg-spa-cream/60 dark:bg-[#2d211c] hover:bg-spa-cream dark:hover:bg-[#382a24]"
@@ -130,36 +154,77 @@ export default function ContactUsClient() {
                 📞
               </div>
               <span className="text-[11px] uppercase tracking-wider font-semibold text-spa-cherry dark:text-spa-rose block mb-1">
-                {isAr ? 'الهاتف والواتساب' : 'Telephone & WhatsApp'}
+                {isAr ? 'أرقام الاتصال والواتساب' : 'Phone & WhatsApp'}
               </span>
-              <h3 className="font-lustria text-base font-bold text-spa-text dark:text-[#f7eee9] mb-2">
-                {isAr ? 'رقم الاتصال المباشر' : 'Phone Number'}
+              <h3 className="font-lustria text-base font-bold text-spa-text dark:text-[#f7eee9] mb-3">
+                {isAr ? 'خطوط الاتصال المعتمدة' : 'Official Contact Lines'}
               </h3>
-              <p className="text-xs text-spa-muted dark:text-[#b5a49c] mb-2">
-                {isAr
-                  ? 'للحجوزات المباشرة، ومساعدة الكونسيرج، والاستفسارات:'
-                  : 'Direct bookings, concierge assistance, and guest inquiries:'}
-              </p>
-              <p className="text-base font-bold text-spa-text dark:text-[#f7eee9] font-mono mb-4">
-                {USH_PHONE_DISPLAY}
-              </p>
-            </div>
-            <div className="flex flex-col gap-2">
-              <a
-                href={USH_PHONE_TEL_HREF}
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium !text-white hover:!text-white bg-spa-text dark:bg-spa-cherry hover:bg-spa-cherry transition-colors py-2 px-3 rounded-lg"
-              >
-                {isAr ? `اتصال ${USH_PHONE_DISPLAY}` : `Call ${USH_PHONE_DISPLAY}`}
-              </a>
-              <button
-                type="button"
-                onClick={copyPhone}
-                className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-spa-muted dark:text-[#b5a49c] hover:text-spa-text dark:hover:text-white py-1.5 px-3 rounded-lg border border-spa-petal/70 dark:border-white/15 hover:border-spa-rose transition-colors"
-              >
-                {copiedPhone
-                  ? (isAr ? '✓ تم نسخ الرقم' : '✓ Number Copied')
-                  : (isAr ? 'نسخ رقم الهاتف' : 'Copy Phone Number')}
-              </button>
+
+              {/* Number 1: Customer Support & Call Center */}
+              <div className="mb-4 pb-3 border-b border-spa-petal/40 dark:border-white/10">
+                <span className="text-[11px] font-semibold text-spa-cherry dark:text-spa-rose block mb-0.5">
+                  {isAr ? 'خدمة العملاء ومركز الاتصال:' : 'Customer Support & Call Center:'}
+                </span>
+                <p className="text-sm font-bold text-spa-text dark:text-[#f7eee9] font-mono mb-2">
+                  {USH_SUPPORT_PHONE_DISPLAY}
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <a
+                    href={USH_SUPPORT_PHONE_TEL_HREF}
+                    className="inline-flex items-center justify-center gap-1 text-[11px] font-medium !text-white bg-spa-text dark:bg-spa-cherry hover:bg-spa-cherry transition-colors py-1 px-2.5 rounded-md"
+                  >
+                    {isAr ? 'اتصال' : 'Call'}
+                  </a>
+                  <a
+                    href={USH_SUPPORT_WHATSAPP_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 transition-colors py-1 px-2.5 rounded-md"
+                  >
+                    WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    onClick={copySupportPhone}
+                    className="inline-flex items-center justify-center text-[11px] text-spa-muted dark:text-[#b5a49c] hover:text-spa-text dark:hover:text-white py-1 px-2 rounded-md border border-spa-petal/70 dark:border-white/15 transition-colors"
+                  >
+                    {copiedSupportPhone ? (isAr ? '✓ تـم' : '✓ Copied') : (isAr ? 'نسخ' : 'Copy')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Number 2: Owner / Business Contact */}
+              <div>
+                <span className="text-[11px] font-semibold text-spa-cherry dark:text-spa-rose block mb-0.5">
+                  {isAr ? 'تواصل المالك وإدارة الأعمال:' : 'Owner / Business Contact:'}
+                </span>
+                <p className="text-sm font-bold text-spa-text dark:text-[#f7eee9] font-mono mb-2">
+                  {USH_BUSINESS_PHONE_DISPLAY}
+                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <a
+                    href={USH_BUSINESS_PHONE_TEL_HREF}
+                    className="inline-flex items-center justify-center gap-1 text-[11px] font-medium !text-white bg-spa-text dark:bg-spa-cherry hover:bg-spa-cherry transition-colors py-1 px-2.5 rounded-md"
+                  >
+                    {isAr ? 'اتصال' : 'Call'}
+                  </a>
+                  <a
+                    href={USH_BUSINESS_WHATSAPP_HREF}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 transition-colors py-1 px-2.5 rounded-md"
+                  >
+                    WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    onClick={copyBusinessPhone}
+                    className="inline-flex items-center justify-center text-[11px] text-spa-muted dark:text-[#b5a49c] hover:text-spa-text dark:hover:text-white py-1 px-2 rounded-md border border-spa-petal/70 dark:border-white/15 transition-colors"
+                  >
+                    {copiedBusinessPhone ? (isAr ? '✓ تـم' : '✓ Copied') : (isAr ? 'نسخ' : 'Copy')}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -404,19 +469,29 @@ export default function ContactUsClient() {
                 </div>
                 <div>
                   <span className="block font-semibold text-spa-text dark:text-[#f7eee9]">
-                    {isAr ? 'العنوان المسجل:' : 'Registered Address:'}
+                    {isAr ? 'العنوان المسجل (5 وحدات):' : 'Registered Address (5 Units):'}
                   </span>
                   <span>
                     {isAr
-                      ? 'شارع الشهداء، قطعة 04، قسيمة 32، مبنى ناصر أحمد عبد اللطيف العثمان، مدينة الكويت، الشرق 15300، دولة الكويت'
-                      : 'Al-Shuhada Street, Block 04, Building 32, Nasser Ahmed Abdul Latif Al-Othman, Kuwait city, Sharq 15300, Kuwait'}
+                      ? `${USH_ADDRESS.buildingAr}، ${USH_ADDRESS.streetAr}، قطعة ${USH_ADDRESS.block}، قسيمة ${USH_ADDRESS.plot}، ${USH_ADDRESS.areaAr}، محافظة ${USH_ADDRESS.governorateAr}، ${USH_ADDRESS.unitsAr}، ${USH_ADDRESS.countryAr}`
+                      : `${USH_ADDRESS.buildingEn}, ${USH_ADDRESS.streetEn}, Block ${USH_ADDRESS.block}, Plot ${USH_ADDRESS.plot}, ${USH_ADDRESS.areaEn}, ${USH_ADDRESS.governorateEn} Governorate, ${USH_ADDRESS.unitsEn}, ${USH_ADDRESS.countryEn}`}
                   </span>
                 </div>
                 <div>
                   <span className="block font-semibold text-spa-text dark:text-[#f7eee9]">
-                    {isAr ? 'الاتصال الرسمي:' : 'Official Contact:'}
+                    {isAr ? 'الاتصال الرسمي المعتمد:' : 'Official Contact:'}
                   </span>
-                  <span>{USH_EMAIL_DISPLAY} • {USH_PHONE_DISPLAY}</span>
+                  <div className="space-y-0.5 mt-0.5">
+                    <p>{USH_EMAIL_DISPLAY}</p>
+                    <p>
+                      <span className="font-medium text-spa-text dark:text-[#f7eee9]">{isAr ? 'خدمة العملاء ومركز الاتصال:' : 'Customer Support:'}</span>{' '}
+                      {USH_SUPPORT_PHONE_DISPLAY}
+                    </p>
+                    <p>
+                      <span className="font-medium text-spa-text dark:text-[#f7eee9]">{isAr ? 'تواصل المالك / إدارة الأعمال:' : 'Owner / Business Contact:'}</span>{' '}
+                      {USH_BUSINESS_PHONE_DISPLAY}
+                    </p>
+                  </div>
                 </div>
               </div>
 
