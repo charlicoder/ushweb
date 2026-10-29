@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
+import { trackInitiateCheckout } from '@/lib/fbpixel';
 import { useApp } from '@/context/AppContext';
 import {
   GiftIcon,
@@ -1098,6 +1099,7 @@ export default function GiftVoucherPage() {
     }
 
     try {
+      trackInitiateCheckout(Number(grandTotal.toFixed(decimals)), currency);
       const res = await fetch('/api/gift-voucher/myfatoorah', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { trackPurchase } from '@/lib/fbpixel';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { useApp } from '@/context/AppContext';
@@ -159,6 +160,12 @@ export default function GiftVoucherPaymentSuccessClient() {
           if (json?.data) {
             setVoucher(json.data);
             setStatusUpdated(true);
+            trackPurchase({
+              value: Number(amountParam) || Number(json.data.total_amount) || 0,
+              currency: currencyParam || json.data.currency,
+              transactionId: paymentId || invoiceId || voucherId,
+              contentName: 'Gift Voucher',
+            });
             setShowShareModal(true); // Automatically show share popup window
           }
         }

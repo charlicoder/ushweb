@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
     // Keep CallBackUrl and ErrorUrl strictly under MyFatoorah max length limit (254 chars)
     let callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?voucher_id=${encodeURIComponent(
       String(voucher_id)
-    )}`;
+    )}&amount=${numericAmount}&currency=${encodeURIComponent(currency)}`;
     let errorUrl = `${cleanOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
       String(voucher_id)
     )}`;

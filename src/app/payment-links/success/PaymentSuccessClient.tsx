@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { trackPurchase } from '@/lib/fbpixel';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -53,6 +54,15 @@ export default function PaymentSuccessClient() {
   const amount = searchParams.get('amount') || '';
   const currency = searchParams.get('currency') || 'KWD';
   const customMessage = searchParams.get('message') || '';
+
+  useEffect(() => {
+    trackPurchase({
+      value: Number(amount),
+      currency,
+      transactionId: paymentId || invoiceId || invoiceNumber || bookingId,
+      contentName: 'Payment Link',
+    });
+  }, [amount, currency, paymentId, invoiceId, invoiceNumber, bookingId]);
 
   const [copied, setCopied] = useState(false);
   const [formattedDate, setFormattedDate] = useState('');

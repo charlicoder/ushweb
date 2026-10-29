@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { trackPaymentFailed } from '@/lib/fbpixel';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -49,6 +50,10 @@ export default function PaymentFailedClient() {
     searchParams.get('invoiceId') ||
     searchParams.get('inv') ||
     '';
+
+  useEffect(() => {
+    trackPaymentFailed({ transactionId: paymentId || invoiceNumber, reason: rawError });
+  }, [paymentId, invoiceNumber, rawError]);
 
   const [copied, setCopied] = useState(false);
   const [formattedDate, setFormattedDate] = useState('');
