@@ -29,25 +29,32 @@ export function getUshToken(): string {
 }
 
 /**
- * Sanitizes customer name for MyFatoorah and upstream payment gateways.
- * MyFatoorah rejects punctuation (e.g. ':', '/', '&', '(', ')', '!', emojis) in CustomerName.
- * Allowed characters: letters (Arabic, Latin, etc.), numbers, spaces, '.', '-', and "'".
- * Disallowed characters are replaced with space and whitespace is collapsed.
+ * Sanitizes customer name strictly for MyFatoorah gateway.
+ * MyFatoorah rejects:
+ * - Numbers (0-9)
+ * - Punctuation and symbols (., -, ', :, /, @, #, $, %, &, *, _, etc.)
+ * - Emojis and pictographs
+ * - Arabic tatweel / kashida (ـ) and diacritics
+ * It strictly accepts only alphabetical letters (Arabic and Latin) and spaces.
  */
 export function sanitizeCustomerName(name: unknown, fallback = 'Valued Guest'): string {
   if (typeof name !== 'string') {
     return fallback;
   }
   const cleaned = name
-    .replace(/_/g, ' ')
-    .replace(/[^\p{L}\p{N}\s.\-']/gu, ' ')
+    // Strip Arabic tatweel (ـ) and diacritics / tashkeel
+    .replace(/[\u0640\u064B-\u065F\u0670]/g, '')
+    // Replace all non-letter characters (including numbers, dots, hyphens, colons, emojis, etc.) with space
+    .replace(/[^\p{L}\s]/gu, ' ')
+    // Collapse multiple whitespace characters into a single space
     .replace(/\s+/g, ' ')
     .trim();
 
-  // If there are no letters or digits left, or string is empty, fallback
-  if (!cleaned || !/[\p{L}\p{N}]/u.test(cleaned)) {
+  // If there are no letters left or length is < 2, fallback to a safe valid name
+  if (!cleaned || cleaned.length < 2 || !/\p{L}/u.test(cleaned)) {
     return fallback;
   }
 
+  // MyFatoorah max length for CustomerName is 50
   return cleaned.slice(0, 50);
 }
