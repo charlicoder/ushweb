@@ -684,7 +684,8 @@ export default function GiftVoucherPage() {
     return productPrice + serviceBasePrice + addonsPrice + extraTimePrice;
   }, [productPrice, serviceBasePrice, addonsPrice, extraTimePrice]);
 
-  const currency = selectedService?.currency || selectedProduct?.currency || 'KWD';
+  const rawCurrency = (selectedService?.currency || selectedProduct?.currency || 'KWD').trim();
+  const currency = rawCurrency.toUpperCase() === 'KD' ? 'KWD' : rawCurrency.toUpperCase();
   const decimals = currency === 'KWD' ? 3 : 2;
 
   // ─── Step Indicator Steps ──────────────────────────────────────────────────

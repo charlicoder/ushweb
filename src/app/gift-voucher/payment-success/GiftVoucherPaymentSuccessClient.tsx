@@ -68,7 +68,16 @@ export default function GiftVoucherPaymentSuccessClient() {
     '';
   const invoiceId = searchParams.get('InvoiceId') || searchParams.get('invoice_id') || '';
   const amountParam = searchParams.get('amount') || '';
-  const currencyParam = searchParams.get('currency') || 'KWD';
+  const rawCurrencyParam =
+    searchParams.get('currency') ||
+    searchParams.get('Currency') ||
+    searchParams.get('CurrencyIso') ||
+    searchParams.get('currencyIso') ||
+    '';
+  const currencyParam =
+    rawCurrencyParam.toUpperCase() === 'KD' || !rawCurrencyParam
+      ? 'KWD'
+      : rawCurrencyParam.toUpperCase();
 
   // Overwrite values directly from URL parameters sent at payment initiation
   const paramGiftFrom = searchParams.get('gift_from') || '';
@@ -160,9 +169,13 @@ export default function GiftVoucherPaymentSuccessClient() {
           if (json?.data) {
             setVoucher(json.data);
             setStatusUpdated(true);
+            const rawVoucherCurrency = json.data.currency || currencyParam || 'KWD';
+            const finalCurrency =
+              rawVoucherCurrency.toUpperCase() === 'KD' ? 'KWD' : rawVoucherCurrency.toUpperCase();
+
             trackPurchase({
               value: Number(amountParam) || Number(json.data.total_amount) || 0,
-              currency: currencyParam || json.data.currency,
+              currency: finalCurrency,
               transactionId: paymentId || invoiceId || voucherId,
               contentName: 'Gift Voucher',
             });

@@ -196,6 +196,9 @@ export async function POST(request: NextRequest) {
 
     const { apiUrl, apiKey } = getMyFatoorahConfig();
 
+    const rawCurrency = String(currency || 'KWD').trim().toUpperCase();
+    const cleanCurrency = rawCurrency === 'KD' ? 'KWD' : rawCurrency;
+
     // Determine host origin for callback
     const host =
       request.headers.get('x-forwarded-host') ||
@@ -219,7 +222,7 @@ export async function POST(request: NextRequest) {
     // Keep CallBackUrl and ErrorUrl strictly under MyFatoorah max length limit (254 chars)
     let callBackUrl = `${cleanOrigin}/gift-voucher/payment-success?voucher_id=${encodeURIComponent(
       String(voucher_id)
-    )}&amount=${numericAmount}&currency=${encodeURIComponent(currency)}`;
+    )}&amount=${numericAmount}&currency=${encodeURIComponent(cleanCurrency)}`;
     let errorUrl = `${cleanOrigin}/payment-links/failed?voucher_id=${encodeURIComponent(
       String(voucher_id)
     )}`;
@@ -269,7 +272,7 @@ export async function POST(request: NextRequest) {
     const executePayload = {
       PaymentMethodId: Number(payment_method_id) || 1, // Default to KNET (1)
       CustomerName: cleanCustomerName,
-      DisplayCurrencyIso: currency,
+      DisplayCurrencyIso: cleanCurrency,
       MobileCountryCode: countryCode,
       CustomerMobile: cleanMobile.slice(0, 11),
       CustomerEmail: cleanEmail.slice(0, 50),

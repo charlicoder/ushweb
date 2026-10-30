@@ -52,7 +52,15 @@ export default function PaymentSuccessClient() {
     '';
 
   const amount = searchParams.get('amount') || '';
-  const currency = searchParams.get('currency') || 'KWD';
+  const rawCurrency =
+    searchParams.get('currency') ||
+    searchParams.get('Currency') ||
+    searchParams.get('CurrencyIso') ||
+    '';
+  const currency =
+    rawCurrency.toUpperCase() === 'KD' || !rawCurrency
+      ? 'KWD'
+      : rawCurrency.toUpperCase();
   const customMessage = searchParams.get('message') || '';
 
   useEffect(() => {

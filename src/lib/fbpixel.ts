@@ -20,10 +20,36 @@ function once(key: string): boolean {
   return true;
 }
 
-export function trackInitiateCheckout(value: number, currency: string) {
+/**
+ * Normalizes any currency string to a valid ISO 4217 3-letter uppercase code.
+ * Meta Pixel strictly validates currency against standard ISO 4217 uppercase codes (e.g. 'KWD').
+ * It rejects 'KD', 'K.D.', 'د.ك', lowercase 'kwd', whitespace, etc.
+ */
+export function normalizePixelCurrency(rawCurrency?: string | null): string {
+  if (!rawCurrency || typeof rawCurrency !== 'string') return 'KWD';
+  const clean = rawCurrency.trim().toUpperCase();
+  if (
+    clean === 'KD' ||
+    clean === 'K.D' ||
+    clean === 'K.D.' ||
+    clean === 'د.ك' ||
+    clean === 'KWD'
+  ) {
+    return 'KWD';
+  }
+  if (/^[A-Z]{3}$/.test(clean)) {
+    return clean;
+  }
+  return 'KWD';
+}
+
+export function trackInitiateCheckout(value: number, currency?: string) {
   const fbq = getFbq();
   if (!fbq || !(value > 0)) return;
-  fbq('track', 'InitiateCheckout', { value, currency: currency || 'KWD' });
+  fbq('track', 'InitiateCheckout', {
+    value,
+    currency: normalizePixelCurrency(currency),
+  });
 }
 
 export function trackPurchase(opts: {
@@ -40,7 +66,7 @@ export function trackPurchase(opts: {
     'Purchase',
     {
       value: opts.value,
-      currency: opts.currency || 'KWD',
+      currency: normalizePixelCurrency(opts.currency),
       content_name: opts.contentName,
       content_type: 'product',
       order_id: opts.transactionId,
