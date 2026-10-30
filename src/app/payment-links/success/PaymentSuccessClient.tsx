@@ -75,6 +75,15 @@ export default function PaymentSuccessClient() {
   const [copied, setCopied] = useState(false);
   const [formattedDate, setFormattedDate] = useState('');
 
+  // Ensure browser URL uses standard ISO currency code (KWD instead of KD)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('currency=KD')) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('currency', 'KWD');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const now = new Date();
