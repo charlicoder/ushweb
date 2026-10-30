@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaseApiUrl, getUshToken } from '@/lib/api';
+import { getBaseApiUrl, getUshToken, sanitizeCustomerName } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clean phone number
-    let cleanMobile = String(customer_phone || '').replace(/\D+/g, '');
+    let cleanMobile = String(customer_phone || recipient_phone || '').replace(/\D+/g, '');
     let countryCode = '+965';
     if (cleanMobile.startsWith('965') && cleanMobile.length > 8) {
       cleanMobile = cleanMobile.slice(3);
@@ -249,15 +249,30 @@ export async function POST(request: NextRequest) {
       cleanMobile = '90010333';
     }
 
-    const customerReference = String(voucher_code || voucher_id).slice(0, 50);
+    // Clean email address
+    let cleanEmail = String(customer_email || '').trim();
+    if (!cleanEmail || !cleanEmail.includes('@') || cleanEmail.length > 50) {
+      cleanEmail = 'info@ushspa.co';
+    }
+
+    // Sanitize CustomerName: MyFatoorah rejects punctuation (colons, emojis, slashes, brackets, etc.)
+    const cleanCustomerName = sanitizeCustomerName(
+      customer_name || gift_from || recipient_name || 'Valued Guest'
+    );
+
+    const customerReference =
+      String(voucher_code || voucher_id)
+        .replace(/[^\w\s.\-/]/gu, '')
+        .trim()
+        .slice(0, 50) || 'VOUCHER';
 
     const executePayload = {
       PaymentMethodId: Number(payment_method_id) || 1, // Default to KNET (1)
-      CustomerName: String(customer_name || 'Valued Guest').slice(0, 50),
+      CustomerName: cleanCustomerName,
       DisplayCurrencyIso: currency,
       MobileCountryCode: countryCode,
       CustomerMobile: cleanMobile.slice(0, 11),
-      CustomerEmail: String(customer_email || 'info@ushspa.co').slice(0, 50),
+      CustomerEmail: cleanEmail.slice(0, 50),
       InvoiceValue: numericAmount,
       CallBackUrl: callBackUrl,
       ErrorUrl: errorUrl,

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { trackInitiateCheckout } from '@/lib/fbpixel';
+import { sanitizeCustomerName } from '@/lib/api';
 import { useApp } from '@/context/AppContext';
 import {
   GiftIcon,
@@ -1111,7 +1112,7 @@ export default function GiftVoucherPage() {
           payment_method_id: selectedMethodId,
           amount: grandTotal.toFixed(decimals),
           currency,
-          customer_name: giftFrom || recipientName || 'Valued Guest',
+          customer_name: sanitizeCustomerName(giftFrom || recipientName || 'Valued Guest'),
           customer_phone: senderPhone || recipientPhone || '90010333',
           customer_email: 'info@ushspa.co',
           language: isAr ? 'ar' : 'en',
