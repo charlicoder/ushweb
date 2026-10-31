@@ -31,6 +31,7 @@ import {
   DocumentDuplicateIcon,
   ArrowTopRightOnSquareIcon,
   ShareIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import {
   USH_PHONE_DISPLAY,
@@ -189,6 +190,9 @@ interface GeneratedVoucher {
   recipient_phone?: string;
   sender_name?: string;
   sender_phone?: string;
+  delivery_mode?: string;
+  scheduled_delivery_at?: string | null;
+  status?: string;
 }
 
 interface MyFatoorahMethod {
@@ -495,6 +499,9 @@ export default function GiftVoucherPage() {
   const [selectedCountry, setSelectedCountry] = useState<CountryEntry>(COUNTRIES[0]);
   const [recipientPhone, setRecipientPhone] = useState('');
   const [giftMessage, setGiftMessage] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<'on_activation' | 'scheduled'>('on_activation');
+  const [scheduledDeliveryDate, setScheduledDeliveryDate] = useState('');
+  const [scheduledDeliveryTime, setScheduledDeliveryTime] = useState('12:00');
   const [paymentMethod, setPaymentMethod] = useState<'knet' | 'card' | 'link'>('link');
   const [formError, setFormError] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -852,6 +859,35 @@ export default function GiftVoucherPage() {
       return;
     }
 
+    let resolvedScheduledDeliveryAt: string | null = null;
+    if (deliveryMode === 'scheduled') {
+      if (!scheduledDeliveryDate) {
+        setFormError(isAr ? 'يرجى اختيار تاريخ تسليم الهدية' : 'Please select a delivery date for the gift');
+        return;
+      }
+      if (!scheduledDeliveryTime) {
+        setFormError(isAr ? 'يرجى اختيار وقت تسليم الهدية' : 'Please select a delivery time for the gift');
+        return;
+      }
+
+      const targetDt = new Date(`${scheduledDeliveryDate}T${scheduledDeliveryTime}:00`);
+      const now = new Date();
+      if (isNaN(targetDt.getTime())) {
+        setFormError(isAr ? 'تاريخ أو وقت التسليم غير صالح' : 'Invalid scheduled delivery date or time');
+        return;
+      }
+      if (targetDt.getTime() < now.getTime() + 4 * 60 * 1000) {
+        setFormError(isAr ? 'يجب أن يكون موعد تسليم الهدية في المستقبل (بعد 5 دقائق على الأقل)' : 'Scheduled delivery time must be at least 5 minutes in the future');
+        return;
+      }
+      const maxDt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+      if (targetDt.getTime() > maxDt.getTime()) {
+        setFormError(isAr ? 'لا يمكن جدولة تسليم الهدية لأكثر من 60 يوماً من اليوم' : 'Gift delivery cannot be scheduled more than 60 days in advance');
+        return;
+      }
+      resolvedScheduledDeliveryAt = `${scheduledDeliveryDate}T${scheduledDeliveryTime}:00`;
+    }
+
     setIsSubmittingOrder(true);
     const fullRecipientPhone = `${selectedCountry.dial}${recipientPhone.replace(/^0+/, '').trim()}`;
     const fullSenderPhone = senderPhone.trim()
@@ -941,6 +977,8 @@ export default function GiftVoucherPage() {
         phone_number: fullRecipientPhone,
       },
       gift_message: giftMessage.trim() || null,
+      delivery_mode: deliveryMode,
+      scheduled_delivery_at: resolvedScheduledDeliveryAt,
     };
 
     try {
@@ -988,6 +1026,9 @@ export default function GiftVoucherPage() {
           sender_phone: fullSenderPhone,
           created_at: vData.created_at || new Date().toISOString(),
           expires_at: vData.expires_at || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          delivery_mode: vData.delivery_mode || deliveryMode,
+          scheduled_delivery_at: vData.scheduled_delivery_at || resolvedScheduledDeliveryAt,
+          status: vData.status,
         });
         setPaymentError('');
         setDirectPaymentUrl('');
@@ -2554,6 +2595,149 @@ export default function GiftVoucherPage() {
               </div>
             </div>
 
+            {/* Delivery Timing Section (Instant vs Scheduled) */}
+            <div
+              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+              className="p-5 sm:p-6 rounded-3xl border shadow-xs space-y-4"
+            >
+              <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
+                <ClockIcon style={{ color: PRIMARY_BROWN }} className="w-5 h-5" />
+                <h3 style={{ color: PRIMARY_BROWN }} className="font-bold text-base">
+                  {isAr ? 'موعد تسليم الهدية للمستلم' : 'Gift Delivery Timing'}
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Instant delivery option */}
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('on_activation')}
+                  className={`p-3.5 rounded-2xl border text-start transition cursor-pointer flex items-start gap-3 ${
+                    deliveryMode === 'on_activation'
+                      ? 'border-[#543C30] bg-[#FAF5EE] shadow-xs'
+                      : 'border-stone-200 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <div className="mt-0.5">
+                    <span
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        deliveryMode === 'on_activation'
+                          ? 'border-[#543C30] bg-[#543C30]'
+                          : 'border-stone-300'
+                      }`}
+                    >
+                      {deliveryMode === 'on_activation' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm block text-stone-800">
+                      {isAr ? 'تسليم فوري (مباشرة بعد الدفع)' : 'Instant Delivery'}
+                    </span>
+                    <span style={{ color: TEXT_SEC }} className="text-xs block mt-0.5 leading-relaxed">
+                      {isAr
+                        ? 'تصل القسيمة فوراً للمستلم عبر SMS بعد إتمام السداد بنجاح'
+                        : 'Voucher will be delivered to recipient immediately after successful payment'}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Scheduled delivery option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryMode('scheduled');
+                    if (!scheduledDeliveryDate) {
+                      const tmrw = new Date();
+                      tmrw.setDate(tmrw.getDate() + 1);
+                      setScheduledDeliveryDate(tmrw.toISOString().split('T')[0]);
+                    }
+                  }}
+                  className={`p-3.5 rounded-2xl border text-start transition cursor-pointer flex items-start gap-3 ${
+                    deliveryMode === 'scheduled'
+                      ? 'border-[#543C30] bg-[#FAF5EE] shadow-xs'
+                      : 'border-stone-200 bg-white hover:border-stone-300'
+                  }`}
+                >
+                  <div className="mt-0.5">
+                    <span
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        deliveryMode === 'scheduled'
+                          ? 'border-[#543C30] bg-[#543C30]'
+                          : 'border-stone-300'
+                      }`}
+                    >
+                      {deliveryMode === 'scheduled' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm block text-stone-800">
+                      {isAr ? 'جدولة تسليم الهدية (موعد مخصص)' : 'Schedule Gift Delivery'}
+                    </span>
+                    <span style={{ color: TEXT_SEC }} className="text-xs block mt-0.5 leading-relaxed">
+                      {isAr
+                        ? 'اختر يوماً وساعة محددة (مفاجأة عيد ميلاد، ذكرى، مناسبة خاصة)'
+                        : 'Choose a specific date & time (birthday, anniversary, special surprise)'}
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Date & Time Picker when scheduled is selected */}
+              {deliveryMode === 'scheduled' && (
+                <div
+                  style={{ backgroundColor: CARD_SELECTED_BG, borderColor: BORDER_COLOR }}
+                  className="p-4 rounded-2xl border space-y-3 mt-2"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-700">
+                    <CalendarDaysIcon className="w-4 h-4 text-[#A37854]" />
+                    <span>{isAr ? 'تاريخ ووقت الإرسال بتوقيت الكويت (Asia/Kuwait):' : 'Delivery Date & Time (Kuwait Time):'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="scheduled-date-input" className="block text-xs font-semibold text-stone-600 mb-1">
+                        {isAr ? 'تاريخ الإرسال:' : 'Delivery Date:'}
+                      </label>
+                      <input
+                        id="scheduled-date-input"
+                        type="date"
+                        min={new Date().toISOString().split('T')[0]}
+                        max={new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                        value={scheduledDeliveryDate}
+                        onChange={(e) => setScheduledDeliveryDate(e.target.value)}
+                        style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="scheduled-time-input" className="block text-xs font-semibold text-stone-600 mb-1">
+                        {isAr ? 'وقت الإرسال:' : 'Delivery Time:'}
+                      </label>
+                      <input
+                        id="scheduled-time-input"
+                        type="time"
+                        value={scheduledDeliveryTime}
+                        onChange={(e) => setScheduledDeliveryTime(e.target.value)}
+                        style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
+                        className="w-full px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] leading-relaxed text-[#8A6D5F] bg-white/70 p-2.5 rounded-xl border border-stone-200/60">
+                    <p>
+                      {isAr
+                        ? '✨ ملاحظة: ستصلك رسالة تأكيد فور إتمام السداد. لن يتم إرسال أي رسالة للمستلم حتى حلول الموعد المحدد أعلاه، وتبدأ فترة صلاحية القسيمة (60 يوماً) من تاريخ التسليم الفعلي.'
+                        : '✨ Note: You will receive an immediate confirmation SMS upon payment. No SMS will be sent to the recipient until the scheduled date/time above. The 60-day voucher validity starts on actual delivery.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Create your Gift Voucher Submit Button */}
             <div className="pt-2">
               <button
@@ -2964,10 +3148,23 @@ export default function GiftVoucherPage() {
                   </span>
                 </div>
 
+                {generatedVoucher.delivery_mode === 'scheduled' && generatedVoucher.scheduled_delivery_at && (
+                  <div className="flex items-center justify-between border-b pb-2 border-stone-200">
+                    <span style={{ color: TEXT_SEC }}>{isAr ? 'موعد التسليم المجدول:' : 'Scheduled Delivery:'}</span>
+                    <span style={{ color: PRIMARY_BROWN }} className="font-bold text-stone-800">
+                      {new Date(generatedVoucher.scheduled_delivery_at).toLocaleString(isAr ? 'ar-KW' : 'en-GB', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                        timeZone: 'Asia/Kuwait',
+                      })}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between border-b pb-2 border-stone-200">
                   <span style={{ color: TEXT_SEC }}>{isAr ? 'صلاحية القسيمة:' : 'Validity Period:'}</span>
                   <span className="font-semibold text-stone-700">
-                    {isAr ? 'سارية لمدة 12 شهراً' : 'Valid for 12 months from issue'}
+                    {isAr ? 'سارية لمدة 60 يوماً من تاريخ التسليم' : 'Valid for 60 days from delivery'}
                   </span>
                 </div>
               </div>

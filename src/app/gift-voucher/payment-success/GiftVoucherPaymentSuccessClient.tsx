@@ -23,6 +23,8 @@ import {
   ChatBubbleLeftRightIcon,
   ChatBubbleBottomCenterTextIcon,
   DevicePhoneMobileIcon,
+  ClockIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 const PRIMARY_BROWN = '#543C30';
@@ -54,6 +56,9 @@ interface VoucherData {
   branch_data?: { name?: string; name_ar?: string };
   expire_date?: string;
   created_at?: string;
+  delivery_mode?: string;
+  scheduled_delivery_at?: string | null;
+  delivered_at?: string | null;
 }
 
 export default function GiftVoucherPaymentSuccessClient() {
@@ -188,7 +193,10 @@ export default function GiftVoucherPaymentSuccessClient() {
               transactionId: paymentId || invoiceId || voucherId,
               contentName: 'Gift Voucher',
             });
-            setShowShareModal(true); // Automatically show share popup window
+            const isSched = json.data.status === 'scheduled' || json.data.delivery_mode === 'scheduled';
+            if (!isSched) {
+              setShowShareModal(true); // Automatically show share popup window only for immediate delivery
+            }
           }
         }
       } catch (err) {
@@ -265,6 +273,9 @@ export default function GiftVoucherPaymentSuccessClient() {
 
   const totalAmount = voucher?.total_amount || amountParam || '0.000';
   const currency = voucher?.currency || currencyParam || 'KWD';
+  const isScheduled =
+    voucher?.status?.toLowerCase() === 'scheduled' ||
+    (voucher?.delivery_mode === 'scheduled' && voucher?.status?.toLowerCase() !== 'active');
   const voucherCode =
     voucher?.voucher_number ||
     searchParams.get('voucher_code') ||
@@ -365,7 +376,15 @@ export default function GiftVoucherPaymentSuccessClient() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: isDark ? '#f7eee9' : '#543C30' }}>
             <CheckCircleIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <span>{isAr ? 'تأكيد السداد وتفعيل القسيمة' : 'Payment Confirmed & Voucher Active'}</span>
+            <span>
+              {isScheduled
+                ? isAr
+                  ? 'تأكيد السداد وجدولة إرسال الهدية'
+                  : 'Payment Confirmed & Delivery Scheduled'
+                : isAr
+                ? 'تأكيد السداد وتفعيل القسيمة'
+                : 'Payment Confirmed & Voucher Active'}
+            </span>
           </div>
         </div>
       </div>
@@ -389,10 +408,20 @@ export default function GiftVoucherPaymentSuccessClient() {
                 style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif", color: PRIMARY_BROWN }}
                 className="text-2xl sm:text-3xl font-extrabold"
               >
-                {isAr ? 'تم استلام الدفع وتفعيل القسيمة بنجاح!' : 'Payment Received & Voucher Activated!'}
+                {isScheduled
+                  ? isAr
+                    ? 'تم استلام الدفع وجدولة إرسال الهدية بنجاح! 🌸'
+                    : 'Payment Received & Gift Delivery Scheduled! 🌸'
+                  : isAr
+                  ? 'تم استلام الدفع وتفعيل القسيمة بنجاح!'
+                  : 'Payment Received & Voucher Activated!'}
               </h1>
               <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm max-w-md mx-auto">
-                {isAr
+                {isScheduled
+                  ? isAr
+                    ? 'تم تأكيد الدفع بنجاح. سيتم إرسال القسيمة إلى المستلم تلقائياً عبر الرسائل النصية (SMS) في الموعد المحدد، وتبدأ صلاحية القسيمة من تاريخ التسليم.'
+                    : 'Payment confirmed. The gift voucher will be automatically delivered to the recipient via SMS at the scheduled date and time.'
+                  : isAr
                   ? 'تم تسجيل الدفع عبر بوابة ماي فاتورة وتحديث حالة القسيمة إلى نشطة (Active)'
                   : 'Payment processed via MyFatoorah and voucher status updated to Active.'}
               </p>
@@ -425,12 +454,36 @@ export default function GiftVoucherPaymentSuccessClient() {
                 </div>
 
                 <div className="text-end">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-                    {isAr ? 'نشطة ومفعلة' : 'Active'}
-                  </span>
+                  {isScheduled ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                      <ClockIcon className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                      {isAr ? 'مجدولة للإرسال' : 'Scheduled Delivery'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                      {isAr ? 'نشطة ومفعلة' : 'Active'}
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Scheduled Delivery Banner inside Card if scheduled */}
+              {isScheduled && voucher?.scheduled_delivery_at && (
+                <div className="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-sky-900 font-bold">
+                    <CalendarDaysIcon className="w-4 h-4 text-sky-700 flex-shrink-0" />
+                    <span>{isAr ? 'موعد التسليم المجدول (بتوقيت الكويت):' : 'Scheduled Delivery (Kuwait Time):'}</span>
+                  </div>
+                  <span className="font-extrabold text-sky-900 text-sm">
+                    {new Date(voucher.scheduled_delivery_at).toLocaleString(isAr ? 'ar-KW' : 'en-GB', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                      timeZone: 'Asia/Kuwait',
+                    })}
+                  </span>
+                </div>
+              )}
 
               {/* Amount & Voucher Code Block */}
               <div
@@ -510,6 +563,22 @@ export default function GiftVoucherPaymentSuccessClient() {
 
             {/* Quick Actions */}
             <div className="space-y-3">
+              {isScheduled && (
+                <div
+                  style={{ backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }}
+                  className="p-4 rounded-2xl border text-xs text-sky-900 space-y-1"
+                >
+                  <p className="font-bold flex items-center gap-1.5 text-sky-950">
+                    <ClockIcon className="w-4 h-4 text-sky-600" />
+                    <span>{isAr ? 'تنبيه الجدولة:' : 'Scheduling Note:'}</span>
+                  </p>
+                  <p className="leading-relaxed">
+                    {isAr
+                      ? 'سيتم إرسال رسالة SMS تلقائياً للمستلم في التاريخ والوقت المحددين أعلاه مع تفعيل القسيمة. إذا كنت تفضل مشاركة القسيمة الآن يدوياً يمكنك استخدام الخيارات أدناه.'
+                      : 'An SMS will be sent automatically to the recipient at the scheduled date and time upon activation. If you wish to share manually now, you may use the options below.'}
+                  </p>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowShareModal(true)}
