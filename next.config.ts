@@ -50,23 +50,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Prevent Next.js CSRF check from rejecting server-side requests that
-  // originate from the production API domain or a CDN / reverse proxy.
-  // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions#allowedorigins
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        "apidev.ushspa.co",
-        "www.apidev.ushspa.co",
-        "api.ushspa.co",
-        "www.api.ushspa.co",
-        '10.131.22.93',
-        '127.0.0.1',
-        'localhost',
-      ],
-    },
-  },
-
   // Allow cross-origin requests to Next.js dev-server resources (/_next/static/*, /_next/hmr)
   // from dev hosts and local network devices.
   // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins

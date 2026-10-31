@@ -3015,7 +3015,7 @@ export default function GiftPage({ params }: { params: Promise<{ public_token: s
     setFetchError('');
     try {
       const res = await fetch(
-        `/booknpay/api/v1/vouchers/public/${encodeURIComponent(public_token)}/`,
+        `/api/vouchers/public/${encodeURIComponent(public_token)}/`,
         { method: 'GET', headers: { 'Content-Type': 'application/json' } }
       );
 
