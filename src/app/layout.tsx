@@ -90,7 +90,8 @@ export default function RootLayout({
         {/* Meta Pixel Code */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `!function(f,b,e,v,n,t,s)
+            __html: `if(typeof console!=='undefined'&&console.warn){var _ow=console.warn;console.warn=function(){if(arguments[0]&&typeof arguments[0]==='string'&&arguments[0].indexOf("[Meta Pixel] - Parameter 'currency' is invalid")!==-1)return;_ow.apply(console,arguments);};}
+!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
 if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
