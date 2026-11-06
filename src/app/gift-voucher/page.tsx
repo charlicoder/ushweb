@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { trackInitiateCheckout } from '@/lib/fbpixel';
@@ -174,6 +174,7 @@ interface Service {
   session_benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
   session_benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
   is_packaged_services?: boolean;
+  included_services?: { id: string; name: string; duration_minutes?: number }[];
 }
 
 interface GeneratedVoucher {
@@ -454,7 +455,12 @@ export default function GiftVoucherPage() {
   // Services State
   const [services, setServices] = useState<Service[]>([]);
   const [selectedGender, setSelectedGender] = useState<'female' | 'male' | 'all'>('female');
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  // Multi-select: a gift voucher can contain several services (the first one is the "primary")
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
+  const selectedService: Service | null = selectedServices[0] || null;
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
+  const [serviceSearch, setServiceSearch] = useState('');
+  const serviceDropdownRef = useRef<HTMLDivElement>(null);
   const [isServiceDetailsOpen, setIsServiceDetailsOpen] = useState(true);
   const [detailService, setDetailService] = useState<Service | null>(null);
   const [isLoadingServiceDetail, setIsLoadingServiceDetail] = useState(false);
@@ -486,9 +492,11 @@ export default function GiftVoucherPage() {
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [arrangements, setArrangements] = useState<Arrangement[]>([]);
   const [selectedArrangement, setSelectedArrangement] = useState<Arrangement | null>(null);
-  const [availableAddons, setAvailableAddons] = useState<Addon[]>([]);
-  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
-  const [selectedExtraMinutes, setSelectedExtraMinutes] = useState<number>(0);
+  // Per-service state (keyed by service id): arrangements, available/selected add-ons, extra time
+  const [arrangementsBySvc, setArrangementsBySvc] = useState<Record<string, Arrangement[]>>({});
+  const [addonsBySvc, setAddonsBySvc] = useState<Record<string, Addon[]>>({});
+  const [addonIdsBySvc, setAddonIdsBySvc] = useState<Record<string, string[]>>({});
+  const [extraMinsBySvc, setExtraMinsBySvc] = useState<Record<string, number>>({});
   const [isLoadingArrangements, setIsLoadingArrangements] = useState(false);
 
   // Recipient, Sender & Payment State
@@ -569,13 +577,37 @@ export default function GiftVoucherPage() {
     loadServices(selectedGender, lang);
   }, [lang, selectedGender]);
 
-  // Synchronize selectedService and detailService whenever services list changes or isAr toggles
+  // Close the services dropdown when clicking outside of it
   useEffect(() => {
-    if (selectedService) {
-      const match = services.find((s) => s.id === selectedService.id);
-      if (match) {
-        setSelectedService((prev) => (prev ? { ...prev, ...match } : match));
+    if (!isServiceDropdownOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (serviceDropdownRef.current && !serviceDropdownRef.current.contains(e.target as Node)) {
+        setIsServiceDropdownOpen(false);
       }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [isServiceDropdownOpen]);
+
+  const filteredServices = useMemo(() => {
+    const q = serviceSearch.trim().toLowerCase();
+    if (!q) return services;
+    return services.filter((svc) =>
+      [svc.name, svc.name_en, svc.name_ar, svc.description, svc.description_en, svc.description_ar]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [services, serviceSearch]);
+
+  // Synchronize selectedServices and detailService whenever services list changes or isAr toggles
+  useEffect(() => {
+    if (selectedServices.length > 0) {
+      setSelectedServices((prev) =>
+        prev.map((sel) => {
+          const match = services.find((s) => s.id === sel.id);
+          return match ? { ...sel, ...match } : sel;
+        })
+      );
     }
     if (detailService) {
       const match = services.find((s) => s.id === detailService.id);
@@ -585,54 +617,99 @@ export default function GiftVoucherPage() {
     }
   }, [services, isAr]);
 
-  // Auto-enrich selectedService with benefits and full descriptions if missing
+  // Auto-enrich selected services with benefits and full descriptions if missing
+  const selectedServiceIdsKey = selectedServices.map((s) => s.id).join(',');
   useEffect(() => {
-    if (currentPhase === 'details' && selectedService && !selectedService.benefits && !selectedService.session_benefits) {
-      let isCancelled = false;
-      fetch(`/api/gift-voucher/services/${selectedService.id}?lang=${lang}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((json) => {
-          if (!isCancelled && json?.success && json?.data) {
-            setSelectedService((prev) => (prev && prev.id === selectedService.id ? { ...prev, ...json.data } : prev));
-          }
-        })
-        .catch((err) => console.warn('[enrich selectedService] error:', err));
-      return () => {
-        isCancelled = true;
-      };
-    }
-  }, [currentPhase, selectedService?.id, lang]);
+    if (currentPhase !== 'details') return;
+    let isCancelled = false;
+    selectedServices
+      .filter((svc) => !svc.benefits && !svc.session_benefits)
+      .forEach((svc) => {
+        fetch(`/api/gift-voucher/services/${svc.id}?lang=${lang}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((json) => {
+            if (!isCancelled && json?.success && json?.data) {
+              setSelectedServices((prev) =>
+                prev.map((s) => (s.id === svc.id ? { ...s, ...json.data } : s))
+              );
+            }
+          })
+          .catch((err) => console.warn('[enrich selectedService] error:', err));
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentPhase, selectedServiceIdsKey, lang]);
 
   // ─── Fetch Arrangements for Selected Service & Branch ──────────────────────
-  const loadArrangements = async (serviceId: string, branchId: string) => {
+  // Loads arrangements per selected service and offers only the room types every service supports
+  const loadArrangements = async (svcs: Service[], branchId: string) => {
     setIsLoadingArrangements(true);
     try {
-      const res = await fetch(
-        `/api/gift-voucher/availability?service_id=${encodeURIComponent(
-          serviceId
-        )}&branch_id=${encodeURIComponent(branchId)}`
+      const results = await Promise.all(
+        svcs.map(async (svc) => {
+          try {
+            const res = await fetch(
+              `/api/gift-voucher/availability?service_id=${encodeURIComponent(
+                String(svc.id)
+              )}&branch_id=${encodeURIComponent(branchId)}`
+            );
+            const json = await res.json();
+            const list: Arrangement[] = Array.isArray(json?.service_arrangements)
+              ? json.service_arrangements
+              : [];
+            return [String(svc.id), list] as const;
+          } catch (err) {
+            console.error('Error loading arrangements:', err);
+            return [String(svc.id), [] as Arrangement[]] as const;
+          }
+        })
       );
-      const json = await res.json();
-      const arrs: Arrangement[] = Array.isArray(json?.service_arrangements)
-        ? json.service_arrangements
-        : [];
+      const map: Record<string, Arrangement[]> = {};
+      results.forEach(([id, list]) => {
+        map[id] = list;
+      });
+      setArrangementsBySvc(map);
+
+      const firstList = map[String(svcs[0].id)] || [];
+      const arrs =
+        svcs.length <= 1
+          ? firstList
+          : firstList.filter((a) =>
+              svcs.every((svc) =>
+                (map[String(svc.id)] || []).some((b) => arrangementKey(b) === arrangementKey(a))
+              )
+            );
       setArrangements(arrs);
 
-      if (selectedService?.is_packaged_services) {
-        setAvailableAddons([]);
-        setSelectedAddonIds([]);
-      } else if (arrs.length > 0) {
-        setSelectedArrangement(arrs[0]);
-        // Extract addons from first arrangement or fallback to service addons
-        const firstAddons = (arrs[0].addons && arrs[0].addons.length > 0)
-          ? arrs[0].addons
-          : (selectedService?.addons || selectedService?.add_ons || []);
-        setAvailableAddons(firstAddons);
-      } else {
-        setSelectedArrangement(null);
-        const svcAddons = selectedService?.addons || selectedService?.add_ons || [];
-        setAvailableAddons(svcAddons);
+      const isSinglePackaged = svcs.length === 1 && !!svcs[0].is_packaged_services;
+      const chosen = arrs.length > 0 ? arrs[0] : null;
+      if (!isSinglePackaged) {
+        setSelectedArrangement(chosen);
       }
+
+      const nextAddons: Record<string, Addon[]> = {};
+      svcs.forEach((svc) => {
+        const id = String(svc.id);
+        if (svc.is_packaged_services) {
+          nextAddons[id] = [];
+          return;
+        }
+        const match = chosen
+          ? (map[id] || []).find((a) => arrangementKey(a) === arrangementKey(chosen))
+          : undefined;
+        // Extract addons from the matching arrangement or fallback to service addons
+        nextAddons[id] =
+          match?.addons && match.addons.length > 0 ? match.addons : svc.addons || svc.add_ons || [];
+      });
+      setAddonsBySvc(nextAddons);
+      setAddonIdsBySvc((prev) => {
+        const out: Record<string, string[]> = {};
+        Object.keys(nextAddons).forEach((id) => {
+          out[id] = (prev[id] || []).filter((aid) => nextAddons[id].some((a) => a.id === aid));
+        });
+        return out;
+      });
     } catch (err) {
       console.error('Error loading arrangements:', err);
     } finally {
@@ -648,48 +725,81 @@ export default function GiftVoucherPage() {
     return 0;
   }, [flowType, selectedProduct]);
 
-  const serviceBasePrice = useMemo(() => {
-    if (selectedArrangement) {
-      return parseFloat(selectedArrangement.effective_price || '0') || 0;
-    }
-    if (selectedService) {
-      return parseFloat(String(selectedService.current_price || selectedService.base_price || '0')) || 0;
-    }
-    return 0;
-  }, [selectedArrangement, selectedService]);
+  const arrangementKey = (a: Arrangement) => String(a.arrangement_type || a.id);
 
-  const addonsPrice = useMemo(() => {
-    return selectedAddonIds.reduce((sum, id) => {
-      const item = availableAddons.find((a) => a.id === id);
-      return sum + (item ? parseFloat(item.price || '0') || 0 : 0);
+  // Arrangement matching the chosen room type for a given service
+  const arrangementFor = (svc: Service): Arrangement | null => {
+    if (!selectedArrangement) return null;
+    if (selectedServices.length <= 1) return selectedArrangement;
+    const key = arrangementKey(selectedArrangement);
+    return (arrangementsBySvc[String(svc.id)] || []).find((a) => arrangementKey(a) === key) || null;
+  };
+
+  // Total suite rate of an arrangement across all selected services
+  const arrangementTotal = (arr: Arrangement): number => {
+    if (selectedServices.length <= 1) return parseFloat(arr.effective_price || '0') || 0;
+    const key = arrangementKey(arr);
+    return selectedServices.reduce((sum, svc) => {
+      const m = (arrangementsBySvc[String(svc.id)] || []).find((a) => arrangementKey(a) === key);
+      return sum + (m ? parseFloat(m.effective_price || '0') || 0 : 0);
     }, 0);
-  }, [selectedAddonIds, availableAddons]);
+  };
 
-  const extraMinutesRate = useMemo(() => {
-    if (selectedService?.price_for_extra_minutes) {
-      return parseFloat(String(selectedService.price_for_extra_minutes)) || 15.0;
+  const servicePriceFor = (svc: Service): number => {
+    const arr = arrangementFor(svc);
+    if (arr) return parseFloat(arr.effective_price || '0') || 0;
+    return parseFloat(String(svc.current_price || svc.base_price || '0')) || 0;
+  };
+
+  const chosenAddonsFor = (svc: Service): Addon[] => {
+    const ids = addonIdsBySvc[String(svc.id)] || [];
+    return (addonsBySvc[String(svc.id)] || []).filter((a) => ids.includes(a.id));
+  };
+
+  const addonsPriceFor = (svc: Service): number =>
+    chosenAddonsFor(svc).reduce((sum, a) => sum + (parseFloat(a.price || '0') || 0), 0);
+
+  const extraMinsFor = (serviceId: string): number => extraMinsBySvc[serviceId] || 0;
+  const setExtraMins = (serviceId: string, mins: number) =>
+    setExtraMinsBySvc((prev) => ({ ...prev, [serviceId]: mins }));
+
+  const extraRateFor = (svc: Service): number => {
+    if (svc.price_for_extra_minutes) {
+      return parseFloat(String(svc.price_for_extra_minutes)) || 15.0;
     }
     return 15.0;
-  }, [selectedService]);
+  };
 
   // Extra time is offered only when the service defines both values (> 0)
-  const hasExtraTime =
-    (Number(selectedService?.extra_minutes) || 0) > 0 &&
-    (Number(selectedService?.price_for_extra_minutes) || 0) > 0;
+  const hasExtraTimeFor = (svc: Service): boolean =>
+    (Number(svc.extra_minutes) || 0) > 0 && (Number(svc.price_for_extra_minutes) || 0) > 0;
+
+  const extraTimePriceFor = (svc: Service): number => {
+    const mins = extraMinsFor(String(svc.id));
+    if (mins <= 0) return 0;
+    return (mins / 30) * extraRateFor(svc);
+  };
 
   useEffect(() => {
-    if (!hasExtraTime && selectedExtraMinutes !== 0) setSelectedExtraMinutes(0);
-  }, [hasExtraTime, selectedExtraMinutes]);
+    setExtraMinsBySvc((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(prev).forEach((id) => {
+        const svc = selectedServices.find((x) => String(x.id) === id);
+        if (prev[id] !== 0 && !(svc && hasExtraTimeFor(svc))) {
+          next[id] = 0;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedServices, extraMinsBySvc]);
 
-  const extraTimePrice = useMemo(() => {
-    if (selectedExtraMinutes <= 0) return 0;
-    const blocks = selectedExtraMinutes / 30;
-    return blocks * extraMinutesRate;
-  }, [selectedExtraMinutes, extraMinutesRate]);
+  const serviceBasePrice = selectedServices.reduce((sum, svc) => sum + servicePriceFor(svc), 0);
+  const addonsPrice = selectedServices.reduce((sum, svc) => sum + addonsPriceFor(svc), 0);
+  const extraTimePrice = selectedServices.reduce((sum, svc) => sum + extraTimePriceFor(svc), 0);
 
-  const grandTotal = useMemo(() => {
-    return productPrice + serviceBasePrice + addonsPrice + extraTimePrice;
-  }, [productPrice, serviceBasePrice, addonsPrice, extraTimePrice]);
+  const grandTotal = productPrice + serviceBasePrice + addonsPrice + extraTimePrice;
 
   const rawCurrency = (selectedService?.currency || selectedProduct?.currency || 'KWD').trim();
   const currency = rawCurrency.toUpperCase() === 'KD' ? 'KWD' : rawCurrency.toUpperCase();
@@ -761,45 +871,92 @@ export default function GiftVoucherPage() {
     setCurrentPhase('services');
   };
 
-  const handleSelectService = (svc: Service) => {
-    setSelectedService(svc);
-    // Determine branches
-    const bList = Array.isArray(svc.branches) && svc.branches.length > 0
-      ? svc.branches
-      : [
-          {
-            id: '8d93e387-e927-460d-91ab-4df9072f1977',
-            branch_id: '8d93e387-e927-460d-91ab-4df9072f1977',
-            name: 'Sharq Branch',
-            name_en: 'Sharq Branch',
-            name_ar: 'فرع شرق',
-            address: 'Al-Shuhada Street, Block 04, Building 32',
-            city: 'Kuwait City',
-          },
-        ];
+  // A package must stand alone: never combined with other services or packages
+  const serviceBlockedReason = (svc: Service): string | null => {
+    if (selectedServices.some((s) => s.id === svc.id) || selectedServices.length === 0) return null;
+    if (svc.is_packaged_services) {
+      return isAr ? 'يجب حجز الباقة بمفردها' : 'A package must be booked on its own';
+    }
+    if (selectedServices.some((s) => s.is_packaged_services)) {
+      return isAr ? 'غير متاح مع الباقة المختارة' : 'Not available while a package is selected';
+    }
+    return null;
+  };
+
+  const toggleServiceSelection = (svc: Service) => {
+    if (serviceBlockedReason(svc)) return;
+    setSelectedServices((prev) =>
+      prev.some((s) => s.id === svc.id) ? prev.filter((s) => s.id !== svc.id) : [...prev, svc]
+    );
+  };
+
+  const handleContinueFromServices = () => {
+    if (selectedServices.length === 0) return;
+    setIsServiceDropdownOpen(false);
+    const fallbackBranches: Branch[] = [
+      {
+        id: '8d93e387-e927-460d-91ab-4df9072f1977',
+        branch_id: '8d93e387-e927-460d-91ab-4df9072f1977',
+        name: 'Sharq Branch',
+        name_en: 'Sharq Branch',
+        name_ar: 'فرع شرق',
+        address: 'Al-Shuhada Street, Block 04, Building 32',
+        city: 'Kuwait City',
+      },
+    ];
+    const branchesOf = (svc: Service): Branch[] =>
+      Array.isArray(svc.branches) && svc.branches.length > 0 ? svc.branches : fallbackBranches;
+    const branchKey = (br: Branch) => String(br.branch_id || br.id);
+
+    // A voucher has ONE branch: offer only branches every selected service supports
+    let bList = branchesOf(selectedServices[0]);
+    if (selectedServices.length > 1) {
+      const common = bList.filter((br) =>
+        selectedServices.every((svc) => branchesOf(svc).some((x) => branchKey(x) === branchKey(br)))
+      );
+      if (common.length > 0) bList = common;
+    }
     setBranches(bList);
     const defBranch = bList[0];
     setSelectedBranch(defBranch);
-    loadArrangements(String(svc.id), defBranch.branch_id || defBranch.id);
+    loadArrangements(selectedServices, defBranch.branch_id || defBranch.id);
     setCurrentPhase('details');
   };
 
   const handleArrangementChange = (arr: Arrangement) => {
     setSelectedArrangement(arr);
-    if (!selectedService?.is_packaged_services && arr.addons) {
-      setAvailableAddons(arr.addons);
-      // Keep only valid selected addons
-      setSelectedAddonIds((prev) => prev.filter((id) => arr.addons?.some((a) => a.id === id)));
-    } else {
-      setAvailableAddons([]);
-      setSelectedAddonIds([]);
-    }
+    const key = arrangementKey(arr);
+    const next: Record<string, Addon[]> = {};
+    selectedServices.forEach((svc) => {
+      const id = String(svc.id);
+      if (svc.is_packaged_services) {
+        next[id] = [];
+        return;
+      }
+      const match =
+        selectedServices.length <= 1
+          ? arr
+          : (arrangementsBySvc[id] || []).find((x) => arrangementKey(x) === key);
+      next[id] = match?.addons || [];
+    });
+    setAddonsBySvc(next);
+    setAddonIdsBySvc((prev) => {
+      const out: Record<string, string[]> = {};
+      Object.keys(next).forEach((id) => {
+        out[id] = (prev[id] || []).filter((aid) => next[id].some((a) => a.id === aid));
+      });
+      return out;
+    });
   };
 
-  const toggleAddon = (id: string) => {
-    setSelectedAddonIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+  const toggleAddon = (serviceId: string, addonId: string) => {
+    setAddonIdsBySvc((prev) => {
+      const cur = prev[serviceId] || [];
+      return {
+        ...prev,
+        [serviceId]: cur.includes(addonId) ? cur.filter((item) => item !== addonId) : [...cur, addonId],
+      };
+    });
   };
 
   const handleBackNavigation = () => {
@@ -894,7 +1051,46 @@ export default function GiftVoucherPage() {
       ? `${senderCountry.dial}${senderPhone.replace(/^0+/, '').trim()}`
       : '';
 
-    const chosenAddons = availableAddons.filter((a) => selectedAddonIds.includes(a.id));
+    const firstService = selectedServices[0] || null;
+    const chosenAddons = selectedServices.flatMap((svc) => chosenAddonsFor(svc));
+    const buildAddonPayload = (a: Addon) => ({
+      addon_id: a.id,
+      name: a.name_en || a.name,
+      name_ar: a.name_ar || a.name,
+      price: parseFloat(a.price).toFixed(decimals),
+      duration: a.duration_minutes || 0,
+      duration_minutes: a.duration_minutes || 0,
+    });
+    const buildServiceData = (svc: Service) => ({
+      id: svc.id,
+      name: svc.name_en || svc.name,
+      name_ar: svc.name_ar || svc.name,
+      duration: svc.duration_minutes || 60,
+      duration_minutes: svc.duration_minutes || 60,
+      price: servicePriceFor(svc).toFixed(decimals),
+      base_price: servicePriceFor(svc).toFixed(decimals),
+      currency,
+      image1: svc.primary_image,
+    });
+    const servicesPayload = selectedServices.map((svc) => {
+      const svcExtraMins = extraMinsFor(String(svc.id));
+      return {
+        service_id: svc.id,
+        service_data: buildServiceData(svc),
+        addons: chosenAddonsFor(svc).map(buildAddonPayload),
+        extra_time: svcExtraMins,
+        price_for_extra_time: svcExtraMins > 0 ? extraTimePriceFor(svc).toFixed(decimals) : null,
+      };
+    });
+    const totalExtraMinutes = selectedServices.reduce((sum, svc) => sum + extraMinsFor(String(svc.id)), 0);
+    const totalDuration = selectedServices.reduce(
+      (sum, svc) =>
+        sum +
+        (svc.duration_minutes || 0) +
+        chosenAddonsFor(svc).reduce((s, a) => s + (a.duration_minutes || 0), 0) +
+        extraMinsFor(String(svc.id)),
+      0
+    );
 
     const payload = {
       gift_category: flowType,
@@ -904,18 +1100,9 @@ export default function GiftVoucherPage() {
       currency,
       payment_through: 'ushweb',
       payment_provider: 'MyFatoorah',
-      service_id: selectedService?.id || null,
-      service_data: selectedService
-        ? {
-            id: selectedService.id,
-            name: selectedService.name_en || selectedService.name,
-            name_ar: selectedService.name_ar || selectedService.name,
-            duration: selectedService.duration_minutes || 60,
-            price: serviceBasePrice.toFixed(decimals),
-            currency,
-            image1: selectedService.primary_image,
-          }
-        : {},
+      service_id: firstService?.id || null,
+      service_data: firstService ? buildServiceData(firstService) : {},
+      services: servicesPayload,
       ordered_items:
         flowType === 'physical' && selectedProduct
           ? [
@@ -948,21 +1135,13 @@ export default function GiftVoucherPage() {
             id: selectedArrangement.id,
             name: selectedArrangement.name_en || selectedArrangement.name,
             name_ar: selectedArrangement.name_ar || selectedArrangement.name,
-            effective_price: serviceBasePrice.toFixed(decimals),
+            arrangement_type: selectedArrangement.arrangement_type || null,
+            effective_price: (firstService ? servicePriceFor(firstService) : 0).toFixed(decimals),
           }
         : {},
-      addons: chosenAddons.map((a) => ({
-        addon_id: a.id,
-        name: a.name_en || a.name,
-        name_ar: a.name_ar || a.name,
-        price: parseFloat(a.price).toFixed(decimals),
-        duration: a.duration_minutes || 0,
-      })),
-      extra_time: selectedExtraMinutes,
-      total_duration:
-        (selectedService?.duration_minutes || 0) +
-        chosenAddons.reduce((s, a) => s + (a.duration_minutes || 0), 0) +
-        selectedExtraMinutes,
+      addons: chosenAddons.map(buildAddonPayload),
+      extra_time: totalExtraMinutes,
+      total_duration: totalDuration,
       price_for_extra_time: extraTimePrice.toFixed(decimals),
       gift_from: giftFrom.trim(),
       sender_data: {
@@ -1233,7 +1412,7 @@ export default function GiftVoucherPage() {
               >
                 {currentPhase === 'category' && (isAr ? 'قسيمة الهدايا' : 'Gift Voucher')}
                 {currentPhase === 'products' && (isAr ? 'اختر المنتج للإهداء' : 'Select Gift Packaging')}
-                {currentPhase === 'services' && (isAr ? 'اختر خدمة السبا' : 'Choose Spa Service')}
+                {currentPhase === 'services' && (isAr ? 'اختر خدمات السبا' : 'Choose Spa Services')}
                 {currentPhase === 'details' && (isAr ? 'تفاصيل باقة السبا' : 'Gift a Spa Service Details')}
                 {currentPhase === 'summary' && (isAr ? 'ملخص الهدية' : 'Gift Summary')}
                 {currentPhase === 'make_payment' && (isAr ? 'إتمام الدفع' : 'Make Payment')}
@@ -1678,7 +1857,7 @@ export default function GiftVoucherPage() {
                   style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
                   className="text-xl sm:text-2xl font-extrabold text-[#1A1A1A]"
                 >
-                  {isAr ? 'اختر خدمة السبا للإهداء' : 'Select Spa Service'}
+                  {isAr ? 'اختر خدمات السبا للإهداء' : 'Select Spa Services'}
                 </h2>
                 <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm">
                   {isAr ? 'باقات ملكية وعلاجات تايلاندية ومغربية فاخرة' : 'Signature Thai, Moroccan, and facial rituals'}
@@ -1747,101 +1926,127 @@ export default function GiftVoucherPage() {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {services.map((svc) => {
-                  const name = (isAr ? svc.name_ar : svc.name_en) || svc.name;
-                  const desc = (isAr ? svc.description_ar : svc.description_en) || svc.description;
-                  const price = svc.current_price || svc.base_price || '0';
-                  const isSelected = selectedService?.id === svc.id;
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {services.map((svc) => {
+                    const name = (isAr ? svc.name_ar : svc.name_en) || svc.name;
+                    const desc = (isAr ? svc.description_ar : svc.description_en) || svc.description;
+                    const price = svc.current_price || svc.base_price || '0';
+                    const isSelected = selectedServices.some((s) => s.id === svc.id);
+                    const blockedReason = serviceBlockedReason(svc);
 
-                  return (
-                    <div
-                      key={svc.id}
-                      onClick={() => handleSelectService(svc)}
-                      style={{
-                        backgroundColor: isSelected ? CARD_SELECTED_BG : CARD_BG,
-                        borderColor: isSelected ? PRIMARY_BROWN : BORDER_COLOR,
-                        borderWidth: isSelected ? 2 : 1,
-                      }}
-                      className="rounded-2xl p-4 border flex items-center gap-4 cursor-pointer hover:shadow-md transition-all relative overflow-hidden"
-                    >
-                      {/* Thumbnail */}
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-stone-200 flex-shrink-0">
-                        <img
-                          src={
-                            svc.primary_image ||
-                            'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80'
-                          }
-                          alt={name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <h3
-                          style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
-                          className="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-1 mb-1"
-                        >
-                          {name}
-                        </h3>
-                        <p style={{ color: TEXT_SEC }} className="text-xs line-clamp-2 leading-relaxed mb-2">
-                          {desc}
-                        </p>
-
-                        {/* Badges Row */}
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <span
-                            style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)', color: ACCENT_BROWN }}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md"
-                          >
-                            <ClockIcon className="w-3.5 h-3.5" />
-                            {svc.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
-                          </span>
-                          <span
-                            style={{ color: PRIMARY_BROWN }}
-                            className="text-xs sm:text-sm font-extrabold"
-                          >
-                            {price} {svc.currency || 'KWD'}
-                          </span>
-                        </div>
-
-                        {/* View Details Action Link */}
-                        <div className="pt-1.5 border-t border-stone-200/60">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openServiceDetail(svc);
-                            }}
-                            style={{ color: PRIMARY_BROWN }}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold hover:underline transition-colors"
-                          >
-                            <EyeIcon className="w-3.5 h-3.5" />
-                            <span>{isAr ? 'عرض التفاصيل والمميزات' : 'View Service Details'}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Select Action Icon */}
+                    return (
                       <div
+                        key={svc.id}
+                        onClick={() => toggleServiceSelection(svc)}
+                        aria-disabled={Boolean(blockedReason)}
+                        title={blockedReason ?? undefined}
                         style={{
-                          backgroundColor: isSelected ? PRIMARY_BROWN : 'rgba(84, 60, 48, 0.1)',
-                          color: isSelected ? '#FFFFFF' : PRIMARY_BROWN,
+                          backgroundColor: isSelected ? CARD_SELECTED_BG : CARD_BG,
+                          borderColor: isSelected ? PRIMARY_BROWN : BORDER_COLOR,
+                          borderWidth: isSelected ? 2 : 1,
                         }}
-                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                        className={`rounded-2xl p-4 border flex items-center gap-4 transition-all relative overflow-hidden ${
+                          blockedReason ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-md'
+                        }`}
                       >
-                        {isSelected ? (
-                          <CheckIcon className="w-4 h-4 stroke-[3]" />
-                        ) : isAr ? (
-                          <ChevronLeftIcon className="w-4 h-4 stroke-[2.5]" />
-                        ) : (
-                          <ChevronRightIcon className="w-4 h-4 stroke-[2.5]" />
-                        )}
+                        {/* Thumbnail */}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-stone-200 flex-shrink-0">
+                          <img
+                            src={
+                              svc.primary_image ||
+                              'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=400&q=80'
+                            }
+                            alt={name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <h3
+                            style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
+                            className="text-sm sm:text-base font-bold text-[#1A1A1A] line-clamp-1 mb-1"
+                          >
+                            {name}
+                          </h3>
+                          <p style={{ color: TEXT_SEC }} className="text-xs line-clamp-2 leading-relaxed mb-2">
+                            {desc}
+                          </p>
+                          {blockedReason && (
+                            <p className="text-[11px] font-semibold text-amber-700 mb-1">{blockedReason}</p>
+                          )}
+
+                          {/* Badges Row */}
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <span
+                              style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)', color: ACCENT_BROWN }}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md"
+                            >
+                              <ClockIcon className="w-3.5 h-3.5" />
+                              {svc.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
+                            </span>
+                            <span
+                              style={{ color: PRIMARY_BROWN }}
+                              className="text-xs sm:text-sm font-extrabold"
+                            >
+                              {price} {svc.currency || 'KWD'}
+                            </span>
+                          </div>
+
+                          {/* View Details Action Link */}
+                          <div className="pt-1.5 border-t border-stone-200/60">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openServiceDetail(svc);
+                              }}
+                              style={{ color: PRIMARY_BROWN }}
+                              className="inline-flex items-center gap-1 text-[11px] font-bold hover:underline transition-colors"
+                            >
+                              <EyeIcon className="w-3.5 h-3.5" />
+                              <span>{isAr ? 'عرض التفاصيل والمميزات' : 'View Service Details'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Selection checkbox */}
+                        <div
+                          role="checkbox"
+                          aria-checked={isSelected}
+                          style={{
+                            backgroundColor: isSelected ? PRIMARY_BROWN : '#FFFFFF',
+                            borderColor: isSelected ? PRIMARY_BROWN : '#C2A289',
+                            color: '#FFFFFF',
+                          }}
+                          className="w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                        >
+                          {isSelected && <CheckIcon className="w-4 h-4 stroke-[3]" />}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Continue Action */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={selectedServices.length === 0}
+                    onClick={handleContinueFromServices}
+                    style={{
+                      backgroundColor: PRIMARY_BROWN,
+                      color: '#FFFFFF',
+                      boxShadow: '0 4px 14px rgba(84, 60, 48, 0.3)',
+                    }}
+                    className="w-full sm:w-auto px-8 py-3 rounded-full font-bold text-sm transition-opacity hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isAr
+                      ? `متابعة إلى التفاصيل${selectedServices.length > 0 ? ` (${selectedServices.length})` : ''} ‹`
+                      : `Continue to Details${selectedServices.length > 0 ? ` (${selectedServices.length})` : ''} ›`}
+                  </button>
+                </div>
               </div>
             )}
           </section>
@@ -1852,8 +2057,10 @@ export default function GiftVoucherPage() {
         {/* ==================================================================== */}
         {currentPhase === 'details' && selectedService && (
           <section className="space-y-6">
-            {/* Service Highlight Card */}
-            <div
+            {/* Service Highlight Card (one per selected service) */}
+            {selectedServices.map((svc) => (
+            <React.Fragment key={svc.id}>
+                        <div
               style={{
                 backgroundColor: CARD_BG,
                 borderColor: BORDER_COLOR,
@@ -1873,10 +2080,10 @@ export default function GiftVoucherPage() {
 
               {/* Top Service Summary Section */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                {selectedService.primary_image ? (
+                {svc.primary_image ? (
                   <img
-                    src={selectedService.primary_image}
-                    alt={(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
+                    src={svc.primary_image}
+                    alt={(isAr ? svc.name_ar : svc.name_en) || svc.name}
                     className="w-full sm:w-28 sm:h-28 h-40 rounded-xl object-cover flex-shrink-0"
                   />
                 ) : (
@@ -1895,16 +2102,16 @@ export default function GiftVoucherPage() {
                     style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
                     className="text-lg sm:text-xl font-bold text-[#1A1A1A] my-1"
                   >
-                    {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
+                    {(isAr ? svc.name_ar : svc.name_en) || svc.name}
                   </h3>
                   <div className="flex items-center gap-3 mt-2 text-xs font-semibold">
                     <span className="flex items-center gap-1">
                       <ClockIcon className="w-3.5 h-3.5 text-[#A37854]" />
-                      {selectedService.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
+                      {svc.duration_minutes || 60} {isAr ? 'دقيقة' : 'mins'}
                     </span>
                     <span>•</span>
                     <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm">
-                      {serviceBasePrice.toFixed(decimals)} {currency}
+                      {servicePriceFor(svc).toFixed(decimals)} {currency}
                     </span>
                   </div>
                 </div>
@@ -1919,17 +2126,17 @@ export default function GiftVoucherPage() {
                       {isAr ? 'وصف الخدمة' : 'Description'}
                     </span>
                     <p style={{ color: TEXT_SEC }} className="text-xs sm:text-sm leading-relaxed whitespace-pre-line">
-                      {(isAr ? selectedService.description_ar : selectedService.description_en) ||
-                        selectedService.description ||
+                      {(isAr ? svc.description_ar : svc.description_en) ||
+                        svc.description ||
                         (isAr ? 'جلسة علاجية مميزة وفاخرة مقدمة من يو إس إتش سبا.' : 'Signature therapeutic spa treatment by USH Spa.')}
                     </p>
                   </div>
 
                   {/* Customer Benefits Section */}
-                  {(selectedService.benefits ||
-                    selectedService.customer_benefits ||
-                    selectedService.benefits_ar ||
-                    selectedService.benefits_en) && (
+                  {(svc.benefits ||
+                    svc.customer_benefits ||
+                    svc.benefits_ar ||
+                    svc.benefits_en) && (
                     <div
                       style={{
                         backgroundColor: '#F5ECE3',
@@ -1946,17 +2153,17 @@ export default function GiftVoucherPage() {
                       <ServiceBenefitsList
                         rawBenefits={
                           isAr
-                            ? selectedService.benefits_ar || selectedService.benefits || selectedService.customer_benefits
-                            : selectedService.benefits_en || selectedService.benefits || selectedService.customer_benefits
+                            ? svc.benefits_ar || svc.benefits || svc.customer_benefits
+                            : svc.benefits_en || svc.benefits || svc.customer_benefits
                         }
                       />
                     </div>
                   )}
 
                   {/* Session Benefits Section */}
-                  {(selectedService.session_benefits ||
-                    selectedService.session_benefits_ar ||
-                    selectedService.session_benefits_en) && (
+                  {(svc.session_benefits ||
+                    svc.session_benefits_ar ||
+                    svc.session_benefits_en) && (
                     <div
                       style={{
                         backgroundColor: 'rgba(163, 120, 84, 0.08)',
@@ -1973,8 +2180,8 @@ export default function GiftVoucherPage() {
                       <ServiceBenefitsList
                         rawBenefits={
                           isAr
-                            ? selectedService.session_benefits_ar || selectedService.session_benefits
-                            : selectedService.session_benefits_en || selectedService.session_benefits
+                            ? svc.session_benefits_ar || svc.session_benefits
+                            : svc.session_benefits_en || svc.session_benefits
                         }
                       />
                     </div>
@@ -2020,6 +2227,8 @@ export default function GiftVoucherPage() {
                 </button>
               </div>
             </div>
+            </React.Fragment>
+            ))}
 
             {/* Branch Selection */}
             <div
@@ -2043,7 +2252,7 @@ export default function GiftVoucherPage() {
                       type="button"
                       onClick={() => {
                         setSelectedBranch(b);
-                        loadArrangements(String(selectedService.id), b.branch_id || b.id);
+                        loadArrangements(selectedServices, b.branch_id || b.id);
                       }}
                       style={{
                         backgroundColor: isSelected ? CARD_SELECTED_BG : '#FFFFFF',
@@ -2072,7 +2281,8 @@ export default function GiftVoucherPage() {
               </div>
             </div>
 
-            {/* Room / Arrangement Selection */}
+            {/* Room / Arrangement Selection — skipped for packages that have no room assigned */}
+            {!(selectedServices.length > 0 && selectedServices.every((svc) => svc.is_packaged_services) && !isLoadingArrangements && arrangements.length === 0) && (
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
               className="rounded-2xl border p-5 space-y-3"
@@ -2130,7 +2340,7 @@ export default function GiftVoucherPage() {
                         </div>
                         <div className="text-end flex-shrink-0">
                           <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm block">
-                            {parseFloat(arr.effective_price || '0').toFixed(decimals)} {currency}
+                            {arrangementTotal(arr).toFixed(decimals)} {currency}
                           </span>
                           <span style={{ color: TEXT_SEC }} className="text-[10px]">
                             {isAr ? 'شامل الغرفة' : 'Suite rate'}
@@ -2142,9 +2352,34 @@ export default function GiftVoucherPage() {
                 </div>
               )}
             </div>
+            )}
 
+            {selectedServices.map((svc) => (
+            <React.Fragment key={svc.id}>
+            {/* Included services (packages) */}
+            {svc.is_packaged_services && (svc.included_services ?? []).length > 0 && (
+              <div
+                style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+                className="rounded-2xl border p-5 space-y-3"
+              >
+                <h4 className="font-extrabold text-sm tracking-wider uppercase text-[#543C30]">
+                  {isAr ? 'الخدمات المتضمنة في الباقة' : 'SERVICES INCLUDED'}
+                  {selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
+                </h4>
+                <ul className="space-y-1.5">
+                  {(svc.included_services ?? []).map((inc) => (
+                    <li key={inc.id} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-semibold text-[#1A1A1A]">{inc.name}</span>
+                      {inc.duration_minutes ? (
+                        <span style={{ color: TEXT_SEC }}>{inc.duration_minutes} {isAr ? 'دقيقة' : 'min'}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {/* Optional Luxury Add-ons */}
-            {!selectedService.is_packaged_services && availableAddons.length > 0 && (
+            {!svc.is_packaged_services && (addonsBySvc[String(svc.id)] || []).length > 0 && (
               <div
                 style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
                 className="rounded-2xl border p-5 space-y-4"
@@ -2152,20 +2387,20 @@ export default function GiftVoucherPage() {
                 <div className="flex items-center gap-2">
                   <CubeIcon className="w-5 h-5 text-[#543C30] shrink-0" />
                   <h4 className="font-extrabold text-sm tracking-wider uppercase text-[#543C30]">
-                    {isAr ? 'إضافات (اختيارية)' : 'ADD-ONS (OPTIONAL)'}
+                    {isAr ? 'إضافات (اختيارية)' : 'ADD-ONS (OPTIONAL)'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
                   </h4>
                 </div>
 
                 <div className="space-y-3">
-                  {availableAddons.map((addon) => {
-                    const isChecked = selectedAddonIds.includes(addon.id);
+                  {(addonsBySvc[String(svc.id)] || []).map((addon) => {
+                    const isChecked = (addonIdsBySvc[String(svc.id)] || []).includes(addon.id);
                     const addName = (isAr ? addon.name_ar : addon.name_en) || addon.name;
                     const addDesc = getAddonDescription(addon, isAr);
 
                     return (
                       <div
                         key={addon.id}
-                        onClick={() => toggleAddon(addon.id)}
+                        onClick={() => toggleAddon(String(svc.id), addon.id)}
                         style={{
                           backgroundColor: isChecked ? CARD_SELECTED_BG : '#FFFFFF',
                           borderColor: isChecked ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.25)',
@@ -2224,27 +2459,27 @@ export default function GiftVoucherPage() {
             )}
 
             {/* Extra Time Selection */}
-            {hasExtraTime && (
+            {hasExtraTimeFor(svc) && (
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
               className="rounded-2xl border p-5 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-base text-[#1A1A1A]">
-                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}
+                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
                 </h4>
                 <span style={{ color: TEXT_SEC }} className="text-xs">
-                  {extraMinutesRate.toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
+                  {extraRateFor(svc).toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[0, 30, 60].map((mins) => {
-                  const isSelected = selectedExtraMinutes === mins;
+                  const isSelected = extraMinsFor(String(svc.id)) === mins;
                   return (
                     <button
                       key={mins}
                       type="button"
-                      onClick={() => setSelectedExtraMinutes(mins)}
+                      onClick={() => setExtraMins(String(svc.id), mins)}
                       style={{
                         backgroundColor: isSelected ? PRIMARY_BROWN : '#FFFFFF',
                         borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
@@ -2259,6 +2494,8 @@ export default function GiftVoucherPage() {
               </div>
             </div>
             )}
+            </React.Fragment>
+            ))}
 
             {/* Sticky/Bottom Cost Bar */}
             <div
@@ -2280,12 +2517,17 @@ export default function GiftVoucherPage() {
               <button
                 type="button"
                 onClick={() => setCurrentPhase('summary')}
+                disabled={
+                  selectedServices.length > 1 &&
+                  !selectedArrangement &&
+                  !(selectedServices.every((svc) => svc.is_packaged_services) && arrangements.length === 0)
+                }
                 style={{
                   backgroundColor: PRIMARY_BROWN,
                   color: '#FFFFFF',
                   boxShadow: '0 4px 14px rgba(84, 60, 48, 0.3)',
                 }}
-                className="w-full sm:w-auto px-8 py-3 rounded-full font-bold text-sm transition-opacity hover:opacity-95"
+                className="w-full sm:w-auto px-8 py-3 rounded-full font-bold text-sm transition-opacity hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isAr ? 'متابعة إلى ملخص الهدية ‹' : 'Continue to Summary ›'}
               </button>
@@ -2355,73 +2597,79 @@ export default function GiftVoucherPage() {
                 </div>
               )}
 
-              {/* Service Row */}
-              {selectedService && (
-                <div className="flex items-center justify-between gap-3 text-sm py-2.5 border-b border-stone-200/60">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {selectedService.primary_image ? (
-                      <img
-                        src={selectedService.primary_image}
-                        alt={selectedService.name}
-                        className="w-14 h-14 rounded-xl object-cover border border-[#A37854]/25 bg-stone-100 flex-shrink-0 shadow-xs"
-                      />
-                    ) : (
-                      <div
-                        style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)' }}
-                        className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                      >
-                        ✨
+              {/* Service Rows (one per selected service, each with its own add-ons & extra time) */}
+              {selectedServices.map((svc) => {
+                const svcArrangement = arrangementFor(svc);
+                const svcAddons = chosenAddonsFor(svc);
+                const svcExtraMins = extraMinsFor(String(svc.id));
+                return (
+                  <React.Fragment key={svc.id}>
+                    {/* Service Row */}
+                    <div className="flex items-center justify-between gap-3 text-sm py-2.5 border-b border-stone-200/60">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {svc.primary_image ? (
+                          <img
+                            src={svc.primary_image}
+                            alt={svc.name}
+                            className="w-14 h-14 rounded-xl object-cover border border-[#A37854]/25 bg-stone-100 flex-shrink-0 shadow-xs"
+                          />
+                        ) : (
+                          <div
+                            style={{ backgroundColor: 'rgba(163, 120, 84, 0.12)' }}
+                            className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+                          >
+                            ✨
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="font-bold text-[#1A1A1A] block truncate text-sm">
+                            {(isAr ? svc.name_ar : svc.name_en) || svc.name}
+                          </span>
+                          <span style={{ color: TEXT_SEC }} className="text-xs block truncate">
+                            {selectedBranch ? ((isAr ? selectedBranch.name_ar : selectedBranch.name_en) || selectedBranch.name) : ''}
+                            {svcArrangement ? ` • ${((isAr ? svcArrangement.name_ar : svcArrangement.name_en) || svcArrangement.name)}` : ''}
+                            {svc.duration_minutes ? ` • ${svc.duration_minutes} ${isAr ? 'دقيقة' : 'mins'}` : ''}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <span className="font-bold text-[#1A1A1A] block truncate text-sm">
-                        {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
-                      </span>
-                      <span style={{ color: TEXT_SEC }} className="text-xs block truncate">
-                        {selectedBranch ? ((isAr ? selectedBranch.name_ar : selectedBranch.name_en) || selectedBranch.name) : ''}
-                        {selectedArrangement ? ` • ${((isAr ? selectedArrangement.name_ar : selectedArrangement.name_en) || selectedArrangement.name)}` : ''}
-                        {selectedService.duration_minutes ? ` • ${selectedService.duration_minutes} ${isAr ? 'دقيقة' : 'mins'}` : ''}
+                      <span className="font-bold text-[#543C30] flex-shrink-0 text-sm">
+                        {servicePriceFor(svc).toFixed(decimals)} {currency}
                       </span>
                     </div>
-                  </div>
-                  <span className="font-bold text-[#543C30] flex-shrink-0 text-sm">
-                    {serviceBasePrice.toFixed(decimals)} {currency}
-                  </span>
-                </div>
-              )}
 
-              {/* Selected Add-ons */}
-              {selectedAddonIds.length > 0 && (
-                <div className="py-1 border-b border-stone-200/60 space-y-1">
-                  <span style={{ color: TEXT_SEC }} className="text-xs font-bold block">
-                    {isAr ? 'الإضافات المختارة:' : 'Selected Add-ons:'}
-                  </span>
-                  {availableAddons
-                    .filter((a) => selectedAddonIds.includes(a.id))
-                    .map((a) => (
-                      <div key={a.id} className="flex items-center justify-between text-xs py-0.5">
+                    {/* Selected Add-ons */}
+                    {svcAddons.length > 0 && (
+                      <div className="py-1 border-b border-stone-200/60 space-y-1">
+                        <span style={{ color: TEXT_SEC }} className="text-xs font-bold block">
+                          {isAr ? 'الإضافات المختارة:' : 'Selected Add-ons:'}
+                        </span>
+                        {svcAddons.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between text-xs py-0.5">
+                            <span className="text-stone-700">
+                              + {(isAr ? a.name_ar : a.name_en) || a.name}
+                            </span>
+                            <span className="font-semibold text-[#543C30]">
+                              +{parseFloat(a.price).toFixed(decimals)} {currency}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Extra Minutes */}
+                    {svcExtraMins > 0 && (
+                      <div className="flex items-center justify-between text-xs py-1 border-b border-stone-200/60">
                         <span className="text-stone-700">
-                          + {(isAr ? a.name_ar : a.name_en) || a.name}
+                          {isAr ? `وقت إضافي (+${svcExtraMins} دقيقة)` : `Extra Time (+${svcExtraMins} mins)`}
                         </span>
                         <span className="font-semibold text-[#543C30]">
-                          +{parseFloat(a.price).toFixed(decimals)} {currency}
+                          +{extraTimePriceFor(svc).toFixed(decimals)} {currency}
                         </span>
                       </div>
-                    ))}
-                </div>
-              )}
-
-              {/* Extra Minutes */}
-              {selectedExtraMinutes > 0 && (
-                <div className="flex items-center justify-between text-xs py-1 border-b border-stone-200/60">
-                  <span className="text-stone-700">
-                    {isAr ? `وقت إضافي (+${selectedExtraMinutes} دقيقة)` : `Extra Time (+${selectedExtraMinutes} mins)`}
-                  </span>
-                  <span className="font-semibold text-[#543C30]">
-                    +{extraTimePrice.toFixed(decimals)} {currency}
-                  </span>
-                </div>
-              )}
+                    )}
+                  </React.Fragment>
+                );
+              })}
 
               {/* Total Calculation Row */}
               <div className="flex items-center justify-between pt-2">
@@ -3123,11 +3371,15 @@ export default function GiftVoucherPage() {
                   </span>
                 </div>
 
-                {selectedService && (
-                  <div className="flex items-center justify-between border-b pb-2 border-stone-200">
+                {selectedServices.length > 0 && (
+                  <div className={`flex ${selectedServices.length > 1 ? 'items-start' : 'items-center'} justify-between gap-3 border-b pb-2 border-stone-200`}>
                     <span style={{ color: TEXT_SEC }}>{isAr ? 'الباقة أو الخدمة:' : 'Spa Experience:'}</span>
-                    <span className="font-bold text-[#543C30]">
-                      {(isAr ? selectedService.name_ar : selectedService.name_en) || selectedService.name}
+                    <span className="font-bold text-[#543C30] text-end">
+                      {selectedServices.map((svc) => (
+                        <span key={svc.id} className="block">
+                          {(isAr ? svc.name_ar : svc.name_en) || svc.name}
+                        </span>
+                      ))}
                     </span>
                   </div>
                 )}
@@ -3225,10 +3477,13 @@ export default function GiftVoucherPage() {
                 onClick={() => {
                   setCurrentPhase('category');
                   setSelectedProduct(null);
-                  setSelectedService(null);
+                  setSelectedServices([]);
                   setSelectedArrangement(null);
-                  setSelectedAddonIds([]);
-                  setSelectedExtraMinutes(0);
+                  setArrangements([]);
+                  setArrangementsBySvc({});
+                  setAddonsBySvc({});
+                  setAddonIdsBySvc({});
+                  setExtraMinsBySvc({});
                   setRecipientName('');
                   setRecipientPhone('');
                   setGiftMessage('');
@@ -3476,7 +3731,7 @@ export default function GiftVoucherPage() {
                   onClick={() => {
                     const s = detailService;
                     setDetailService(null);
-                    handleSelectService(s);
+                    toggleServiceSelection(s);
                   }}
                   style={{
                     backgroundColor: PRIMARY_BROWN,
@@ -3485,7 +3740,11 @@ export default function GiftVoucherPage() {
                   className="w-full py-3.5 rounded-full font-bold text-sm transition-opacity hover:opacity-95 shadow-md flex items-center justify-center gap-2"
                 >
                   <CheckIcon className="w-4 h-4 stroke-[3]" />
-                  <span>{isAr ? 'اختيار هذه الخدمة والمتابعة' : 'Select This Treatment & Continue'}</span>
+                  <span>
+                    {selectedServices.some((x) => x.id === detailService.id)
+                      ? (isAr ? 'إزالة من الاختيار' : 'Remove From Selection')
+                      : (isAr ? 'إضافة هذه الخدمة' : 'Add This Treatment')}
+                  </span>
                 </button>
               ) : (
                 <button

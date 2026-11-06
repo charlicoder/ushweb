@@ -61,6 +61,7 @@ export interface ServiceItem {
   is_home_service_eligible?: boolean;
   is_featured?: boolean;
   is_packaged_services?: boolean;
+  included_services?: { id: string; name: string; duration_minutes?: number }[];
   branches?: ServiceBranch[];
   addons?: ServiceAddon[];
   sort_order?: number;
@@ -714,6 +715,31 @@ export default function ServicesClient() {
                       : 'An authentic luxury spa journey designed to promote wellness, tranquility, and vital renewal in our private suites.')}
                 </div>
               </div>
+
+              {/* Included services (packages) */}
+              {selectedService.is_packaged_services && (selectedService.included_services ?? []).length > 0 && (
+                <div>
+                  <h4 className="font-lustria text-sm font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <TagIcon className="w-4 h-4 text-[#A37854]" />
+                    <span>{isAr ? 'الخدمات المتضمنة في الباقة' : 'Services included in this package'}</span>
+                  </h4>
+                  <div className="space-y-2">
+                    {(selectedService.included_services ?? []).map((inc) => (
+                      <div
+                        key={inc.id}
+                        className="p-3 rounded-xl bg-white dark:bg-[#201814] border border-border/40 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="font-bold text-foreground">{inc.name}</div>
+                        {inc.duration_minutes ? (
+                          <div className="text-[10px] text-spa-muted shrink-0">
+                            {inc.duration_minutes} {isAr ? 'دقيقة' : 'min'}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Available Branches */}
               {selectedService.branches && selectedService.branches.length > 0 && (

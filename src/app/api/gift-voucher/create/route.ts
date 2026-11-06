@@ -49,6 +49,13 @@ export async function POST(request: NextRequest) {
         body.service_arrangement_data && typeof body.service_arrangement_data === 'object'
           ? body.service_arrangement_data
           : {},
+      ...(Array.isArray(body.services) && body.services.length > 0
+        ? {
+            services: body.services.filter(
+              (s: unknown) => s && typeof s === 'object' && !Array.isArray(s)
+            ),
+          }
+        : {}),
       addons: Array.isArray(body.addons) ? body.addons : [],
       ordered_items: Array.isArray(body.ordered_items) ? body.ordered_items : null,
       extra_time: Number(body.extra_time) || 0,

@@ -88,12 +88,22 @@ interface DigitalProductData {
   [key: string]: unknown;
 }
 
+/* One entry of a (possibly multi-service) voucher: add-ons and extra time are per service */
+interface VoucherServiceEntry {
+  service_id?: string;
+  service_data: ServiceData;
+  addons?: Addon[];
+  extra_time?: number;
+  price_for_extra_time?: string | null;
+}
+
 interface GiftVoucher {
   id: string;
   voucher_number?: string;
   gift_category: 'service' | 'digital' | 'physical' | string;
   gift_from?: string | null;
   service_data?: ServiceData;
+  services?: VoucherServiceEntry[];
   branch_data?: BranchData;
   service_arrangement_data?: ServiceArrangementData;
   addons?: Addon[];
@@ -122,6 +132,23 @@ interface GiftVoucher {
   delivery_address?: DeliveryAddress;
   /* Digital-specific */
   digital_product_data?: DigitalProductData | null;
+}
+
+/* All services of a voucher: `services` first, falling back to the legacy single-service fields */
+function getVoucherServices(v: GiftVoucher): VoucherServiceEntry[] {
+  if (Array.isArray(v.services) && v.services.length > 0) {
+    return v.services.filter((e) => e && e.service_data);
+  }
+  if (v.service_data) {
+    return [{
+      service_id: v.service_data.id,
+      service_data: v.service_data,
+      addons: v.addons,
+      extra_time: v.extra_time,
+      price_for_extra_time: v.price_for_extra_time,
+    }];
+  }
+  return [];
 }
 
 /* ─────────────────────────────── Types & Helpers ────────────────────── */
@@ -1453,7 +1480,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
   const voucherNum = getVoucherNumber(v);
 
   const hasProducts = Boolean(v.ordered_items && v.ordered_items.length > 0);
-  const hasService = Boolean(v.service_data);
+  const hasService = getVoucherServices(v).length > 0;
   const sdDuration = v.service_data?.duration ?? v.service_data?.duration_minutes ?? 0;
 
   return (
@@ -1695,7 +1722,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
               )}
 
               {/* Service Details (Service name, image, addons, extra minutes) */}
-              {hasService && v.service_data && (
+              {hasService && (
                 <div style={{ padding: '14px 0' }}>
                   {hasProducts && (
                     <div style={{
@@ -1707,11 +1734,18 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                     </div>
                   )}
 
+                  {getVoucherServices(v).map((svc, svcIdx) => {
+                    const sd = svc.service_data;
+                    const svcAddons = svc.addons;
+                    const svcExtra = svc.extra_time;
+                    const sdDur = sd.duration ?? sd.duration_minutes ?? 0;
+                    return (
+                  <div key={svc.service_id ?? svcIdx} style={svcIdx > 0 ? { marginTop: 18, paddingTop: 16, borderTop: '1px solid #EBE5DE' } : undefined}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                    {(v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image) ? (
+                    {(sd.image1 || sd.image || v.service_arrangement_data?.image) ? (
                       <img
-                        src={v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image || ''}
-                        alt={(isAr && v.service_data.name_ar) ? v.service_data.name_ar : v.service_data.name}
+                        src={sd.image1 || sd.image || v.service_arrangement_data?.image || ''}
+                        alt={(isAr && sd.name_ar) ? sd.name_ar : sd.name}
                         style={{
                           width: 68, height: 68, borderRadius: 16,
                           objectFit: 'cover', flexShrink: 0,
@@ -1735,11 +1769,11 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                         fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
                         color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3,
                       }}>
-                        {(isAr && v.service_data.name_ar) ? v.service_data.name_ar : v.service_data.name}
+                        {(isAr && sd.name_ar) ? sd.name_ar : sd.name}
                       </div>
-                      {sdDuration > 0 && (
+                      {sdDur > 0 && (
                         <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 4 }}>
-                          ⏱ {fmtDuration(sdDuration, lang)}
+                          ⏱ {fmtDuration(sdDur, lang)}
                         </div>
                       )}
                       {v.branch_data && (
@@ -1751,7 +1785,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                   </div>
 
                   {/* Add-ons */}
-                  {v.addons && v.addons.length > 0 && (
+                  {svcAddons && svcAddons.length > 0 && (
                     <div style={{
                       marginTop: 14, paddingTop: 12,
                       borderTop: '1px dashed #EBE5DE',
@@ -1764,7 +1798,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                         {isAr ? '✨ الإضافات المشمولة' : '✨ Included Add-ons'}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {v.addons.map((a, i) => (
+                        {svcAddons.map((a, i) => (
                           <div key={a.addon_id ?? a.id ?? i} style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             padding: '7px 12px', background: '#EBE5DE', borderRadius: 10,
@@ -1784,7 +1818,7 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                   )}
 
                   {/* Extra minutes */}
-                  {Boolean(v.extra_time) && (
+                  {Boolean(svcExtra) && (
                     <div style={{
                       marginTop: 12,
                       display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -1793,10 +1827,13 @@ function PhysicalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang
                     }}>
                       <span style={{ fontSize: 16 }}>⏰</span>
                       <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4E2712', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(v.extra_time!, lang)}` : `Bonus Extra Time: +${fmtDuration(v.extra_time!)}`}
+                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(svcExtra!, lang)}` : `Bonus Extra Time: +${fmtDuration(svcExtra!)}`}
                       </span>
                     </div>
                   )}
+                  </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1891,6 +1928,7 @@ function StatusBadge({ status, expired, lang = 'en' }: { status: string; expired
   const s = (status || '').toLowerCase();
   let label = isAr ? 'نشط' : 'Active', icon = '●';
   if (expired) { label = isAr ? 'منتهي' : 'Expired'; icon = '⚠'; }
+  else if (s === 'partially_redeemed') { label = isAr ? 'مستخدم جزئياً' : 'Partially Redeemed'; icon = '◐'; }
   else if (s === 'redeemed') { label = isAr ? 'مستخدم' : 'Redeemed'; icon = '✓'; }
   else if (s === 'cancelled' || s === 'inactive') { label = isAr ? 'ملغي' : 'Cancelled'; icon = '✕'; }
 
@@ -2558,7 +2596,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
   const senderName = getSenderDisplayName(v);
 
   const hasProducts = Boolean(v.ordered_items && v.ordered_items.length > 0);
-  const hasService = Boolean(v.service_data);
+  const hasService = getVoucherServices(v).length > 0;
   const sdDuration = v.service_data?.duration ?? v.service_data?.duration_minutes ?? 0;
   const videoUrl = v.digital_product_data?.video_url;
 
@@ -2838,7 +2876,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
               )}
 
               {/* Service Details (Service name, image, addons, extra minutes) */}
-              {hasService && v.service_data && (
+              {hasService && (
                 <div style={{ padding: '14px 0' }}>
                   {hasProducts && (
                     <div style={{
@@ -2850,11 +2888,18 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                     </div>
                   )}
 
+                  {getVoucherServices(v).map((svc, svcIdx) => {
+                    const sd = svc.service_data;
+                    const svcAddons = svc.addons;
+                    const svcExtra = svc.extra_time;
+                    const sdDur = sd.duration ?? sd.duration_minutes ?? 0;
+                    return (
+                  <div key={svc.service_id ?? svcIdx} style={svcIdx > 0 ? { marginTop: 18, paddingTop: 16, borderTop: '1px solid #EBE5DE' } : undefined}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                    {(v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image) ? (
+                    {(sd.image1 || sd.image || v.service_arrangement_data?.image) ? (
                       <img
-                        src={v.service_data.image1 || v.service_data.image || v.service_arrangement_data?.image || ''}
-                        alt={v.service_data.name}
+                        src={sd.image1 || sd.image || v.service_arrangement_data?.image || ''}
+                        alt={sd.name}
                         style={{
                           width: 68, height: 68, borderRadius: 16,
                           objectFit: 'cover', flexShrink: 0,
@@ -2878,11 +2923,11 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                         fontFamily: isAr ? "'Cairo', sans-serif" : "'Lustria', serif", fontWeight: 700,
                         color: '#4E2712', fontSize: '1.05rem', lineHeight: 1.3,
                       }}>
-                        {v.service_data.name}
+                        {sd.name}
                       </div>
-                      {sdDuration > 0 && (
+                      {sdDur > 0 && (
                         <div style={{ fontSize: '0.82rem', color: '#4E2712', opacity: 0.7, marginTop: 4, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                          ⏱ {fmtDuration(sdDuration, lang)}
+                          ⏱ {fmtDuration(sdDur, lang)}
                         </div>
                       )}
                       {v.branch_data && (
@@ -2894,7 +2939,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                   </div>
 
                   {/* Add-ons */}
-                  {v.addons && v.addons.length > 0 && (
+                  {svcAddons && svcAddons.length > 0 && (
                     <div style={{
                       marginTop: 14, paddingTop: 12,
                       borderTop: '1px dashed #EBE5DE',
@@ -2907,7 +2952,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                         {isAr ? '✨ الإضافات المشمولة' : '✨ Included Add-ons'}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {v.addons.map((a, i) => (
+                        {svcAddons.map((a, i) => (
                           <div key={a.addon_id ?? a.id ?? i} style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             padding: '7px 12px', background: '#EBE5DE', borderRadius: 10,
@@ -2927,7 +2972,7 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                   )}
 
                   {/* Extra minutes */}
-                  {Boolean(v.extra_time) && (
+                  {Boolean(svcExtra) && (
                     <div style={{
                       marginTop: 12,
                       display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -2936,10 +2981,13 @@ function DigitalGiftDisplay({ v, lang = 'en', setLang }: { v: GiftVoucher; lang?
                     }}>
                       <span style={{ fontSize: 16 }}>⏰</span>
                       <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#4E2712', fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(v.extra_time!, lang)}` : `Bonus Extra Time: +${fmtDuration(v.extra_time!, lang)}`}
+                        {isAr ? `وقت إضافي مجاني: +${fmtDuration(svcExtra!, lang)}` : `Bonus Extra Time: +${fmtDuration(svcExtra!, lang)}`}
                       </span>
                     </div>
                   )}
+                  </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
