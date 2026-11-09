@@ -109,44 +109,67 @@ export async function GET(request: NextRequest) {
 
     const { apiUrl, apiKey } = getMyFatoorahConfig();
 
-    try {
-      const res = await fetch(`${apiUrl}/v2/InitiatePayment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          InvoiceAmount: amount,
-          CurrencyIso: currency,
-        }),
-        cache: 'no-store',
-      });
+    // Try up to 2 times (transient network / gateway hiccups), with a timeout.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch(`${apiUrl}/v2/InitiatePayment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            InvoiceAmount: amount,
+            CurrencyIso: currency,
+          }),
+          cache: 'no-store',
+          signal: AbortSignal.timeout(15000),
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.IsSuccess && Array.isArray(data?.Data?.PaymentMethods)) {
+        const data = await res.json().catch(() => null);
+        if (res.ok && data?.IsSuccess && Array.isArray(data?.Data?.PaymentMethods)) {
           const filtered = filterAllowedPaymentMethods(data.Data.PaymentMethods);
-          return NextResponse.json({
-            success: true,
-            data: {
-              payment_methods: filtered,
-            },
-          });
+          if (filtered.length > 0) {
+            return NextResponse.json({
+              success: true,
+              data: {
+                payment_methods: filtered,
+              },
+            });
+          }
+          console.warn('[myfatoorah-initiate] No KNET/Apple Pay in response:', data.Data.PaymentMethods);
+          break;
         }
+        console.warn(
+          `[myfatoorah-initiate] Attempt ${attempt} failed: HTTP ${res.status}`,
+          data?.Message || data?.ValidationErrors || ''
+        );
+      } catch (apiErr) {
+        console.warn(`[myfatoorah-initiate] Attempt ${attempt} upstream error:`, apiErr);
       }
-    } catch (apiErr) {
-      console.warn('[myfatoorah-initiate] Upstream initiate error:', apiErr);
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        data: { payment_methods: [] },
-        error: { message: 'Unable to load payment methods. Please contact support.' },
+    // Fallback: keep checkout usable with KNET (PaymentMethodId 1). ExecutePayment
+    // still validates the method with MyFatoorah.
+    return NextResponse.json({
+      success: true,
+      data: {
+        payment_methods: [
+          {
+            PaymentMethodId: 1,
+            PaymentMethodEn: 'KNET',
+            PaymentMethodAr: 'كي نت',
+            PaymentMethodCode: 'kn',
+            ImageUrl: 'https://demo.myfatoorah.com/imgs/payment-methods/kn.png',
+            IsDirectPayment: false,
+            ServiceCharge: 0,
+            TotalAmount: amount,
+            CurrencyIso: currency,
+          },
+        ],
+        fallback: true,
       },
-      { status: 502 }
-    );
+    });
   } catch (err) {
     console.error('[myfatoorah-initiate] Unexpected error:', err);
     return NextResponse.json(

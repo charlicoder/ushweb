@@ -175,6 +175,7 @@ interface Service {
   session_benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
   is_packaged_services?: boolean;
   included_services?: { id: string; name: string; duration_minutes?: number }[];
+  included_addons?: { id: string; name: string; duration_minutes?: number }[];
 }
 
 interface GeneratedVoucher {
@@ -431,8 +432,55 @@ function getAddonDescription(addon: Addon, isAr: boolean): string {
   return '';
 }
 
+// ─── Employee referral (affiliate) link support ───────────────────────────────
+// Link format: https://<site>/gift-voucher?ref=1234  (4-digit employee referral number)
+const REFERRAL_STORAGE_KEY = 'ush_gift_ref';
+const REFERRAL_TTL_MS = 7 * 24 * 60 * 60 * 1000; // attribution window: 7 days
+
+function captureReferralCodeFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const ref = new URLSearchParams(window.location.search).get('ref')?.trim() || '';
+    if (/^\d{4}$/.test(ref)) {
+      localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify({ code: ref, at: Date.now() }));
+    }
+  } catch {
+    // storage unavailable — referral simply isn't tracked
+  }
+}
+
+function getStoredReferralCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(REFERRAL_STORAGE_KEY);
+    if (!raw) return null;
+    const { code, at } = JSON.parse(raw) as { code?: string; at?: number };
+    if (!code || !/^\d{4}$/.test(code) || !at || Date.now() - at > REFERRAL_TTL_MS) {
+      localStorage.removeItem(REFERRAL_STORAGE_KEY);
+      return null;
+    }
+    return code;
+  } catch {
+    return null;
+  }
+}
+
+function clearStoredReferralCode(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(REFERRAL_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export default function GiftVoucherPage() {
   const { lang, isAr, isDark } = useApp();
+
+  // Capture the employee affiliate code from /gift-voucher?ref=NNNN (last link wins)
+  useEffect(() => {
+    captureReferralCodeFromUrl();
+  }, []);
 
   // Navigation / Phase
   // phases: 'category' | 'products' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
@@ -490,12 +538,17 @@ export default function GiftVoucherPage() {
   // Arrangements & Details State
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [arrangements, setArrangements] = useState<Arrangement[]>([]);
-  const [selectedArrangement, setSelectedArrangement] = useState<Arrangement | null>(null);
-  // Per-service state (keyed by service id): arrangements, available/selected add-ons, extra time
+  // Room chosen for EACH selected service (keyed by service id)
+  const [chosenArrBySvc, setChosenArrBySvc] = useState<Record<string, Arrangement | null>>({});
+  // The first service's room stays the voucher-level arrangement (backward compatible)
+  const selectedArrangement: Arrangement | null = selectedServices[0]
+    ? chosenArrBySvc[String(selectedServices[0].id)] ?? null
+    : null;
+  // Per-service state (keyed by service id): arrangements, available add-ons, extra time
   const [arrangementsBySvc, setArrangementsBySvc] = useState<Record<string, Arrangement[]>>({});
   const [addonsBySvc, setAddonsBySvc] = useState<Record<string, Addon[]>>({});
-  const [addonIdsBySvc, setAddonIdsBySvc] = useState<Record<string, string[]>>({});
+  // Add-ons are chosen ONCE for the whole voucher (shown at the end)
+  const [selectedAddonIds, setSelectedAddonIds] = useState<string[]>([]);
   const [extraMinsBySvc, setExtraMinsBySvc] = useState<Record<string, number>>({});
   const [isLoadingArrangements, setIsLoadingArrangements] = useState(false);
 
@@ -671,44 +724,29 @@ export default function GiftVoucherPage() {
       });
       setArrangementsBySvc(map);
 
-      const firstList = map[String(svcs[0].id)] || [];
-      const arrs =
-        svcs.length <= 1
-          ? firstList
-          : firstList.filter((a) =>
-              svcs.every((svc) =>
-                (map[String(svc.id)] || []).some((b) => arrangementKey(b) === arrangementKey(a))
-              )
-            );
-      setArrangements(arrs);
-
-      const isSinglePackaged = svcs.length === 1 && !!svcs[0].is_packaged_services;
-      const chosen = arrs.length > 0 ? arrs[0] : null;
-      if (!isSinglePackaged) {
-        setSelectedArrangement(chosen);
-      }
-
+      // Each service gets its own room: default to the first room type it offers.
+      // Packaged services keep "no room" until the guest picks one (as before).
+      const defaults: Record<string, Arrangement | null> = {};
       const nextAddons: Record<string, Addon[]> = {};
       svcs.forEach((svc) => {
         const id = String(svc.id);
+        const options = uniqueByType(map[id] || []);
+        const chosen = svc.is_packaged_services ? null : options[0] || null;
+        defaults[id] = chosen;
         if (svc.is_packaged_services) {
           nextAddons[id] = [];
           return;
         }
-        const match = chosen
-          ? (map[id] || []).find((a) => arrangementKey(a) === arrangementKey(chosen))
-          : undefined;
-        // Extract addons from the matching arrangement or fallback to service addons
+        // Extract addons from the chosen arrangement or fallback to service addons
         nextAddons[id] =
-          match?.addons && match.addons.length > 0 ? match.addons : svc.addons || svc.add_ons || [];
+          chosen?.addons && chosen.addons.length > 0 ? chosen.addons : svc.addons || svc.add_ons || [];
       });
+      setChosenArrBySvc(defaults);
       setAddonsBySvc(nextAddons);
-      setAddonIdsBySvc((prev) => {
-        const out: Record<string, string[]> = {};
-        Object.keys(nextAddons).forEach((id) => {
-          out[id] = (prev[id] || []).filter((aid) => nextAddons[id].some((a) => a.id === aid));
-        });
-        return out;
+      setSelectedAddonIds((prev) => {
+        const offered = new Set<string>();
+        Object.values(nextAddons).forEach((list) => list.forEach((a) => offered.add(a.id)));
+        return prev.filter((aid) => offered.has(aid));
       });
     } catch (err) {
       console.error('Error loading arrangements:', err);
@@ -727,23 +765,20 @@ export default function GiftVoucherPage() {
 
   const arrangementKey = (a: Arrangement) => String(a.arrangement_type || a.id);
 
-  // Arrangement matching the chosen room type for a given service
-  const arrangementFor = (svc: Service): Arrangement | null => {
-    if (!selectedArrangement) return null;
-    if (selectedServices.length <= 1) return selectedArrangement;
-    const key = arrangementKey(selectedArrangement);
-    return (arrangementsBySvc[String(svc.id)] || []).find((a) => arrangementKey(a) === key) || null;
+  // Several rooms of the same arrangement type are offered only once
+  const uniqueByType = (list: Arrangement[]): Arrangement[] => {
+    const seen = new Set<string>();
+    return list.filter((a) => {
+      const k = arrangementKey(a);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   };
 
-  // Total suite rate of an arrangement across all selected services
-  const arrangementTotal = (arr: Arrangement): number => {
-    if (selectedServices.length <= 1) return parseFloat(arr.effective_price || '0') || 0;
-    const key = arrangementKey(arr);
-    return selectedServices.reduce((sum, svc) => {
-      const m = (arrangementsBySvc[String(svc.id)] || []).find((a) => arrangementKey(a) === key);
-      return sum + (m ? parseFloat(m.effective_price || '0') || 0 : 0);
-    }, 0);
-  };
+  // Room chosen for a given service
+  const arrangementFor = (svc: Service): Arrangement | null =>
+    chosenArrBySvc[String(svc.id)] ?? null;
 
   const servicePriceFor = (svc: Service): number => {
     const arr = arrangementFor(svc);
@@ -751,9 +786,33 @@ export default function GiftVoucherPage() {
     return parseFloat(String(svc.current_price || svc.base_price || '0')) || 0;
   };
 
+  // Add-ons are offered ONCE for the whole voucher: the union of every service's add-ons
+  const allAddonOptions: Addon[] = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Addon[] = [];
+    selectedServices.forEach((svc) => {
+      if (svc.is_packaged_services) return;
+      (addonsBySvc[String(svc.id)] || []).forEach((a) => {
+        if (!seen.has(a.id)) {
+          seen.add(a.id);
+          out.push(a);
+        }
+      });
+    });
+    return out;
+  }, [selectedServices, addonsBySvc]);
+
+  // Each chosen add-on is attached to the first service that offers it, so it is never counted twice
   const chosenAddonsFor = (svc: Service): Addon[] => {
-    const ids = addonIdsBySvc[String(svc.id)] || [];
-    return (addonsBySvc[String(svc.id)] || []).filter((a) => ids.includes(a.id));
+    if (svc.is_packaged_services) return [];
+    const myId = String(svc.id);
+    return (addonsBySvc[myId] || []).filter((a) => {
+      if (!selectedAddonIds.includes(a.id)) return false;
+      const owner = selectedServices.find(
+        (s) => !s.is_packaged_services && (addonsBySvc[String(s.id)] || []).some((x) => x.id === a.id)
+      );
+      return !!owner && String(owner.id) === myId;
+    });
   };
 
   const addonsPriceFor = (svc: Service): number =>
@@ -923,40 +982,29 @@ export default function GiftVoucherPage() {
     setCurrentPhase('details');
   };
 
-  const handleArrangementChange = (arr: Arrangement) => {
-    setSelectedArrangement(arr);
-    const key = arrangementKey(arr);
-    const next: Record<string, Addon[]> = {};
-    selectedServices.forEach((svc) => {
-      const id = String(svc.id);
-      if (svc.is_packaged_services) {
-        next[id] = [];
-        return;
-      }
-      const match =
-        selectedServices.length <= 1
-          ? arr
-          : (arrangementsBySvc[id] || []).find((x) => arrangementKey(x) === key);
-      next[id] = match?.addons || [];
-    });
+  // Pick the room for ONE service; that service's add-on options follow its room
+  const handleArrangementChange = (svc: Service, arr: Arrangement) => {
+    const id = String(svc.id);
+    setChosenArrBySvc((prev) => ({ ...prev, [id]: arr }));
+    const next: Record<string, Addon[]> = {
+      ...addonsBySvc,
+      [id]: svc.is_packaged_services ? [] : arr.addons || [],
+    };
     setAddonsBySvc(next);
-    setAddonIdsBySvc((prev) => {
-      const out: Record<string, string[]> = {};
-      Object.keys(next).forEach((id) => {
-        out[id] = (prev[id] || []).filter((aid) => next[id].some((a) => a.id === aid));
+    setSelectedAddonIds((prev) => {
+      const offered = new Set<string>();
+      selectedServices.forEach((s) => {
+        if (s.is_packaged_services) return;
+        (next[String(s.id)] || []).forEach((a) => offered.add(a.id));
       });
-      return out;
+      return prev.filter((aid) => offered.has(aid));
     });
   };
 
-  const toggleAddon = (serviceId: string, addonId: string) => {
-    setAddonIdsBySvc((prev) => {
-      const cur = prev[serviceId] || [];
-      return {
-        ...prev,
-        [serviceId]: cur.includes(addonId) ? cur.filter((item) => item !== addonId) : [...cur, addonId],
-      };
-    });
+  const toggleAddon = (addonId: string) => {
+    setSelectedAddonIds((prev) =>
+      prev.includes(addonId) ? prev.filter((item) => item !== addonId) : [...prev, addonId]
+    );
   };
 
   const handleBackNavigation = () => {
@@ -1074,9 +1122,21 @@ export default function GiftVoucherPage() {
     });
     const servicesPayload = selectedServices.map((svc) => {
       const svcExtraMins = extraMinsFor(String(svc.id));
+      const svcArr = arrangementFor(svc);
       return {
         service_id: svc.id,
         service_data: buildServiceData(svc),
+        // Room chosen for THIS service
+        service_arrangement_id: svcArr?.id || null,
+        service_arrangement_data: svcArr
+          ? {
+              id: svcArr.id,
+              name: svcArr.name_en || svcArr.name,
+              name_ar: svcArr.name_ar || svcArr.name,
+              arrangement_type: svcArr.arrangement_type || null,
+              effective_price: servicePriceFor(svc).toFixed(decimals),
+            }
+          : {},
         addons: chosenAddonsFor(svc).map(buildAddonPayload),
         extra_time: svcExtraMins,
         price_for_extra_time: svcExtraMins > 0 ? extraTimePriceFor(svc).toFixed(decimals) : null,
@@ -1158,6 +1218,7 @@ export default function GiftVoucherPage() {
       gift_message: giftMessage.trim() || null,
       delivery_mode: deliveryMode,
       scheduled_delivery_at: resolvedScheduledDeliveryAt,
+      referral_code: getStoredReferralCode(),
     };
 
     try {
@@ -1170,6 +1231,8 @@ export default function GiftVoucherPage() {
       const json = await res.json();
       const vData = json?.data;
       if (vData) {
+        // Referral has been attributed to this order — don't carry it over to later purchases
+        clearStoredReferralCode();
         const formDataToStore = {
           gift_from: giftFrom.trim(),
           recipient_name: recipientName.trim(),
@@ -2281,17 +2344,26 @@ export default function GiftVoucherPage() {
               </div>
             </div>
 
-            {/* Room / Arrangement Selection — skipped for packages that have no room assigned */}
-            {!(selectedServices.length > 0 && selectedServices.every((svc) => svc.is_packaged_services) && !isLoadingArrangements && arrangements.length === 0) && (
+            {selectedServices.map((svc) => {
+            const svcId = String(svc.id);
+            const svcName = (isAr ? svc.name_ar : svc.name_en) || svc.name;
+            const svcOptions = uniqueByType(arrangementsBySvc[svcId] || []);
+            const svcChosenArr = arrangementFor(svc);
+            const hideRoomCard = svc.is_packaged_services && !isLoadingArrangements && svcOptions.length === 0;
+            return (
+            <React.Fragment key={svc.id}>
+            {/* Room / Arrangement Selection (per service) — skipped for packages that have no room assigned */}
+            {!hideRoomCard && (
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
               className="rounded-2xl border p-5 space-y-3"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h4 className="font-bold text-base text-[#1A1A1A]">
                   {isAr ? 'غرفة أو جناح العلاج' : 'Treatment Room / Suite'}
+                  {selectedServices.length > 1 ? ` — ${svcName}` : ''}
                 </h4>
-                <span style={{ color: ACCENT_BROWN }} className="text-xs font-semibold">
+                <span style={{ color: ACCENT_BROWN }} className="text-xs font-semibold shrink-0">
                   {isAr ? 'إلزامي' : 'Required'}
                 </span>
               </div>
@@ -2300,7 +2372,7 @@ export default function GiftVoucherPage() {
                 <div className="py-6 text-center text-xs" style={{ color: TEXT_SEC }}>
                   {isAr ? 'جاري تحميل الغرف...' : 'Loading arrangements...'}
                 </div>
-              ) : arrangements.length === 0 ? (
+              ) : svcOptions.length === 0 ? (
                 <SupportContactCard
                   isAr={isAr}
                   title={isAr ? 'خيارات الغرف غير متوفرة حالياً' : 'Room arrangements are currently unavailable'}
@@ -2312,15 +2384,15 @@ export default function GiftVoucherPage() {
                 />
               ) : (
                 <div className="space-y-2.5">
-                  {arrangements.map((arr) => {
-                    const isSelected = selectedArrangement?.id === arr.id;
+                  {svcOptions.map((arr) => {
+                    const isSelected = svcChosenArr?.id === arr.id;
                     const arrName = (isAr ? arr.name_ar : arr.name_en) || arr.name;
                     const arrDesc = (isAr ? arr.description_ar : arr.description) || arr.description;
 
                     return (
                       <div
                         key={arr.id}
-                        onClick={() => handleArrangementChange(arr)}
+                        onClick={() => handleArrangementChange(svc, arr)}
                         style={{
                           backgroundColor: isSelected ? CARD_SELECTED_BG : '#FFFFFF',
                           borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
@@ -2340,7 +2412,7 @@ export default function GiftVoucherPage() {
                         </div>
                         <div className="text-end flex-shrink-0">
                           <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-sm block">
-                            {arrangementTotal(arr).toFixed(decimals)} {currency}
+                            {(parseFloat(arr.effective_price || '0') || 0).toFixed(decimals)} {currency}
                           </span>
                           <span style={{ color: TEXT_SEC }} className="text-[10px]">
                             {isAr ? 'شامل الغرفة' : 'Suite rate'}
@@ -2354,8 +2426,6 @@ export default function GiftVoucherPage() {
             </div>
             )}
 
-            {selectedServices.map((svc) => (
-            <React.Fragment key={svc.id}>
             {/* Included services (packages) */}
             {svc.is_packaged_services && (svc.included_services ?? []).length > 0 && (
               <div
@@ -2375,11 +2445,65 @@ export default function GiftVoucherPage() {
                       ) : null}
                     </li>
                   ))}
+                  {(svc.included_addons ?? []).map((ad) => (
+                    <li key={`addon-${ad.id}`} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-semibold text-[#1A1A1A]">
+                        + {ad.name}{' '}
+                        <span style={{ color: TEXT_SEC }} className="font-normal">
+                          ({isAr ? 'إضافة' : 'add-on'})
+                        </span>
+                      </span>
+                      {ad.duration_minutes ? (
+                        <span style={{ color: TEXT_SEC }}>{ad.duration_minutes} {isAr ? 'دقيقة' : 'min'}</span>
+                      ) : null}
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}
-            {/* Optional Luxury Add-ons */}
-            {!svc.is_packaged_services && (addonsBySvc[String(svc.id)] || []).length > 0 && (
+
+            {/* Extra Time Selection (per service) */}
+            {hasExtraTimeFor(svc) && (
+            <div
+              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+              className="rounded-2xl border p-5 space-y-3"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-base text-[#1A1A1A]">
+                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
+                </h4>
+                <span style={{ color: TEXT_SEC }} className="text-xs">
+                  {extraRateFor(svc).toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 30, 60].map((mins) => {
+                  const isSelected = extraMinsFor(String(svc.id)) === mins;
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setExtraMins(String(svc.id), mins)}
+                      style={{
+                        backgroundColor: isSelected ? PRIMARY_BROWN : '#FFFFFF',
+                        borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
+                        color: isSelected ? '#FFFFFF' : '#1A1A1A',
+                      }}
+                      className="py-2.5 rounded-xl border font-bold text-xs transition-colors"
+                    >
+                      {mins === 0 ? (isAr ? 'بدون' : 'None') : `+${mins} ${isAr ? 'د' : 'm'}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            )}
+            </React.Fragment>
+            );
+            })}
+
+            {/* Optional Luxury Add-ons — shown ONCE for all selected services */}
+            {allAddonOptions.length > 0 && (
               <div
                 style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
                 className="rounded-2xl border p-5 space-y-4"
@@ -2387,20 +2511,20 @@ export default function GiftVoucherPage() {
                 <div className="flex items-center gap-2">
                   <CubeIcon className="w-5 h-5 text-[#543C30] shrink-0" />
                   <h4 className="font-extrabold text-sm tracking-wider uppercase text-[#543C30]">
-                    {isAr ? 'إضافات (اختيارية)' : 'ADD-ONS (OPTIONAL)'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
+                    {isAr ? 'إضافات (اختيارية)' : 'ADD-ONS (OPTIONAL)'}
                   </h4>
                 </div>
 
                 <div className="space-y-3">
-                  {(addonsBySvc[String(svc.id)] || []).map((addon) => {
-                    const isChecked = (addonIdsBySvc[String(svc.id)] || []).includes(addon.id);
+                  {allAddonOptions.map((addon) => {
+                    const isChecked = selectedAddonIds.includes(addon.id);
                     const addName = (isAr ? addon.name_ar : addon.name_en) || addon.name;
                     const addDesc = getAddonDescription(addon, isAr);
 
                     return (
                       <div
                         key={addon.id}
-                        onClick={() => toggleAddon(String(svc.id), addon.id)}
+                        onClick={() => toggleAddon(addon.id)}
                         style={{
                           backgroundColor: isChecked ? CARD_SELECTED_BG : '#FFFFFF',
                           borderColor: isChecked ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.25)',
@@ -2458,45 +2582,6 @@ export default function GiftVoucherPage() {
               </div>
             )}
 
-            {/* Extra Time Selection */}
-            {hasExtraTimeFor(svc) && (
-            <div
-              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-              className="rounded-2xl border p-5 space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="font-bold text-base text-[#1A1A1A]">
-                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
-                </h4>
-                <span style={{ color: TEXT_SEC }} className="text-xs">
-                  {extraRateFor(svc).toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[0, 30, 60].map((mins) => {
-                  const isSelected = extraMinsFor(String(svc.id)) === mins;
-                  return (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => setExtraMins(String(svc.id), mins)}
-                      style={{
-                        backgroundColor: isSelected ? PRIMARY_BROWN : '#FFFFFF',
-                        borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
-                        color: isSelected ? '#FFFFFF' : '#1A1A1A',
-                      }}
-                      className="py-2.5 rounded-xl border font-bold text-xs transition-colors"
-                    >
-                      {mins === 0 ? (isAr ? 'بدون' : 'None') : `+${mins} ${isAr ? 'د' : 'm'}`}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            )}
-            </React.Fragment>
-            ))}
-
             {/* Sticky/Bottom Cost Bar */}
             <div
               style={{
@@ -2519,8 +2604,9 @@ export default function GiftVoucherPage() {
                 onClick={() => setCurrentPhase('summary')}
                 disabled={
                   selectedServices.length > 1 &&
-                  !selectedArrangement &&
-                  !(selectedServices.every((svc) => svc.is_packaged_services) && arrangements.length === 0)
+                  selectedServices.some(
+                    (svc) => !svc.is_packaged_services && !chosenArrBySvc[String(svc.id)]
+                  )
                 }
                 style={{
                   backgroundColor: PRIMARY_BROWN,
@@ -3478,11 +3564,10 @@ export default function GiftVoucherPage() {
                   setCurrentPhase('category');
                   setSelectedProduct(null);
                   setSelectedServices([]);
-                  setSelectedArrangement(null);
-                  setArrangements([]);
+                  setChosenArrBySvc({});
                   setArrangementsBySvc({});
                   setAddonsBySvc({});
-                  setAddonIdsBySvc({});
+                  setSelectedAddonIds([]);
                   setExtraMinsBySvc({});
                   setRecipientName('');
                   setRecipientPhone('');

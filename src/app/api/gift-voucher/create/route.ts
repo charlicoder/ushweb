@@ -78,6 +78,11 @@ export async function POST(request: NextRequest) {
       gift_template: body.gift_template || null,
       delivery_mode: body.delivery_mode || 'on_activation',
       scheduled_delivery_at: body.scheduled_delivery_at || null,
+      // Employee affiliate link (?ref=NNNN) — only a 4-digit code is forwarded
+      referral_code:
+        typeof body.referral_code === 'string' && /^\d{4}$/.test(body.referral_code.trim())
+          ? body.referral_code.trim()
+          : null,
     };
 
     // Candidate upstream endpoints (primary gateway + direct fallback if gateway is unresponsive)
