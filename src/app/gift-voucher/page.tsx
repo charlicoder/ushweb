@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import Header from '@/components/Header';
 import { trackInitiateCheckout } from '@/lib/fbpixel';
 import { sanitizeCustomerName } from '@/lib/api';
@@ -472,6 +473,35 @@ function clearStoredReferralCode(): void {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Footer bar pinned flush to the bottom of the browser viewport (rendered in <body> so no
+ * ancestor can offset it). Used for the Continue / Confirm buttons.
+ */
+function FixedFooter({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        margin: 0,
+        zIndex: 40,
+        backgroundColor: '#FBF7F2',
+        borderTop: '1px solid rgba(138, 109, 95, 0.25)',
+        boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+        padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
+      }}
+    >
+      <div className="max-w-5xl mx-auto">{children}</div>
+    </div>,
+    document.body
+  );
 }
 
 export default function GiftVoucherPage() {
@@ -2092,8 +2122,8 @@ export default function GiftVoucherPage() {
                   })}
                 </div>
 
-                {/* Continue Action */}
-                <div className="flex justify-end">
+                {/* Continue Action (fixed to the bottom of the viewport) */}
+                <FixedFooter><div className="flex justify-end">
                   <button
                     type="button"
                     disabled={selectedServices.length === 0}
@@ -2110,6 +2140,8 @@ export default function GiftVoucherPage() {
                       : `Continue to Details${selectedServices.length > 0 ? ` (${selectedServices.length})` : ''} ›`}
                   </button>
                 </div>
+                </FixedFooter>
+<div className="h-20" aria-hidden="true" />
               </div>
             )}
           </section>
@@ -2351,17 +2383,23 @@ export default function GiftVoucherPage() {
             const svcChosenArr = arrangementFor(svc);
             const hideRoomCard = svc.is_packaged_services && !isLoadingArrangements && svcOptions.length === 0;
             return (
-            <React.Fragment key={svc.id}>
+            <div
+              key={svc.id}
+              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+              className="rounded-2xl border p-5 space-y-5"
+            >
+              <h3
+                style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
+                className="font-bold text-lg text-[#1A1A1A] uppercase tracking-wide pb-3 border-b border-stone-200/70"
+              >
+                {svcName}
+              </h3>
             {/* Room / Arrangement Selection (per service) — skipped for packages that have no room assigned */}
             {!hideRoomCard && (
-            <div
-              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-              className="rounded-2xl border p-5 space-y-3"
-            >
+            <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <h4 className="font-bold text-base text-[#1A1A1A]">
+                <h4 className="font-bold text-sm uppercase tracking-wider text-[#543C30]">
                   {isAr ? 'غرفة أو جناح العلاج' : 'Treatment Room / Suite'}
-                  {selectedServices.length > 1 ? ` — ${svcName}` : ''}
                 </h4>
                 <span style={{ color: ACCENT_BROWN }} className="text-xs font-semibold shrink-0">
                   {isAr ? 'إلزامي' : 'Required'}
@@ -2428,13 +2466,9 @@ export default function GiftVoucherPage() {
 
             {/* Included services (packages) */}
             {svc.is_packaged_services && (svc.included_services ?? []).length > 0 && (
-              <div
-                style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-                className="rounded-2xl border p-5 space-y-3"
-              >
+              <div className="space-y-3 pt-4 border-t border-stone-200/70">
                 <h4 className="font-extrabold text-sm tracking-wider uppercase text-[#543C30]">
                   {isAr ? 'الخدمات المتضمنة في الباقة' : 'SERVICES INCLUDED'}
-                  {selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
                 </h4>
                 <ul className="space-y-1.5">
                   {(svc.included_services ?? []).map((inc) => (
@@ -2464,13 +2498,10 @@ export default function GiftVoucherPage() {
 
             {/* Extra Time Selection (per service) */}
             {hasExtraTimeFor(svc) && (
-            <div
-              style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
-              className="rounded-2xl border p-5 space-y-3"
-            >
+            <div className="space-y-3 pt-4 border-t border-stone-200/70">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-base text-[#1A1A1A]">
-                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}{selectedServices.length > 1 ? ` — ${(isAr ? svc.name_ar : svc.name_en) || svc.name}` : ''}
+                <h4 className="font-bold text-sm uppercase tracking-wider text-[#543C30]">
+                  {isAr ? 'تمديد وقت الجلسة (وقت إضافي)' : 'Extra Treatment Time'}
                 </h4>
                 <span style={{ color: TEXT_SEC }} className="text-xs">
                   {extraRateFor(svc).toFixed(decimals)} {currency} / 30 {isAr ? 'دقيقة' : 'mins'}
@@ -2498,7 +2529,7 @@ export default function GiftVoucherPage() {
               </div>
             </div>
             )}
-            </React.Fragment>
+            </div>
             );
             })}
 
@@ -2582,15 +2613,9 @@ export default function GiftVoucherPage() {
               </div>
             )}
 
-            {/* Sticky/Bottom Cost Bar */}
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderColor: BORDER_COLOR,
-                boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
-              }}
-              className="rounded-2xl border p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
-            >
+            {/* Sticky/Bottom Cost Bar (fixed to the bottom of the viewport) */}
+            <FixedFooter>
+            <div className="flex flex-row items-center justify-between gap-4">
               <div>
                 <span style={{ color: TEXT_SEC }} className="text-xs block">
                   {isAr ? 'التكلفة الإجمالية حتى الآن:' : 'Current Total Investment:'}
@@ -2618,6 +2643,8 @@ export default function GiftVoucherPage() {
                 {isAr ? 'متابعة إلى ملخص الهدية ‹' : 'Continue to Summary ›'}
               </button>
             </div>
+            </FixedFooter>
+<div className="h-20" aria-hidden="true" />
           </section>
         )}
 
@@ -2625,7 +2652,7 @@ export default function GiftVoucherPage() {
         {/* PHASE 5: GIFT SUMMARY & RECIPIENT DETAILS (gift-summary.tsx)          */}
         {/* ==================================================================== */}
         {currentPhase === 'summary' && (
-          <form onSubmit={handleSubmitOrder} className="space-y-6">
+          <form id="gift-order-form" onSubmit={handleSubmitOrder} className="space-y-6">
             {/* Order Breakdown Card */}
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
@@ -3072,10 +3099,11 @@ export default function GiftVoucherPage() {
               )}
             </div>
 
-            {/* Create your Gift Voucher Submit Button */}
-            <div className="pt-2">
+            {/* Create your Gift Voucher Submit Button (fixed to the bottom of the viewport) */}
+            <FixedFooter>
               <button
                 type="submit"
+                form="gift-order-form"
                 disabled={isSubmittingOrder}
                 style={{
                   backgroundColor: PRIMARY_BROWN,
@@ -3096,7 +3124,8 @@ export default function GiftVoucherPage() {
                   </>
                 )}
               </button>
-            </div>
+            </FixedFooter>
+<div className="h-20" aria-hidden="true" />
           </form>
         )}
 
