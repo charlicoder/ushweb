@@ -133,15 +133,22 @@ export async function GET(request: NextRequest) {
         branches: Array.isArray(item.branches)
           ? item.branches
               .filter((b: any) => !activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || '')))
-              .map((b: any) => ({
-              id: String(b.branch_id || b.id || ''),
-              branch_id: String(b.branch_id || b.id || ''),
-              name: b.name || '',
-              name_en: b.name_en || b.name || '',
-              name_ar: b.name_ar || b.name || '',
-              address: b.address || '',
-              city: b.city || '',
-            }))
+              .map((b: any) => {
+                const bName = String(b.name || '');
+                const isSharq = bName.includes('شرق') || /sharq/i.test(bName);
+                const isMangaf = bName.includes('منقف') || /mangaf/i.test(bName);
+                const nameEn = b.name_en || (isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : bName);
+                const nameAr = b.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : bName);
+                return {
+                  id: String(b.branch_id || b.id || ''),
+                  branch_id: String(b.branch_id || b.id || ''),
+                  name: isRequestedAr ? nameAr : nameEn,
+                  name_en: nameEn,
+                  name_ar: nameAr,
+                  address: b.address || '',
+                  city: b.city || '',
+                };
+              })
           : [],
       };
     });

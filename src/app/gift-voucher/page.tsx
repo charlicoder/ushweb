@@ -1211,13 +1211,21 @@ export default function GiftVoucherPage() {
           : null,
       branch_id: selectedBranch?.branch_id || selectedBranch?.id || null,
       branch_data: selectedBranch
-        ? {
-            id: selectedBranch.branch_id || selectedBranch.id,
-            name: selectedBranch.name_en || selectedBranch.name,
-            name_ar: selectedBranch.name_ar || selectedBranch.name,
-            address: selectedBranch.address || '',
-            city: selectedBranch.city || '',
-          }
+        ? (() => {
+            const rawEn = selectedBranch.name_en || selectedBranch.name || '';
+            const isSharq = rawEn.includes('شرق') || /sharq/i.test(rawEn);
+            const isMangaf = rawEn.includes('منقف') || /mangaf/i.test(rawEn);
+            const enName = isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : rawEn;
+            const arName = selectedBranch.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : rawEn);
+            return {
+              id: selectedBranch.branch_id || selectedBranch.id,
+              name: enName,
+              name_en: enName,
+              name_ar: arName,
+              address: selectedBranch.address || '',
+              city: selectedBranch.city || '',
+            };
+          })()
         : {},
       service_arrangement_id: selectedArrangement?.id || null,
       service_arrangement_data: selectedArrangement

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { trackPurchase } from '@/lib/fbpixel';
 import { useSearchParams } from 'next/navigation';
@@ -92,12 +92,22 @@ export default function GiftVoucherPaymentSuccessClient() {
   const { lang, isAr, isDark } = useApp();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [voucher, setVoucher] = useState<VoucherData | null>(null);
+  const [voucher, setVoucher] = useState<VoucherData | null>(() => {
+    if (typeof window === 'undefined' || !voucherId) return null;
+    try {
+      const cached = sessionStorage.getItem(`ush_activated_voucher_${voucherId}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [activationError, setActivationError] = useState<string | null>(null);
   const [statusUpdated, setStatusUpdated] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(false);
+  const hasTrackedRef = useRef(false);
 
   // Ensure browser URL uses standard ISO currency code (KWD instead of KD)
   useEffect(() => {
@@ -150,7 +160,7 @@ export default function GiftVoucherPaymentSuccessClient() {
   useEffect(() => {
     let isMounted = true;
 
-    async function activateVoucherAndLoad() {
+    async function activateVoucherAndLoad(attempt = 1) {
       if (!voucherId) {
         setIsLoading(false);
         return;
@@ -177,36 +187,59 @@ export default function GiftVoucherPaymentSuccessClient() {
           }),
         });
 
+        if (!updateRes.ok) {
+          throw new Error(`HTTP status ${updateRes.status}`);
+        }
+
         const json = await updateRes.json().catch(() => ({}));
 
         if (isMounted) {
           if (json?.data) {
             setVoucher(json.data);
+            try {
+              sessionStorage.setItem(`ush_activated_voucher_${voucherId}`, JSON.stringify(json.data));
+            } catch {}
             setStatusUpdated(true);
             const rawVoucherCurrency = json.data.currency || currencyParam || 'KWD';
             const finalCurrency =
               rawVoucherCurrency.toUpperCase() === 'KD' ? 'KWD' : rawVoucherCurrency.toUpperCase();
 
-            trackPurchase({
-              value: Number(amountParam) || Number(json.data.total_amount) || 0,
-              currency: finalCurrency,
-              transactionId: paymentId || invoiceId || voucherId,
-              contentName: 'Gift Voucher',
-            });
+            if (!hasTrackedRef.current) {
+              hasTrackedRef.current = true;
+              trackPurchase({
+                value: Number(amountParam) || Number(json.data.total_amount) || 0,
+                currency: finalCurrency,
+                transactionId: paymentId || invoiceId || voucherId,
+                contentName: 'Gift Voucher',
+              });
+            }
             const isSched = json.data.status === 'scheduled' || json.data.delivery_mode === 'scheduled';
             if (!isSched) {
               setShowShareModal(true); // Automatically show share popup window only for immediate delivery
             }
           }
+          setActivationError(null);
+          setIsLoading(false);
         }
       } catch (err) {
-        console.warn('Error activating voucher:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+        console.warn(`[activate] Attempt ${attempt} failed:`, err);
+        if (isMounted) {
+          if (attempt < 3) {
+            // Auto retry on transient fetch error or dev server recompilation
+            setTimeout(() => {
+              if (isMounted) {
+                activateVoucherAndLoad(attempt + 1);
+              }
+            }, 800 * attempt);
+          } else {
+            setActivationError(err instanceof Error ? err.message : 'Connection failed');
+            setIsLoading(false);
+          }
+        }
       }
     }
 
-    activateVoucherAndLoad();
+    activateVoucherAndLoad(1);
 
     return () => {
       isMounted = false;
@@ -396,6 +429,30 @@ export default function GiftVoucherPaymentSuccessClient() {
             <p style={{ color: TEXT_SEC }} className="text-sm font-semibold">
               {isAr ? 'جاري تفعيل القسيمة في النظام...' : 'Activating your voucher in database...'}
             </p>
+          </div>
+        ) : activationError && !voucher ? (
+          <div className="py-16 text-center space-y-4 max-w-md mx-auto">
+            <div className="w-14 h-14 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+              <ArrowPathIcon className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-stone-800">
+                {isAr ? 'تعذر تأكيد التفعيل مؤقتاً' : 'Activation Check Paused'}
+              </h2>
+              <p className="text-xs text-stone-600">
+                {isAr
+                  ? 'تم استلام الدفع بنجاح. اضغط على الزر أدناه لتحميل بيانات القسيمة.'
+                  : 'Your payment was received. Click below to load your active voucher certificate.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              style={{ backgroundColor: PRIMARY_BROWN }}
+              className="px-6 py-2.5 text-white text-sm font-bold rounded-xl shadow-md hover:opacity-95 transition-all cursor-pointer"
+            >
+              {isAr ? 'إعادة المحاولة' : 'Load Voucher Details'}
+            </button>
           </div>
         ) : (
           <>

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaseApiUrl, getUshToken } from '@/lib/api';
+import { notifyManagerPhysicalOrder } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
+
+// In-flight request coalescing to prevent concurrent identical requests
+const inFlightRequests = new Map<string, Promise<{ status: number; data: any }>>();
 
 export async function PATCH(
   request: NextRequest,
@@ -35,16 +39,72 @@ export async function PATCH(
 
     const targetUrl = `${baseUrl}/booknpay/api/v1/vouchers/${encodeURIComponent(voucher_id)}/status/`;
 
-    const res = await fetch(targetUrl, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(payload),
-      cache: 'no-store',
-    });
+    const inFlightKey = `${voucher_id}_${payload.status}`;
+    let executePromise = inFlightRequests.get(inFlightKey);
 
-    const data = await res.json().catch(() => ({}));
+    if (!executePromise) {
+      executePromise = (async () => {
+        let res: Response | null = null;
+        try {
+          res = await fetch(targetUrl, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify(payload),
+            cache: 'no-store',
+          });
+        } catch (fetchErr) {
+          console.warn('[voucher-status] Primary gateway fetch error:', fetchErr);
+        }
+
+        if ((!res || !res.ok) && (baseUrl.includes(':8000') || !res)) {
+          const fallbackUrl = `http://127.0.0.1:8003/api/v1/vouchers/${encodeURIComponent(voucher_id)}/status/`;
+          try {
+            const fallbackRes = await fetch(fallbackUrl, {
+              method: 'PATCH',
+              headers,
+              body: JSON.stringify(payload),
+              cache: 'no-store',
+            });
+            if (fallbackRes.ok) {
+              res = fallbackRes;
+            }
+          } catch (fbErr) {
+            console.warn('[voucher-status] Fallback direct fetch error:', fbErr);
+          }
+        }
+
+        if (!res) {
+          return {
+            status: 502,
+            data: {
+              success: false,
+              error: { message: 'Failed to connect to backend voucher service' },
+            },
+          };
+        }
+
+        const data = await res.json().catch(() => ({}));
+
+        // If payment/activation succeeded, notify manager if this is a physical voucher product order
+        if (res.ok && payload.status === 'active' && data?.data) {
+          notifyManagerPhysicalOrder(data.data).catch((notifyErr) => {
+            console.error('[voucher-status] Failed to send manager physical order notification:', notifyErr);
+          });
+        }
+
+        return { status: res.status, data };
+      })();
+
+      inFlightRequests.set(inFlightKey, executePromise);
+      executePromise.finally(() => {
+        inFlightRequests.delete(inFlightKey);
+      });
+    }
+
+    const { status, data } = await executePromise;
+
     return NextResponse.json(data, {
-      status: res.status,
+      status,
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
