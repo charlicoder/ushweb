@@ -3,6 +3,19 @@ import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
+const isHomeBranch = (b: any): boolean => {
+  if (!b) return false;
+  const nameEn = String(b.name_en || b.name || '').trim().toLowerCase();
+  const nameAr = String(b.name_ar || '').trim().toLowerCase();
+  const id = String(b.branch_id || b.id || '').trim().toLowerCase();
+  return (
+    nameEn.includes('home') ||
+    nameAr.includes('منزل') ||
+    id === 'home' ||
+    id === '1896a1ca-66bc-4f06-9a0d-cef30fa8293c'
+  );
+};
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const gender = searchParams.get('gender') || 'female';
@@ -132,7 +145,7 @@ export async function GET(request: NextRequest) {
         currency: item.currency || 'KWD',
         branches: Array.isArray(item.branches)
           ? item.branches
-              .filter((b: any) => !activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || '')))
+              .filter((b: any) => (!activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || ''))) && !isHomeBranch(b))
               .map((b: any) => {
                 const bName = String(b.name || '');
                 const isSharq = bName.includes('شرق') || /sharq/i.test(bName);

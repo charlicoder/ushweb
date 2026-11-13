@@ -3,6 +3,19 @@ import { getBaseApiUrl, getUshToken } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
+const isHomeBranch = (b: any): boolean => {
+  if (!b) return false;
+  const nameEn = String(b.name_en || b.name || '').trim().toLowerCase();
+  const nameAr = String(b.name_ar || '').trim().toLowerCase();
+  const id = String(b.branch_id || b.id || '').trim().toLowerCase();
+  return (
+    nameEn.includes('home') ||
+    nameAr.includes('منزل') ||
+    id === 'home' ||
+    id === '1896a1ca-66bc-4f06-9a0d-cef30fa8293c'
+  );
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -117,7 +130,9 @@ export async function GET(
       current_price: raw.current_price || raw.base_price || '0',
       currency: raw.currency || 'KWD',
       branches: Array.isArray(raw.branches)
-        ? raw.branches.map((b: any) => ({
+        ? raw.branches
+            .filter((b: any) => !isHomeBranch(b))
+            .map((b: any) => ({
             id: String(b.branch_id || b.id || ''),
             branch_id: String(b.branch_id || b.id || ''),
             name: b.name || '',

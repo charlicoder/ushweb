@@ -121,6 +121,19 @@ interface Branch {
   city?: string;
 }
 
+const isHomeServiceBranch = (br: Branch | null | undefined): boolean => {
+  if (!br) return false;
+  const nameEn = String(br.name_en || br.name || '').trim().toLowerCase();
+  const nameAr = String(br.name_ar || '').trim().toLowerCase();
+  const id = String(br.branch_id || br.id || '').trim().toLowerCase();
+  return (
+    nameEn.includes('home') ||
+    nameAr.includes('منزل') ||
+    id === 'home' ||
+    id === '1896a1ca-66bc-4f06-9a0d-cef30fa8293c'
+  );
+};
+
 interface Addon {
   id: string;
   name: string;
@@ -724,6 +737,21 @@ export default function GiftVoucherPage() {
     };
   }, [currentPhase, selectedServiceIdsKey, lang]);
 
+  // Ensure selectedBranch is never the Home Service branch on the details page
+  useEffect(() => {
+    if (selectedBranch && isHomeServiceBranch(selectedBranch)) {
+      const validBranches = branches.filter((b) => !isHomeServiceBranch(b));
+      if (validBranches.length > 0) {
+        setSelectedBranch(validBranches[0]);
+        if (selectedServices.length > 0) {
+          loadArrangements(selectedServices, validBranches[0].branch_id || validBranches[0].id);
+        }
+      } else {
+        setSelectedBranch(null);
+      }
+    }
+  }, [selectedBranch, branches, selectedServices]);
+
   // ─── Fetch Arrangements for Selected Service & Branch ──────────────────────
   // Loads arrangements per selected service and offers only the room types every service supports
   const loadArrangements = async (svcs: Service[], branchId: string) => {
@@ -993,17 +1021,23 @@ export default function GiftVoucherPage() {
         city: 'Kuwait City',
       },
     ];
-    const branchesOf = (svc: Service): Branch[] =>
-      Array.isArray(svc.branches) && svc.branches.length > 0 ? svc.branches : fallbackBranches;
+    const branchesOf = (svc: Service): Branch[] => {
+      const list = Array.isArray(svc.branches) && svc.branches.length > 0 ? svc.branches : fallbackBranches;
+      const nonHome = list.filter((br) => !isHomeServiceBranch(br));
+      return nonHome.length > 0 ? nonHome : fallbackBranches;
+    };
     const branchKey = (br: Branch) => String(br.branch_id || br.id);
 
-    // A voucher has ONE branch: offer only branches every selected service supports
-    let bList = branchesOf(selectedServices[0]);
+    // A voucher has ONE branch: offer only branches every selected service supports (excluding home service)
+    let bList = branchesOf(selectedServices[0]).filter((br) => !isHomeServiceBranch(br));
     if (selectedServices.length > 1) {
       const common = bList.filter((br) =>
         selectedServices.every((svc) => branchesOf(svc).some((x) => branchKey(x) === branchKey(br)))
       );
-      if (common.length > 0) bList = common;
+      if (common.length > 0) bList = common.filter((br) => !isHomeServiceBranch(br));
+    }
+    if (bList.length === 0) {
+      bList = fallbackBranches.filter((br) => !isHomeServiceBranch(br));
     }
     setBranches(bList);
     const defBranch = bList[0];
@@ -2345,7 +2379,9 @@ export default function GiftVoucherPage() {
                 </h4>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {branches.map((b) => {
+                {branches
+                  .filter((b) => !isHomeServiceBranch(b))
+                  .map((b) => {
                   const bName = (isAr ? b.name_ar : b.name_en) || b.name;
                   const isSelected = selectedBranch?.id === b.id || selectedBranch?.branch_id === b.branch_id;
 
