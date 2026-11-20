@@ -8,6 +8,16 @@ const nextConfig: NextConfig = {
         destination: '/gift-voucher',
         permanent: false,
       },
+      {
+        source: '/terms',
+        destination: '/privacy-policy',
+        permanent: false,
+      },
+      {
+        source: '/terms-of-service',
+        destination: '/privacy-policy',
+        permanent: false,
+      },
     ];
   },
 
