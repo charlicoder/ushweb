@@ -33,6 +33,7 @@ import {
   ArrowTopRightOnSquareIcon,
   ShareIcon,
   CalendarDaysIcon,
+  HomeIcon,
 } from '@heroicons/react/24/outline';
 import {
   USH_PHONE_DISPLAY,
@@ -119,6 +120,10 @@ interface Branch {
   name_ar?: string;
   address?: string;
   city?: string;
+  city_en?: string;
+  city_ar?: string;
+  image1?: string | null;
+  is_home_service?: boolean;
 }
 
 const isHomeServiceBranch = (br: Branch | null | undefined): boolean => {
@@ -127,6 +132,7 @@ const isHomeServiceBranch = (br: Branch | null | undefined): boolean => {
   const nameAr = String(br.name_ar || '').trim().toLowerCase();
   const id = String(br.branch_id || br.id || '').trim().toLowerCase();
   return (
+    Boolean(br.is_home_service) ||
     nameEn.includes('home') ||
     nameAr.includes('منزل') ||
     id === 'home' ||
@@ -145,6 +151,7 @@ interface Addon {
   price: string;
   currency: string;
   duration_minutes?: number;
+  is_available_for_home_service?: boolean;
 }
 
 interface Arrangement {
@@ -178,6 +185,11 @@ interface Service {
   is_for_female?: boolean;
   is_for_male?: boolean;
   branches?: Branch[];
+  is_home_service_eligible?: boolean;
+  home_service_price?: string | number | null;
+  home_price_for_extra_minutes?: string | number | null;
+  home_service_open?: string | null;
+  home_service_end?: string | null;
   addons?: Addon[];
   add_ons?: Addon[];
   benefits?: string | Array<{ key?: string; value?: string } | string> | null;
@@ -188,8 +200,22 @@ interface Service {
   session_benefits_en?: string | Array<{ key?: string; value?: string } | string> | null;
   session_benefits_ar?: string | Array<{ key?: string; value?: string } | string> | null;
   is_packaged_services?: boolean;
-  included_services?: { id: string; name: string; duration_minutes?: number }[];
-  included_addons?: { id: string; name: string; duration_minutes?: number }[];
+  included_services?: {
+    id: string;
+    name: string;
+    name_en?: string;
+    name_ar?: string;
+    duration_minutes?: number;
+    service_arrangement_id?: string | null;
+    service_arrangement_data?: Record<string, any>;
+  }[];
+  included_addons?: {
+    id: string;
+    name: string;
+    name_en?: string;
+    name_ar?: string;
+    duration_minutes?: number;
+  }[];
 }
 
 interface GeneratedVoucher {
@@ -526,9 +552,9 @@ export default function GiftVoucherPage() {
   }, []);
 
   // Navigation / Phase
-  // phases: 'category' | 'products' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
+  // phases: 'category' | 'products' | 'branches' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
   const [currentPhase, setCurrentPhase] = useState<
-    'category' | 'products' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
+    'category' | 'products' | 'branches' | 'services' | 'details' | 'summary' | 'make_payment' | 'completed'
   >('category');
   const [flowType, setFlowType] = useState<'physical' | 'digital'>('physical');
 
@@ -542,6 +568,24 @@ export default function GiftVoucherPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+
+  // All Branches State (available branches across the spa + home service)
+  const [allBranches, setAllBranches] = useState<Branch[]>([]);
+  const [isLoadingAllBranches, setIsLoadingAllBranches] = useState(false);
+
+  const loadAllBranches = async (currentLang: string = lang) => {
+    setIsLoadingAllBranches(true);
+    try {
+      const res = await fetch(`/api/gift-voucher/branches?lang=${currentLang}`);
+      const json = await res.json();
+      const list = Array.isArray(json?.data) ? json.data : [];
+      setAllBranches(list);
+    } catch (err) {
+      console.error('Error loading branches:', err);
+    } finally {
+      setIsLoadingAllBranches(false);
+    }
+  };
 
   // Services State
   const [services, setServices] = useState<Service[]>([]);
@@ -636,6 +680,7 @@ export default function GiftVoucherPage() {
 
   useEffect(() => {
     loadCategories(lang);
+    loadAllBranches(lang);
   }, [lang]);
 
   // ─── Fetch Products (when entering physical flow) ──────────────────────────
@@ -685,15 +730,31 @@ export default function GiftVoucherPage() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [isServiceDropdownOpen]);
 
+  const isServiceCompatibleWithBranch = (svc: Service, br: Branch | null): boolean => {
+    if (!br) return true;
+    if (isHomeServiceBranch(br)) {
+      return (
+        Boolean(svc.is_home_service_eligible) ||
+        (Array.isArray(svc.branches) && svc.branches.some((b) => isHomeServiceBranch(b)))
+      );
+    }
+    const bId = String(br.branch_id || br.id);
+    return Array.isArray(svc.branches) && svc.branches.some((b) => String(b.branch_id || b.id) === bId);
+  };
+
   const filteredServices = useMemo(() => {
+    let list = services;
+    if (selectedBranch) {
+      list = list.filter((svc) => isServiceCompatibleWithBranch(svc, selectedBranch));
+    }
     const q = serviceSearch.trim().toLowerCase();
-    if (!q) return services;
-    return services.filter((svc) =>
+    if (!q) return list;
+    return list.filter((svc) =>
       [svc.name, svc.name_en, svc.name_ar, svc.description, svc.description_en, svc.description_ar]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
     );
-  }, [services, serviceSearch]);
+  }, [services, serviceSearch, selectedBranch]);
 
   // Synchronize selectedServices and detailService whenever services list changes or isAr toggles
   useEffect(() => {
@@ -737,42 +798,56 @@ export default function GiftVoucherPage() {
     };
   }, [currentPhase, selectedServiceIdsKey, lang]);
 
-  // Ensure selectedBranch is never the Home Service branch on the details page
-  useEffect(() => {
-    if (selectedBranch && isHomeServiceBranch(selectedBranch)) {
-      const validBranches = branches.filter((b) => !isHomeServiceBranch(b));
-      if (validBranches.length > 0) {
-        setSelectedBranch(validBranches[0]);
-        if (selectedServices.length > 0) {
-          loadArrangements(selectedServices, validBranches[0].branch_id || validBranches[0].id);
-        }
-      } else {
-        setSelectedBranch(null);
-      }
-    }
-  }, [selectedBranch, branches, selectedServices]);
-
   // ─── Fetch Arrangements for Selected Service & Branch ──────────────────────
   // Loads arrangements per selected service and offers only the room types every service supports
   const loadArrangements = async (svcs: Service[], branchId: string) => {
     setIsLoadingArrangements(true);
     try {
-      const results = await Promise.all(
+      // First ensure any packaged service without included_services is enriched
+      const enrichedSvcs = await Promise.all(
         svcs.map(async (svc) => {
+          if (svc.is_packaged_services && (!svc.included_services || svc.included_services.length === 0)) {
+            try {
+              const res = await fetch(`/api/gift-voucher/services/${svc.id}?lang=${lang}`);
+              if (res.ok) {
+                const json = await res.json();
+                if (json?.data) return { ...svc, ...json.data };
+              }
+            } catch (e) {
+              console.warn('Failed to enrich package service:', e);
+            }
+          }
+          return svc;
+        })
+      );
+
+      // Collect all arrangement targets (both package itself and each included service)
+      const targets: Array<{ id: string; name: string }> = [];
+      enrichedSvcs.forEach((svc) => {
+        if (svc.is_packaged_services && Array.isArray(svc.included_services) && svc.included_services.length > 0) {
+          svc.included_services.forEach((inc: any) => {
+            targets.push({ id: String(inc.id), name: inc.name });
+          });
+        }
+        targets.push({ id: String(svc.id), name: svc.name });
+      });
+
+      const results = await Promise.all(
+        targets.map(async (tgt) => {
           try {
             const res = await fetch(
               `/api/gift-voucher/availability?service_id=${encodeURIComponent(
-                String(svc.id)
+                tgt.id
               )}&branch_id=${encodeURIComponent(branchId)}`
             );
             const json = await res.json();
             const list: Arrangement[] = Array.isArray(json?.service_arrangements)
               ? json.service_arrangements
               : [];
-            return [String(svc.id), list] as const;
+            return [tgt.id, list] as const;
           } catch (err) {
             console.error('Error loading arrangements:', err);
-            return [String(svc.id), [] as Arrangement[]] as const;
+            return [tgt.id, [] as Arrangement[]] as const;
           }
         })
       );
@@ -783,29 +858,40 @@ export default function GiftVoucherPage() {
       setArrangementsBySvc(map);
 
       // Each service gets its own room: default to the first room type it offers.
-      // Packaged services keep "no room" until the guest picks one (as before).
+      // For packaged services, each included service defaults to its first room type.
       const defaults: Record<string, Arrangement | null> = {};
       const nextAddons: Record<string, Addon[]> = {};
-      svcs.forEach((svc) => {
+      const isHome = isHomeServiceBranch({ id: branchId, branch_id: branchId, name: '' });
+      enrichedSvcs.forEach((svc) => {
         const id = String(svc.id);
-        const options = uniqueByType(map[id] || []);
-        const chosen = svc.is_packaged_services ? null : options[0] || null;
-        defaults[id] = chosen;
-        if (svc.is_packaged_services) {
+        if (svc.is_packaged_services && Array.isArray(svc.included_services) && svc.included_services.length > 0) {
+          svc.included_services.forEach((inc: any) => {
+            const incId = String(inc.id);
+            const incOptions = uniqueByType(map[incId] || []);
+            defaults[incId] = isHome ? null : incOptions[0] || null;
+          });
+          defaults[id] = null;
           nextAddons[id] = [];
-          return;
+        } else {
+          const options = uniqueByType(map[id] || []);
+          const chosen = isHome ? null : options[0] || null;
+          defaults[id] = chosen;
+          let list: Addon[] =
+            chosen?.addons && chosen.addons.length > 0 ? chosen.addons : svc.addons || svc.add_ons || [];
+          if (isHome) {
+            list = list.filter((a: Addon) => a.is_available_for_home_service !== false);
+          }
+          nextAddons[id] = list;
         }
-        // Extract addons from the chosen arrangement or fallback to service addons
-        nextAddons[id] =
-          chosen?.addons && chosen.addons.length > 0 ? chosen.addons : svc.addons || svc.add_ons || [];
       });
-      setChosenArrBySvc(defaults);
+      setChosenArrBySvc((prev) => ({ ...prev, ...defaults }));
       setAddonsBySvc(nextAddons);
       setSelectedAddonIds((prev) => {
         const offered = new Set<string>();
         Object.values(nextAddons).forEach((list) => list.forEach((a) => offered.add(a.id)));
         return prev.filter((aid) => offered.has(aid));
       });
+      setSelectedServices(enrichedSvcs);
     } catch (err) {
       console.error('Error loading arrangements:', err);
     } finally {
@@ -834,11 +920,16 @@ export default function GiftVoucherPage() {
     });
   };
 
-  // Room chosen for a given service
-  const arrangementFor = (svc: Service): Arrangement | null =>
-    chosenArrBySvc[String(svc.id)] ?? null;
+  // Room chosen for a given service or service id
+  const arrangementFor = (svcOrId: Service | { id: string } | string): Arrangement | null => {
+    const id = typeof svcOrId === 'string' ? svcOrId : String(svcOrId.id);
+    return chosenArrBySvc[id] ?? null;
+  };
 
   const servicePriceFor = (svc: Service): number => {
+    if (isHomeServiceBranch(selectedBranch)) {
+      return parseFloat(String(svc.home_service_price || svc.current_price || svc.base_price || '0')) || 0;
+    }
     const arr = arrangementFor(svc);
     if (arr) return parseFloat(arr.effective_price || '0') || 0;
     return parseFloat(String(svc.current_price || svc.base_price || '0')) || 0;
@@ -846,11 +937,13 @@ export default function GiftVoucherPage() {
 
   // Add-ons are offered ONCE for the whole voucher: the union of every service's add-ons
   const allAddonOptions: Addon[] = useMemo(() => {
+    const isHome = isHomeServiceBranch(selectedBranch);
     const seen = new Set<string>();
     const out: Addon[] = [];
     selectedServices.forEach((svc) => {
       if (svc.is_packaged_services) return;
       (addonsBySvc[String(svc.id)] || []).forEach((a) => {
+        if (isHome && a.is_available_for_home_service === false) return;
         if (!seen.has(a.id)) {
           seen.add(a.id);
           out.push(a);
@@ -858,7 +951,7 @@ export default function GiftVoucherPage() {
       });
     });
     return out;
-  }, [selectedServices, addonsBySvc]);
+  }, [selectedServices, addonsBySvc, selectedBranch]);
 
   // Each chosen add-on is attached to the first service that offers it, so it is never counted twice
   const chosenAddonsFor = (svc: Service): Addon[] => {
@@ -881,6 +974,11 @@ export default function GiftVoucherPage() {
     setExtraMinsBySvc((prev) => ({ ...prev, [serviceId]: mins }));
 
   const extraRateFor = (svc: Service): number => {
+    if (isHomeServiceBranch(selectedBranch)) {
+      if (svc.home_price_for_extra_minutes) {
+        return parseFloat(String(svc.home_price_for_extra_minutes)) || 20.0;
+      }
+    }
     if (svc.price_for_extra_minutes) {
       return parseFloat(String(svc.price_for_extra_minutes)) || 15.0;
     }
@@ -888,8 +986,15 @@ export default function GiftVoucherPage() {
   };
 
   // Extra time is offered only when the service defines both values (> 0)
-  const hasExtraTimeFor = (svc: Service): boolean =>
-    (Number(svc.extra_minutes) || 0) > 0 && (Number(svc.price_for_extra_minutes) || 0) > 0;
+  const hasExtraTimeFor = (svc: Service): boolean => {
+    if (isHomeServiceBranch(selectedBranch)) {
+      return (
+        (Number(svc.extra_minutes) || 0) > 0 &&
+        ((Number(svc.home_price_for_extra_minutes) || 0) > 0 || (Number(svc.price_for_extra_minutes) || 0) > 0)
+      );
+    }
+    return (Number(svc.extra_minutes) || 0) > 0 && (Number(svc.price_for_extra_minutes) || 0) > 0;
+  };
 
   const extraTimePriceFor = (svc: Service): number => {
     const mins = extraMinsFor(String(svc.id));
@@ -927,17 +1032,19 @@ export default function GiftVoucherPage() {
     if (flowType === 'physical') {
       return [
         { id: 'products', stepNum: 1, labelEn: 'Products', labelAr: 'المنتجات' },
-        { id: 'services', stepNum: 2, labelEn: 'Service', labelAr: 'الخدمة' },
-        { id: 'details', stepNum: 3, labelEn: 'Details', labelAr: 'التفاصيل' },
-        { id: 'summary', stepNum: 4, labelEn: 'Summary', labelAr: 'الملخص' },
-        { id: 'payment', stepNum: 5, labelEn: 'Payment', labelAr: 'الدفع' },
+        { id: 'branches', stepNum: 2, labelEn: 'Branch', labelAr: 'الفرع' },
+        { id: 'services', stepNum: 3, labelEn: 'Service', labelAr: 'الخدمة' },
+        { id: 'details', stepNum: 4, labelEn: 'Details', labelAr: 'التفاصيل' },
+        { id: 'summary', stepNum: 5, labelEn: 'Summary', labelAr: 'الملخص' },
+        { id: 'payment', stepNum: 6, labelEn: 'Payment', labelAr: 'الدفع' },
       ];
     }
     return [
-      { id: 'services', stepNum: 1, labelEn: 'Service', labelAr: 'الخدمة' },
-      { id: 'details', stepNum: 2, labelEn: 'Details', labelAr: 'التفاصيل' },
-      { id: 'summary', stepNum: 3, labelEn: 'Summary', labelAr: 'الملخص' },
-      { id: 'payment', stepNum: 4, labelEn: 'Payment', labelAr: 'الدفع' },
+      { id: 'branches', stepNum: 1, labelEn: 'Branch', labelAr: 'الفرع' },
+      { id: 'services', stepNum: 2, labelEn: 'Service', labelAr: 'الخدمة' },
+      { id: 'details', stepNum: 3, labelEn: 'Details', labelAr: 'التفاصيل' },
+      { id: 'summary', stepNum: 4, labelEn: 'Summary', labelAr: 'الملخص' },
+      { id: 'payment', stepNum: 5, labelEn: 'Payment', labelAr: 'الدفع' },
     ];
   }, [flowType]);
 
@@ -945,15 +1052,17 @@ export default function GiftVoucherPage() {
     if (currentPhase === 'category') return 0;
     if (flowType === 'physical') {
       if (currentPhase === 'products') return 1;
+      if (currentPhase === 'branches') return 2;
+      if (currentPhase === 'services') return 3;
+      if (currentPhase === 'details') return 4;
+      if (currentPhase === 'summary') return 5;
+      if (currentPhase === 'make_payment' || currentPhase === 'completed') return 6;
+    } else {
+      if (currentPhase === 'branches') return 1;
       if (currentPhase === 'services') return 2;
       if (currentPhase === 'details') return 3;
       if (currentPhase === 'summary') return 4;
       if (currentPhase === 'make_payment' || currentPhase === 'completed') return 5;
-    } else {
-      if (currentPhase === 'services') return 1;
-      if (currentPhase === 'details') return 2;
-      if (currentPhase === 'summary') return 3;
-      if (currentPhase === 'make_payment' || currentPhase === 'completed') return 4;
     }
     return 1;
   };
@@ -973,18 +1082,30 @@ export default function GiftVoucherPage() {
     if (isDig) {
       setFlowType('digital');
       setSelectedProduct(null);
+      setSelectedBranch(null);
+      loadAllBranches();
       loadServices(selectedGender);
-      setCurrentPhase('services');
+      setCurrentPhase('branches');
     } else {
       setFlowType('physical');
       loadProducts();
+      loadAllBranches();
       setCurrentPhase('products');
     }
   };
 
   const handleSelectProduct = (prod: Product) => {
     setSelectedProduct(prod);
+    loadAllBranches();
     loadServices(selectedGender);
+    setCurrentPhase('branches');
+  };
+
+  const handleSelectBranchInBranchStep = (br: Branch) => {
+    setSelectedBranch(br);
+    setSelectedServices((prev) =>
+      prev.filter((svc) => isServiceCompatibleWithBranch(svc, br))
+    );
     setCurrentPhase('services');
   };
 
@@ -1010,6 +1131,15 @@ export default function GiftVoucherPage() {
   const handleContinueFromServices = () => {
     if (selectedServices.length === 0) return;
     setIsServiceDropdownOpen(false);
+
+    // If branch is already selected (e.g. from the physical branch step)
+    if (selectedBranch) {
+      setBranches(allBranches.length > 0 ? allBranches : [selectedBranch]);
+      loadArrangements(selectedServices, selectedBranch.branch_id || selectedBranch.id);
+      setCurrentPhase('details');
+      return;
+    }
+
     const fallbackBranches: Branch[] = [
       {
         id: '8d93e387-e927-460d-91ab-4df9072f1977',
@@ -1047,22 +1177,32 @@ export default function GiftVoucherPage() {
   };
 
   // Pick the room for ONE service; that service's add-on options follow its room
-  const handleArrangementChange = (svc: Service, arr: Arrangement) => {
-    const id = String(svc.id);
+  const handleArrangementChange = (
+    svc: Service | { id: string; name?: string; addons?: Addon[]; add_ons?: Addon[]; is_packaged_services?: boolean } | string,
+    arr: Arrangement
+  ) => {
+    const id = typeof svc === 'string' ? svc : String(svc.id);
+    const svcObj = typeof svc === 'string' ? selectedServices.find((s) => String(s.id) === id) : svc;
     setChosenArrBySvc((prev) => ({ ...prev, [id]: arr }));
-    const next: Record<string, Addon[]> = {
-      ...addonsBySvc,
-      [id]: svc.is_packaged_services ? [] : arr.addons || [],
-    };
-    setAddonsBySvc(next);
-    setSelectedAddonIds((prev) => {
-      const offered = new Set<string>();
-      selectedServices.forEach((s) => {
-        if (s.is_packaged_services) return;
-        (next[String(s.id)] || []).forEach((a) => offered.add(a.id));
+    if (svcObj && 'is_packaged_services' in svcObj && !svcObj.is_packaged_services) {
+      let list = arr.addons && arr.addons.length > 0 ? arr.addons : svcObj.addons || svcObj.add_ons || [];
+      if (isHomeServiceBranch(selectedBranch)) {
+        list = list.filter((a) => a.is_available_for_home_service !== false);
+      }
+      const next: Record<string, Addon[]> = {
+        ...addonsBySvc,
+        [id]: list,
+      };
+      setAddonsBySvc(next);
+      setSelectedAddonIds((prev) => {
+        const offered = new Set<string>();
+        selectedServices.forEach((s) => {
+          if (s.is_packaged_services) return;
+          (next[String(s.id)] || []).forEach((a) => offered.add(a.id));
+        });
+        return prev.filter((aid) => offered.has(aid));
       });
-      return prev.filter((aid) => offered.has(aid));
-    });
+    }
   };
 
   const toggleAddon = (addonId: string) => {
@@ -1081,6 +1221,8 @@ export default function GiftVoucherPage() {
     } else if (currentPhase === 'details') {
       setCurrentPhase('services');
     } else if (currentPhase === 'services') {
+      setCurrentPhase('branches');
+    } else if (currentPhase === 'branches') {
       if (flowType === 'physical') {
         setCurrentPhase('products');
       } else {
@@ -1097,13 +1239,15 @@ export default function GiftVoucherPage() {
     if (stepNum >= currentStepNum) return;
     if (flowType === 'physical') {
       if (stepNum === 1) setCurrentPhase('products');
+      if (stepNum === 2) setCurrentPhase('branches');
+      if (stepNum === 3) setCurrentPhase('services');
+      if (stepNum === 4) setCurrentPhase('details');
+      if (stepNum === 5) setCurrentPhase('summary');
+    } else {
+      if (stepNum === 1) setCurrentPhase('branches');
       if (stepNum === 2) setCurrentPhase('services');
       if (stepNum === 3) setCurrentPhase('details');
       if (stepNum === 4) setCurrentPhase('summary');
-    } else {
-      if (stepNum === 1) setCurrentPhase('services');
-      if (stepNum === 2) setCurrentPhase('details');
-      if (stepNum === 3) setCurrentPhase('summary');
     }
   };
 
@@ -1173,25 +1317,66 @@ export default function GiftVoucherPage() {
       duration: a.duration_minutes || 0,
       duration_minutes: a.duration_minutes || 0,
     });
-    const buildServiceData = (svc: Service) => ({
-      id: svc.id,
-      name: svc.name_en || svc.name,
-      name_ar: svc.name_ar || svc.name,
-      duration: svc.duration_minutes || 60,
-      duration_minutes: svc.duration_minutes || 60,
-      price: servicePriceFor(svc).toFixed(decimals),
-      base_price: servicePriceFor(svc).toFixed(decimals),
-      currency,
-      image1: svc.primary_image,
-    });
+    const buildServiceData = (svc: Service) => {
+      let incServices = svc.included_services;
+      if (svc.is_packaged_services && Array.isArray(incServices)) {
+        incServices = incServices.map((inc) => {
+          const incArr = arrangementFor(inc.id);
+          return {
+            ...inc,
+            service_arrangement_id: incArr?.id || null,
+            service_arrangement_data: incArr
+              ? {
+                  id: incArr.id,
+                  name: incArr.name_en || incArr.name,
+                  name_ar: incArr.name_ar || incArr.name,
+                  arrangement_type: incArr.arrangement_type || null,
+                }
+              : {},
+          };
+        });
+      }
+      return {
+        id: svc.id,
+        name: svc.name_en || svc.name,
+        name_ar: svc.name_ar || svc.name,
+        duration: svc.duration_minutes || 60,
+        duration_minutes: svc.duration_minutes || 60,
+        price: servicePriceFor(svc).toFixed(decimals),
+        base_price: servicePriceFor(svc).toFixed(decimals),
+        currency,
+        image1: svc.primary_image,
+        is_packaged_services: svc.is_packaged_services,
+        included_services: incServices,
+        included_addons: svc.included_addons,
+      };
+    };
     const servicesPayload = selectedServices.map((svc) => {
       const svcExtraMins = extraMinsFor(String(svc.id));
       const svcArr = arrangementFor(svc);
+      let incServices = svc.included_services;
+      if (svc.is_packaged_services && Array.isArray(incServices)) {
+        incServices = incServices.map((inc) => {
+          const incArr = arrangementFor(inc.id);
+          return {
+            ...inc,
+            service_arrangement_id: incArr?.id || null,
+            service_arrangement_data: incArr
+              ? {
+                  id: incArr.id,
+                  name: incArr.name_en || incArr.name,
+                  name_ar: incArr.name_ar || incArr.name,
+                  arrangement_type: incArr.arrangement_type || null,
+                }
+              : {},
+          };
+        });
+      }
       return {
         service_id: svc.id,
         service_data: buildServiceData(svc),
-        // Room chosen for THIS service
-        service_arrangement_id: svcArr?.id || null,
+        // Room chosen for THIS service (or first included service's room for packages)
+        service_arrangement_id: svcArr?.id || (incServices && incServices[0]?.service_arrangement_id) || null,
         service_arrangement_data: svcArr
           ? {
               id: svcArr.id,
@@ -1200,7 +1385,8 @@ export default function GiftVoucherPage() {
               arrangement_type: svcArr.arrangement_type || null,
               effective_price: servicePriceFor(svc).toFixed(decimals),
             }
-          : {},
+          : (incServices && incServices[0]?.service_arrangement_data) || {},
+        included_services: incServices,
         addons: chosenAddonsFor(svc).map(buildAddonPayload),
         extra_time: svcExtraMins,
         price_for_extra_time: svcExtraMins > 0 ? extraTimePriceFor(svc).toFixed(decimals) : null,
@@ -1247,22 +1433,32 @@ export default function GiftVoucherPage() {
       branch_data: selectedBranch
         ? (() => {
             const rawEn = selectedBranch.name_en || selectedBranch.name || '';
+            const isHome = isHomeServiceBranch(selectedBranch);
             const isSharq = rawEn.includes('شرق') || /sharq/i.test(rawEn);
             const isMangaf = rawEn.includes('منقف') || /mangaf/i.test(rawEn);
-            const enName = isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : rawEn;
-            const arName = selectedBranch.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : rawEn);
+            const enName = isHome ? 'Home Service' : isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : rawEn;
+            const arName = isHome ? 'خدمة المنازل' : selectedBranch.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : rawEn);
             return {
               id: selectedBranch.branch_id || selectedBranch.id,
               name: enName,
               name_en: enName,
               name_ar: arName,
-              address: selectedBranch.address || '',
-              city: selectedBranch.city || '',
+              address: selectedBranch.address || (isHome ? "At client's location" : ''),
+              city: selectedBranch.city || (isHome ? 'All Kuwait Areas' : ''),
             };
           })()
         : {},
-      service_arrangement_id: selectedArrangement?.id || null,
-      service_arrangement_data: selectedArrangement
+      service_arrangement_id: isHomeServiceBranch(selectedBranch) ? null : selectedArrangement?.id || null,
+      service_arrangement_data: isHomeServiceBranch(selectedBranch)
+        ? {
+            id: null,
+            name: 'Home Service',
+            name_en: 'Home Service',
+            name_ar: 'خدمة المنازل',
+            arrangement_type: 'home_service',
+            effective_price: (firstService ? servicePriceFor(firstService) : 0).toFixed(decimals),
+          }
+        : selectedArrangement
         ? {
             id: selectedArrangement.id,
             name: selectedArrangement.name_en || selectedArrangement.name,
@@ -1547,6 +1743,7 @@ export default function GiftVoucherPage() {
               >
                 {currentPhase === 'category' && (isAr ? 'قسيمة الهدايا' : 'Gift Voucher')}
                 {currentPhase === 'products' && (isAr ? 'اختر المنتج للإهداء' : 'Select Gift Packaging')}
+                {currentPhase === 'branches' && (isAr ? 'اختر فرع السبا أو الخدمة' : 'Select Spa Branch or Home Service')}
                 {currentPhase === 'services' && (isAr ? 'اختر خدمات السبا' : 'Choose Spa Services')}
                 {currentPhase === 'details' && (isAr ? 'تفاصيل باقة السبا' : 'Gift a Spa Service Details')}
                 {currentPhase === 'summary' && (isAr ? 'ملخص الهدية' : 'Gift Summary')}
@@ -1556,6 +1753,7 @@ export default function GiftVoucherPage() {
               <p style={{ color: isDark ? '#b5a49c' : TEXT_SEC }} className="text-xs truncate">
                 {currentPhase === 'category' && (isAr ? 'اختر الفئة المثالية لهديتك' : 'Select the perfect gift category')}
                 {currentPhase === 'products' && (isAr ? 'انقر على المنتج لاختياره' : 'Tap a presentation box or hamper')}
+                {currentPhase === 'branches' && (isAr ? 'اختر الفرع أو خدمة المنازل لعرض الخدمات' : 'Select branch or home service for treatments')}
                 {currentPhase === 'services' && (isAr ? 'تجارب استرخاء ملكية لا تُنسى' : 'Select luxury treatments and packages')}
                 {currentPhase === 'details' && (isAr ? 'اختر الغرفة والإضافات والوقت الإضافي' : 'Select suite, add-ons and duration')}
                 {currentPhase === 'summary' && (isAr ? 'أدخل تفاصيل المستلم ورسالة الإهداء' : 'Recipient details, wishes & checkout')}
@@ -1942,10 +2140,188 @@ export default function GiftVoucherPage() {
         )}
 
         {/* ==================================================================== */}
+        {/* PHASE 2.5: BRANCH SELECTION                                          */}
+        {/* ==================================================================== */}
+        {currentPhase === 'branches' && (
+          <section className="space-y-6">
+            {/* Selected Product Banner (if physical flow) */}
+            {flowType === 'physical' && selectedProduct && (
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'rgba(163, 120, 84, 0.25)',
+                }}
+                className="rounded-2xl p-3 sm:p-4 border flex items-center justify-between gap-3 shadow-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={selectedProduct.image || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=200'}
+                    alt={selectedProduct.name}
+                    className="w-12 h-12 rounded-xl object-cover border border-stone-200"
+                  />
+                  <div>
+                    <span style={{ color: ACCENT_BROWN }} className="text-[10px] uppercase font-bold tracking-wider block">
+                      {isAr ? 'علبة الإهداء المختارة' : 'Selected Packaging'}
+                    </span>
+                    <h4 className="text-sm font-bold text-[#1A1A1A]">
+                      {(isAr ? selectedProduct.name_ar : selectedProduct.name_en) || selectedProduct.name}
+                    </h4>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPhase('products')}
+                  style={{ color: ACCENT_BROWN }}
+                  className="text-xs font-semibold hover:underline flex-shrink-0 cursor-pointer"
+                >
+                  {isAr ? 'تغيير' : 'Change'}
+                </button>
+              </div>
+            )}
+
+            {/* Header / Subtitle */}
+            <div className="text-center sm:text-start">
+              <h3 style={{ color: PRIMARY_BROWN }} className="text-lg sm:text-xl font-bold">
+                {isAr ? 'اختر فرع السبا أو الخدمة' : 'Select Spa Branch or Home Service'}
+              </h3>
+              <p style={{ color: '#78716C' }} className="text-xs sm:text-sm mt-1">
+                {isAr
+                  ? 'اختر الفرع أو خدمة المنازل لعرض باقات وتجارب الاسترخاء المتاحة'
+                  : 'Select a branch or Home Service to explore available treatments and experiences'}
+              </p>
+            </div>
+
+            {/* Branches Grid: 1 row for desktop and ipad (sm:grid-cols-4 md:grid-cols-4), 2 items per row for mobile (grid-cols-2) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 gap-3 sm:gap-3.5">
+              {allBranches.map((br) => {
+                const isSelected = String(selectedBranch?.branch_id || selectedBranch?.id) === String(br.branch_id || br.id);
+                const isHome = isHomeServiceBranch(br);
+                const branchName = (isAr ? br.name_ar : br.name_en) || br.name;
+                const branchCity = (isAr ? br.city_ar : br.city_en) || br.city;
+
+                return (
+                  <button
+                    key={String(br.branch_id || br.id)}
+                    type="button"
+                    onClick={() => handleSelectBranchInBranchStep(br)}
+                    style={{
+                      backgroundColor: isSelected ? 'rgba(84, 60, 48, 0.06)' : '#FFFFFF',
+                      borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.25)',
+                      boxShadow: isSelected ? '0 4px 12px rgba(84, 60, 48, 0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
+                    }}
+                    className="group relative p-3 sm:p-4 rounded-2xl border text-start transition-all duration-200 hover:border-[#543C30] hover:shadow-md cursor-pointer flex flex-col justify-between min-h-[120px] sm:min-h-[140px]"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div
+                          style={{
+                            backgroundColor: isSelected ? PRIMARY_BROWN : 'rgba(84, 60, 48, 0.1)',
+                            color: isSelected ? '#FFFFFF' : PRIMARY_BROWN,
+                          }}
+                          className="w-9 h-9 rounded-xl grid place-items-center transition-colors"
+                        >
+                          {isHome ? (
+                            <HomeIcon className="w-5 h-5 stroke-[2]" />
+                          ) : (
+                            <BuildingStorefrontIcon className="w-5 h-5 stroke-[2]" />
+                          )}
+                        </div>
+                        {isSelected && (
+                          <div
+                            style={{ backgroundColor: PRIMARY_BROWN }}
+                            className="w-5 h-5 rounded-full grid place-items-center text-white"
+                          >
+                            <CheckIcon className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+
+                      <h4
+                        style={{ color: PRIMARY_BROWN }}
+                        className="text-xs sm:text-sm font-bold leading-snug line-clamp-2"
+                      >
+                        {branchName}
+                      </h4>
+                      <p
+                        style={{ color: '#78716C' }}
+                        className="text-[11px] sm:text-xs mt-1 line-clamp-1"
+                      >
+                        {branchCity}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 pt-2 border-t border-stone-100 flex items-center justify-between">
+                      <span
+                        style={{ color: ACCENT_BROWN }}
+                        className="text-[10px] sm:text-[11px] font-semibold"
+                      >
+                        {isHome ? (isAr ? 'في موقعك' : 'Client Location') : (isAr ? 'فرع السبا' : 'Spa Branch')}
+                      </span>
+                      <span
+                        style={{ color: PRIMARY_BROWN }}
+                        className="text-[10px] font-bold underline group-hover:opacity-80"
+                      >
+                        {isAr ? 'اختيار' : 'Select'} →
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ==================================================================== */}
         {/* PHASE 3: SERVICES SELECTION (gift-service-selection.tsx)              */}
         {/* ==================================================================== */}
         {currentPhase === 'services' && (
           <section className="space-y-5">
+            {/* Selected Branch Banner */}
+            {selectedBranch && (
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: 'rgba(163, 120, 84, 0.25)',
+                }}
+                className="rounded-2xl p-3 sm:p-4 border flex items-center justify-between gap-3 shadow-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(84, 60, 48, 0.1)',
+                      color: PRIMARY_BROWN,
+                    }}
+                    className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
+                  >
+                    {isHomeServiceBranch(selectedBranch) ? (
+                      <HomeIcon className="w-5 h-5 stroke-[2]" />
+                    ) : (
+                      <BuildingStorefrontIcon className="w-5 h-5 stroke-[2]" />
+                    )}
+                  </div>
+                  <div>
+                    <span style={{ color: ACCENT_BROWN }} className="text-[10px] uppercase font-bold tracking-wider block">
+                      {isAr ? 'الفرع المُختار' : 'Selected Branch'}
+                    </span>
+                    <h4 className="text-sm font-bold text-[#1A1A1A]">
+                      {(isAr ? selectedBranch.name_ar : selectedBranch.name_en) || selectedBranch.name}
+                      <span className="text-xs font-normal text-stone-500 ms-1.5">
+                        ({(isAr ? selectedBranch.city_ar : selectedBranch.city_en) || selectedBranch.city})
+                      </span>
+                    </h4>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPhase('branches')}
+                  style={{ color: ACCENT_BROWN }}
+                  className="text-xs font-semibold hover:underline flex-shrink-0 cursor-pointer"
+                >
+                  {isAr ? 'تغيير الفرع' : 'Change Branch'}
+                </button>
+              </div>
+            )}
+
             {/* Selected Product Banner (if physical flow) */}
             {flowType === 'physical' && selectedProduct && (
               <div
@@ -2062,11 +2438,32 @@ export default function GiftVoucherPage() {
               />
             ) : (
               <div className="space-y-4">
+                {filteredServices.length === 0 ? (
+                  <div
+                    style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+                    className="p-8 rounded-2xl border text-center space-y-2"
+                  >
+                    <p style={{ color: PRIMARY_BROWN }} className="font-bold text-sm sm:text-base">
+                      {isAr ? 'لا توجد خدمات متاحة لهذا الفرع حالياً' : 'No services available for this branch at the moment'}
+                    </p>
+                    <p style={{ color: '#78716C' }} className="text-xs">
+                      {isAr ? 'يرجى اختيار فرع آخر لعرض الخدمات المتاحة' : 'Please select another branch to explore available services'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPhase('branches')}
+                      style={{ color: ACCENT_BROWN }}
+                      className="text-xs font-bold underline mt-2 hover:opacity-80 cursor-pointer"
+                    >
+                      {isAr ? '← العودة لاختيار الفرع' : '← Change Branch'}
+                    </button>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {services.map((svc) => {
+                  {filteredServices.map((svc) => {
                     const name = (isAr ? svc.name_ar : svc.name_en) || svc.name;
                     const desc = (isAr ? svc.description_ar : svc.description_en) || svc.description;
-                    const price = svc.current_price || svc.base_price || '0';
+                    const price = (isHomeServiceBranch(selectedBranch) ? svc.home_service_price : null) || svc.current_price || svc.base_price || '0';
                     const isSelected = selectedServices.some((s) => s.id === svc.id);
                     const blockedReason = serviceBlockedReason(svc);
 
@@ -2127,6 +2524,15 @@ export default function GiftVoucherPage() {
                             >
                               {price} {svc.currency || 'KWD'}
                             </span>
+                            {isHomeServiceBranch(selectedBranch) && (
+                              <span
+                                style={{ backgroundColor: 'rgba(84, 60, 48, 0.1)', color: PRIMARY_BROWN }}
+                                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md"
+                              >
+                                <HomeIcon className="w-3 h-3 stroke-[2.5]" />
+                                {isAr ? 'خدمة منازل' : 'Home Service'}
+                              </span>
+                            )}
                           </div>
 
                           {/* View Details Action Link */}
@@ -2163,6 +2569,7 @@ export default function GiftVoucherPage() {
                     );
                   })}
                 </div>
+                )}
 
                 {/* Continue Action (fixed to the bottom of the viewport) */}
                 <FixedFooter><div className="flex justify-end">
@@ -2367,57 +2774,71 @@ export default function GiftVoucherPage() {
             </React.Fragment>
             ))}
 
-            {/* Branch Selection */}
+            {/* Selected Spa Branch */}
             <div
               style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
               className="rounded-2xl border p-5 space-y-3"
             >
-              <div className="flex items-center gap-2">
-                <BuildingStorefrontIcon style={{ color: PRIMARY_BROWN }} className="w-5 h-5 flex-shrink-0" />
-                <h4 className="font-bold text-base text-[#1A1A1A]">
-                  {isAr ? 'فرع السبا المخصص' : 'Select Spa Branch'}
-                </h4>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <BuildingStorefrontIcon style={{ color: PRIMARY_BROWN }} className="w-5 h-5 flex-shrink-0" />
+                  <h4 className="font-bold text-base text-[#1A1A1A]">
+                    {isAr ? 'فرع السبا المختار' : 'Selected Spa Branch'}
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPhase('branches')}
+                  style={{ color: PRIMARY_BROWN }}
+                  className="text-xs sm:text-sm font-bold underline hover:opacity-80 transition-opacity cursor-pointer"
+                >
+                  {isAr ? 'تغيير الفرع' : 'Change Branch'}
+                </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {branches
-                  .filter((b) => !isHomeServiceBranch(b))
-                  .map((b) => {
-                  const bName = (isAr ? b.name_ar : b.name_en) || b.name;
-                  const isSelected = selectedBranch?.id === b.id || selectedBranch?.branch_id === b.branch_id;
 
-                  return (
-                    <button
-                      key={b.id || b.branch_id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBranch(b);
-                        loadArrangements(selectedServices, b.branch_id || b.id);
-                      }}
-                      style={{
-                        backgroundColor: isSelected ? CARD_SELECTED_BG : '#FFFFFF',
-                        borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
-                        borderWidth: isSelected ? 2 : 1,
-                      }}
-                      className="p-3.5 rounded-xl border text-start flex items-center justify-between gap-3 transition-colors"
+              {selectedBranch && (
+                <div
+                  style={{
+                    backgroundColor: CARD_SELECTED_BG,
+                    borderColor: PRIMARY_BROWN,
+                    borderWidth: 1.5,
+                  }}
+                  className="p-4 rounded-xl border flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                      className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
                     >
-                      <div>
-                        <div className="font-bold text-sm text-[#1A1A1A]">{bName}</div>
-                        <div style={{ color: TEXT_SEC }} className="text-xs mt-0.5">
-                          {b.address || (isAr ? 'مدينة الكويت' : 'Kuwait City')}
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div
-                          style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
-                          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        >
-                          <CheckIcon className="w-3.5 h-3.5 stroke-[3]" />
-                        </div>
+                      {isHomeServiceBranch(selectedBranch) ? (
+                        <HomeIcon className="w-5 h-5 stroke-[2]" />
+                      ) : (
+                        <BuildingStorefrontIcon className="w-5 h-5 stroke-[2]" />
                       )}
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-[#1A1A1A]">
+                        {(isAr ? selectedBranch.name_ar : selectedBranch.name_en) || selectedBranch.name}
+                      </div>
+                      <div style={{ color: TEXT_SEC }} className="text-xs mt-0.5">
+                        {selectedBranch.address || (isAr ? 'مدينة الكويت' : 'Kuwait City')}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPhase('branches')}
+                    style={{
+                      borderColor: 'rgba(163, 120, 84, 0.3)',
+                      color: PRIMARY_BROWN,
+                      backgroundColor: '#FFFFFF',
+                    }}
+                    className="px-3 py-1.5 rounded-lg border text-xs font-bold hover:bg-stone-50 transition-colors shadow-2xs"
+                  >
+                    {isAr ? 'تغيير' : 'Change'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {selectedServices.map((svc) => {
@@ -2425,6 +2846,216 @@ export default function GiftVoucherPage() {
             const svcName = (isAr ? svc.name_ar : svc.name_en) || svc.name;
             const svcOptions = uniqueByType(arrangementsBySvc[svcId] || []);
             const svcChosenArr = arrangementFor(svc);
+            const isPackage = Boolean(svc.is_packaged_services && (svc.included_services ?? []).length > 0);
+
+            if (isPackage) {
+              return (
+                <div key={svc.id} className="space-y-4">
+                  {/* Package Overview Card */}
+                  <div
+                    style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+                    className="rounded-2xl border p-5 space-y-4"
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-200/70">
+                      <div>
+                        <span
+                          style={{ backgroundColor: 'rgba(84, 60, 48, 0.1)', color: PRIMARY_BROWN }}
+                          className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider inline-block mb-1"
+                        >
+                          {isAr ? 'باقة سبا' : 'Spa Package'}
+                        </span>
+                        <h3
+                          style={{ fontFamily: isAr ? 'inherit' : "'Lustria', serif" }}
+                          className="font-bold text-lg text-[#1A1A1A] uppercase tracking-wide"
+                        >
+                          {svcName}
+                        </h3>
+                      </div>
+                      <div className="text-end">
+                        <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-base block">
+                          {servicePriceFor(svc).toFixed(decimals)} {currency}
+                        </span>
+                        {svc.duration_minutes ? (
+                          <span style={{ color: TEXT_SEC }} className="text-xs">
+                            {svc.duration_minutes} {isAr ? 'دقيقة' : 'min'}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Included Add-ons if any */}
+                    {(svc.included_addons ?? []).length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        <h4 className="font-bold text-xs uppercase tracking-wider text-[#543C30]">
+                          {isAr ? 'الإضافات المتضمنة في الباقة' : 'Included Add-ons'}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {(svc.included_addons ?? []).map((ad) => (
+                            <div
+                              key={`addon-${ad.id}`}
+                              className="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200/60 text-xs"
+                            >
+                              <span className="font-semibold text-[#1A1A1A]">✨ {ad.name}</span>
+                              {ad.duration_minutes ? (
+                                <span style={{ color: TEXT_SEC }}>{ad.duration_minutes} {isAr ? 'دقيقة' : 'min'}</span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Separate Room Cards for each included service, exactly like multi services */}
+                  {(svc.included_services ?? []).map((inc, incIdx) => {
+                    const incId = String(inc.id);
+                    const incName = (isAr ? inc.name_ar : inc.name_en) || inc.name;
+                    const incOptions = uniqueByType(arrangementsBySvc[incId] || []);
+                    const incChosenArr = arrangementFor(inc.id);
+
+                    return (
+                      <div
+                        key={inc.id || incIdx}
+                        style={{ backgroundColor: CARD_BG, borderColor: BORDER_COLOR }}
+                        className="rounded-2xl border p-5 space-y-4"
+                      >
+                        <div className="flex items-center justify-between pb-3 border-b border-stone-200/70">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                            >
+                              {incIdx + 1}
+                            </span>
+                            <div>
+                              <span style={{ color: PRIMARY_BROWN }} className="text-[11px] font-bold uppercase tracking-wider block">
+                                {isAr ? `الخدمة المتضمنة ${incIdx + 1}` : `Included Service ${incIdx + 1}`}
+                              </span>
+                              <h4 className="font-bold text-base text-[#1A1A1A]">
+                                {incName}
+                              </h4>
+                            </div>
+                          </div>
+                          {inc.duration_minutes ? (
+                            <span style={{ color: TEXT_SEC }} className="text-xs font-semibold shrink-0">
+                              {inc.duration_minutes} {isAr ? 'دقيقة' : 'min'}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Treatment Room Selection for this included service */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-bold text-xs uppercase tracking-wider text-[#543C30]">
+                              {isAr ? 'غرفة أو جناح العلاج' : 'Treatment Room / Suite'}
+                            </span>
+                            <span style={{ color: ACCENT_BROWN }} className="text-xs font-semibold shrink-0">
+                              {isAr ? 'إلزامي' : 'Required'}
+                            </span>
+                          </div>
+
+                          {isHomeServiceBranch(selectedBranch) ? (
+                            <div
+                              style={{
+                                backgroundColor: CARD_SELECTED_BG,
+                                borderColor: PRIMARY_BROWN,
+                              }}
+                              className="rounded-xl border-2 p-3.5 flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                                  className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
+                                >
+                                  <HomeIcon className="w-4 h-4 stroke-[2]" />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-xs sm:text-sm text-[#1A1A1A]">
+                                    {isAr ? 'خدمة منزلية (في موقع العميل)' : "Home Service (At Client's Location)"}
+                                  </div>
+                                  <div style={{ color: TEXT_SEC }} className="text-[11px] sm:text-xs">
+                                    {isAr ? 'جلسة سبا فاخرة في راحة منزلك' : 'Luxury spa treatment delivered to your doorstep'}
+                                  </div>
+                                </div>
+                              </div>
+                              <div
+                                style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                              >
+                                <CheckIcon className="w-3.5 h-3.5 stroke-[3]" />
+                              </div>
+                            </div>
+                          ) : isLoadingArrangements ? (
+                            <div className="py-6 text-center text-xs" style={{ color: TEXT_SEC }}>
+                              {isAr ? 'جاري تحميل الغرف...' : 'Loading arrangements...'}
+                            </div>
+                          ) : incOptions.length === 0 ? (
+                            <SupportContactCard
+                              isAr={isAr}
+                              title={isAr ? 'خيارات الغرف غير متوفرة حالياً' : 'Room arrangements are currently unavailable'}
+                              message={
+                                isAr
+                                  ? 'تعذر تحميل خيارات الغرف للفرع المحدد أو الاتصال بالخادم. يرجى التواصل مع فريق الدعم لإتمام الترتيبات.'
+                                  : 'Room arrangements are currently unavailable for this branch. Please contact our support team to assist you.'
+                              }
+                            />
+                          ) : (
+                            <div className="space-y-2.5">
+                              {incOptions.map((arr) => {
+                                const isSelected = incChosenArr?.id === arr.id;
+                                const arrName = (isAr ? arr.name_ar : arr.name_en) || arr.name;
+                                const arrDesc = (isAr ? arr.description_ar : arr.description) || arr.description;
+
+                                return (
+                                  <div
+                                    key={arr.id}
+                                    onClick={() => handleArrangementChange(inc.id, arr)}
+                                    style={{
+                                      backgroundColor: isSelected ? CARD_SELECTED_BG : '#FFFFFF',
+                                      borderColor: isSelected ? PRIMARY_BROWN : 'rgba(163, 120, 84, 0.2)',
+                                      borderWidth: isSelected ? 2 : 1,
+                                    }}
+                                    className="p-4 rounded-xl border cursor-pointer flex items-center justify-between gap-3 transition-colors"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm text-[#1A1A1A]">{arrName}</span>
+                                        {isSelected && (
+                                          <div
+                                            style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                                            className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                                          >
+                                            <CheckIcon className="w-3 h-3 stroke-[3]" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      {arrDesc && (
+                                        <p style={{ color: TEXT_SEC }} className="text-xs mt-1 line-clamp-1">
+                                          {arrDesc}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-end flex-shrink-0">
+                                      <span style={{ color: PRIMARY_BROWN }} className="font-extrabold text-xs sm:text-sm block">
+                                        {isAr ? 'مشمول في الباقة' : 'Included in Package'}
+                                      </span>
+                                      <span style={{ color: TEXT_SEC }} className="text-[10px]">
+                                        {isAr ? 'بدون تكلفة إضافية' : 'No extra charge'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+
             const hideRoomCard = svc.is_packaged_services && !isLoadingArrangements && svcOptions.length === 0;
             return (
             <div
@@ -2450,7 +3081,38 @@ export default function GiftVoucherPage() {
                 </span>
               </div>
 
-              {isLoadingArrangements ? (
+              {isHomeServiceBranch(selectedBranch) ? (
+                <div
+                  style={{
+                    backgroundColor: CARD_SELECTED_BG,
+                    borderColor: PRIMARY_BROWN,
+                  }}
+                  className="rounded-xl border-2 p-3.5 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                      className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
+                    >
+                      <HomeIcon className="w-4 h-4 stroke-[2]" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs sm:text-sm text-[#1A1A1A]">
+                        {isAr ? 'خدمة منزلية (في موقع العميل)' : "Home Service (At Client's Location)"}
+                      </div>
+                      <div style={{ color: TEXT_SEC }} className="text-[11px] sm:text-xs">
+                        {isAr ? 'جلسة سبا فاخرة في راحة منزلك' : 'Luxury spa treatment delivered to your doorstep'}
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    style={{ backgroundColor: PRIMARY_BROWN, color: '#FFF' }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  >
+                    <CheckIcon className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                </div>
+              ) : isLoadingArrangements ? (
                 <div className="py-6 text-center text-xs" style={{ color: TEXT_SEC }}>
                   {isAr ? 'جاري تحميل الغرف...' : 'Loading arrangements...'}
                 </div>
@@ -2672,10 +3334,15 @@ export default function GiftVoucherPage() {
                 type="button"
                 onClick={() => setCurrentPhase('summary')}
                 disabled={
-                  selectedServices.length > 1 &&
-                  selectedServices.some(
-                    (svc) => !svc.is_packaged_services && !chosenArrBySvc[String(svc.id)]
-                  )
+                  !isHomeServiceBranch(selectedBranch) &&
+                  selectedServices.some((svc) => {
+                    if (svc.is_packaged_services && Array.isArray(svc.included_services) && svc.included_services.length > 0) {
+                      return svc.included_services.some(
+                        (inc) => !chosenArrBySvc[String(inc.id)] && (arrangementsBySvc[String(inc.id)] || []).length > 0
+                      );
+                    }
+                    return !chosenArrBySvc[String(svc.id)] && (arrangementsBySvc[String(svc.id)] || []).length > 0;
+                  })
                 }
                 style={{
                   backgroundColor: PRIMARY_BROWN,
@@ -2784,7 +3451,7 @@ export default function GiftVoucherPage() {
                           </span>
                           <span style={{ color: TEXT_SEC }} className="text-xs block truncate">
                             {selectedBranch ? ((isAr ? selectedBranch.name_ar : selectedBranch.name_en) || selectedBranch.name) : ''}
-                            {svcArrangement ? ` • ${((isAr ? svcArrangement.name_ar : svcArrangement.name_en) || svcArrangement.name)}` : ''}
+                            {!svc.is_packaged_services && svcArrangement ? ` • ${((isAr ? svcArrangement.name_ar : svcArrangement.name_en) || svcArrangement.name)}` : ''}
                             {svc.duration_minutes ? ` • ${svc.duration_minutes} ${isAr ? 'دقيقة' : 'mins'}` : ''}
                           </span>
                         </div>
@@ -2793,6 +3460,31 @@ export default function GiftVoucherPage() {
                         {servicePriceFor(svc).toFixed(decimals)} {currency}
                       </span>
                     </div>
+
+                    {/* Included Services for Packages */}
+                    {svc.is_packaged_services && (svc.included_services ?? []).length > 0 && (
+                      <div className="py-2 px-3 rounded-xl bg-stone-50 border border-stone-200/60 my-2 space-y-1.5">
+                        <span style={{ color: PRIMARY_BROWN }} className="text-xs font-bold uppercase tracking-wider block">
+                          {isAr ? 'الخدمات المتضمنة والغرف:' : 'Included Services & Suites:'}
+                        </span>
+                        {(svc.included_services ?? []).map((inc) => {
+                          const incArr = arrangementFor(inc.id);
+                          return (
+                            <div key={inc.id} className="flex items-center justify-between text-xs py-0.5">
+                              <span className="text-[#1A1A1A] font-medium">
+                                • {(isAr ? inc.name_ar : inc.name_en) || inc.name}
+                                {inc.duration_minutes ? ` (${inc.duration_minutes} ${isAr ? 'دقيقة' : 'min'})` : ''}
+                              </span>
+                              {incArr && !isHomeServiceBranch(selectedBranch) && (
+                                <span style={{ color: TEXT_SEC }} className="text-[11px] font-semibold">
+                                  {(isAr ? incArr.name_ar : incArr.name_en) || incArr.name}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* Selected Add-ons */}
                     {svcAddons.length > 0 && (

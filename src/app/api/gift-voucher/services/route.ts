@@ -143,15 +143,21 @@ export async function GET(request: NextRequest) {
         base_price: item.base_price || item.current_price || '0',
         current_price: item.current_price || item.base_price || '0',
         currency: item.currency || 'KWD',
+        is_home_service_eligible: Boolean(item.is_home_service_eligible),
+        home_service_price: item.home_service_price ?? null,
+        home_price_for_extra_minutes: item.home_price_for_extra_minutes ?? null,
+        extra_minutes: item.extra_minutes ?? 0,
+        price_for_extra_minutes: item.price_for_extra_minutes ?? null,
         branches: Array.isArray(item.branches)
           ? item.branches
-              .filter((b: any) => (!activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || ''))) && !isHomeBranch(b))
+              .filter((b: any) => !activeBranchIds || activeBranchIds.has(String(b.branch_id || b.id || '')))
               .map((b: any) => {
                 const bName = String(b.name || '');
                 const isSharq = bName.includes('شرق') || /sharq/i.test(bName);
                 const isMangaf = bName.includes('منقف') || /mangaf/i.test(bName);
-                const nameEn = b.name_en || (isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : bName);
-                const nameAr = b.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : bName);
+                const isHome = isHomeBranch(b);
+                const nameEn = b.name_en || (isSharq ? 'Sharq Branch' : isMangaf ? 'Mangaf Branch' : isHome ? 'Home Service' : bName);
+                const nameAr = b.name_ar || (isSharq ? 'فرع شرق' : isMangaf ? 'فرع المنقف' : isHome ? 'خدمة المنازل' : bName);
                 return {
                   id: String(b.branch_id || b.id || ''),
                   branch_id: String(b.branch_id || b.id || ''),
