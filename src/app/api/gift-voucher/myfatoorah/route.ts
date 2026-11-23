@@ -265,11 +265,21 @@ export async function POST(request: NextRequest) {
       )}`.slice(0, 254);
     }
 
-    // Clean phone number
-    let cleanMobile = String(customer_phone || recipient_phone || '').replace(/\D+/g, '');
+    // Clean phone number & extract country code dynamically
+    const rawPhoneStr = String(customer_phone || recipient_phone || '').trim();
+    let cleanMobile = rawPhoneStr.replace(/\D+/g, '');
+    if (cleanMobile.startsWith('00')) cleanMobile = cleanMobile.slice(2);
     let countryCode = '+965';
-    if (cleanMobile.startsWith('965') && cleanMobile.length > 8) {
-      cleanMobile = cleanMobile.slice(3);
+    const KNOWN_DIAL_CODES = [
+      '965', '966', '971', '974', '973', '968', '962', '961', '964', '880',
+      '20', '44', '33', '49', '90', '91', '92', '63', '61', '65', '60', '1',
+    ];
+    for (const dc of KNOWN_DIAL_CODES) {
+      if (cleanMobile.startsWith(dc) && cleanMobile.length > dc.length + 5) {
+        countryCode = `+${dc}`;
+        cleanMobile = cleanMobile.slice(dc.length);
+        break;
+      }
     }
     if (!cleanMobile) {
       cleanMobile = '90010333';

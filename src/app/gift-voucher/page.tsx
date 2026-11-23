@@ -64,22 +64,51 @@ interface CountryEntry {
   flag: string;
 }
 
-// Only Kuwait is supported for now.
 const COUNTRIES: CountryEntry[] = [
-  { code: 'KW', dial: '+965', name_en: 'Kuwait', name_ar: 'الكويت', flag: '🇰🇼' },
+  { code: 'KW', dial: '+965', name_en: 'Kuwait',         name_ar: 'الكويت',         flag: '🇰🇼' },
+  { code: 'SA', dial: '+966', name_en: 'Saudi Arabia',   name_ar: 'السعودية',       flag: '🇸🇦' },
+  { code: 'AE', dial: '+971', name_en: 'UAE',            name_ar: 'الإمارات',       flag: '🇦🇪' },
+  { code: 'QA', dial: '+974', name_en: 'Qatar',          name_ar: 'قطر',            flag: '🇶🇦' },
+  { code: 'BH', dial: '+973', name_en: 'Bahrain',        name_ar: 'البحرين',        flag: '🇧🇭' },
+  { code: 'OM', dial: '+968', name_en: 'Oman',           name_ar: 'عُمان',          flag: '🇴🇲' },
+  { code: 'JO', dial: '+962', name_en: 'Jordan',         name_ar: 'الأردن',         flag: '🇯🇴' },
+  { code: 'EG', dial: '+20',  name_en: 'Egypt',          name_ar: 'مصر',            flag: '🇪🇬' },
+  { code: 'LB', dial: '+961', name_en: 'Lebanon',        name_ar: 'لبنان',          flag: '🇱🇧' },
+  { code: 'IQ', dial: '+964', name_en: 'Iraq',           name_ar: 'العراق',         flag: '🇮🇶' },
+  { code: 'GB', dial: '+44',  name_en: 'United Kingdom', name_ar: 'المملكة المتحدة', flag: '🇬🇧' },
+  { code: 'US', dial: '+1',   name_en: 'United States',  name_ar: 'الولايات المتحدة', flag: '🇺🇸' },
+  { code: 'CA', dial: '+1',   name_en: 'Canada',         name_ar: 'كندا',           flag: '🇨🇦' },
+  { code: 'FR', dial: '+33',  name_en: 'France',         name_ar: 'فرنسا',          flag: '🇫🇷' },
+  { code: 'DE', dial: '+49',  name_en: 'Germany',        name_ar: 'ألمانيا',        flag: '🇩🇪' },
+  { code: 'TR', dial: '+90',  name_en: 'Turkey',         name_ar: 'تركيا',          flag: '🇹🇷' },
+  { code: 'IN', dial: '+91',  name_en: 'India',          name_ar: 'الهند',          flag: '🇮🇳' },
+  { code: 'PK', dial: '+92',  name_en: 'Pakistan',       name_ar: 'باكستان',        flag: '🇵🇰' },
+  { code: 'BD', dial: '+880', name_en: 'Bangladesh',     name_ar: 'بنغلاديش',       flag: '🇧🇩' },
+  { code: 'PH', dial: '+63',  name_en: 'Philippines',    name_ar: 'الفلبين',        flag: '🇵🇭' },
+  { code: 'AU', dial: '+61',  name_en: 'Australia',      name_ar: 'أستراليا',       flag: '🇦🇺' },
+  { code: 'SG', dial: '+65',  name_en: 'Singapore',      name_ar: 'سنغافورة',       flag: '🇸🇬' },
+  { code: 'MY', dial: '+60',  name_en: 'Malaysia',       name_ar: 'ماليزيا',        flag: '🇲🇾' },
 ];
 
-/** Strip everything except digits; drop a pasted +965 / 00965 prefix; cap at 8 digits. */
-function sanitizeKuwaitPhone(raw: string): string {
+/** Strip non-digits and any pasted country prefix; cap length (8 for Kuwait, 15 otherwise). */
+function sanitizeLocalPhone(raw: string, dial: string): string {
+  const dialDigits = dial.replace(/\D/g, '');
+  const isKuwait = dialDigits === '965';
   let digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('00965')) digits = digits.slice(5);
-  else if (digits.startsWith('965') && digits.length > 8) digits = digits.slice(3);
-  return digits.slice(0, 8);
+  if (dialDigits) {
+    if (digits.startsWith(`00${dialDigits}`)) digits = digits.slice(2 + dialDigits.length);
+    else if (digits.startsWith(dialDigits) && digits.length > (isKuwait ? 8 : 10)) digits = digits.slice(dialDigits.length);
+  }
+  return digits.slice(0, isKuwait ? 8 : 15);
 }
 
-/** Kuwait numbers: exactly 8 digits, starting with 4, 5, 6 or 9. */
-function isValidKuwaitPhone(local: string): boolean {
-  return /^[4569]\d{7}$/.test(local);
+/** Kuwait: exactly 8 digits starting with 4, 5, 6 or 9. Other countries: 6–15 digits. */
+function isValidLocalPhone(local: string, dial: string): boolean {
+  const digits = local.replace(/\D/g, '');
+  if (dial.replace(/\D/g, '') === '965') {
+    return /^[4569]\d{7}$/.test(digits);
+  }
+  return /^\d{6,15}$/.test(digits);
 }
 
 // ─── Data Types ─────────────────────────────────────────────────────────────
@@ -1259,16 +1288,26 @@ export default function GiftVoucherPage() {
       setFormError(isAr ? 'يرجى إدخال اسمك (المُهدِي)' : 'Please enter your name (Gift From)');
       return;
     }
-    if (!isValidKuwaitPhone(senderPhone)) {
-      setFormError(isAr ? 'رقم هاتفك غير صالح. يجب أن يتكون من 8 أرقام ويبدأ بـ 4 أو 5 أو 6 أو 9' : 'Your phone number is invalid. It must be 8 digits starting with 4, 5, 6 or 9');
+    if (!isValidLocalPhone(senderPhone, senderCountry.dial)) {
+      const isKw = senderCountry.dial === '+965';
+      setFormError(
+        isKw
+          ? (isAr ? 'رقم هاتفك غير صالح. يجب أن يتكون من 8 أرقام ويبدأ بـ 4 أو 5 أو 6 أو 9' : 'Your phone number is invalid. It must be 8 digits starting with 4, 5, 6 or 9')
+          : (isAr ? 'رقم هاتفك غير صالح. يرجى إدخال رقم صحيح (6 إلى 15 رقماً)' : 'Your phone number is invalid. Please enter a valid number (6–15 digits)'),
+      );
       return;
     }
     if (!recipientName.trim()) {
       setFormError(isAr ? 'يرجى إدخال اسم المستلم' : 'Please enter the recipient full name');
       return;
     }
-    if (!isValidKuwaitPhone(recipientPhone)) {
-      setFormError(isAr ? 'رقم هاتف المستلم غير صالح. يجب أن يتكون من 8 أرقام ويبدأ بـ 4 أو 5 أو 6 أو 9' : "Recipient's phone number is invalid. It must be 8 digits starting with 4, 5, 6 or 9");
+    if (!isValidLocalPhone(recipientPhone, selectedCountry.dial)) {
+      const isKw = selectedCountry.dial === '+965';
+      setFormError(
+        isKw
+          ? (isAr ? 'رقم هاتف المستلم غير صالح. يجب أن يتكون من 8 أرقام ويبدأ بـ 4 أو 5 أو 6 أو 9' : "Recipient's phone number is invalid. It must be 8 digits starting with 4, 5, 6 or 9")
+          : (isAr ? 'رقم هاتف المستلم غير صالح. يرجى إدخال رقم صحيح (6 إلى 15 رقماً)' : "Recipient's phone number is invalid. Please enter a valid number (6–15 digits)"),
+      );
       return;
     }
 
@@ -3575,25 +3614,40 @@ export default function GiftVoucherPage() {
                     {isAr ? 'رقم هاتفك (المرسل) *' : 'Your Phone Number *'}
                   </label>
                   <div className="flex gap-2" dir="ltr">
-                    <span
+                    <select
+                      aria-label={isAr ? 'رمز دولة المرسل' : 'Sender country code'}
+                      value={senderCountry.code}
+                      onChange={(e) => {
+                        const found = COUNTRIES.find((c) => c.code === e.target.value) ?? COUNTRIES[0];
+                        setSenderCountry(found);
+                        setSenderPhone((prev) => sanitizeLocalPhone(prev, found.dial));
+                      }}
                       style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
-                      className="px-2.5 py-2.5 rounded-xl border text-xs font-semibold text-[#1A1A1A] flex items-center whitespace-nowrap"
+                      className="px-2.5 py-2.5 rounded-xl border text-xs font-semibold text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30] cursor-pointer max-w-[122px]"
                     >
-                      {senderCountry.flag} {senderCountry.dial}
-                    </span>
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.dial} {isAr ? c.name_ar : c.name_en}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="tel"
                       inputMode="numeric"
                       autoComplete="tel-national"
-                      maxLength={8}
-                      pattern="[4569][0-9]{7}"
-                      title={isAr ? '8 أرقام تبدأ بـ 4 أو 5 أو 6 أو 9' : '8 digits starting with 4, 5, 6 or 9'}
+                      maxLength={senderCountry.dial === '+965' ? 8 : 15}
+                      pattern={senderCountry.dial === '+965' ? '[4569][0-9]{7}' : '[0-9]{6,15}'}
+                      title={
+                        senderCountry.dial === '+965'
+                          ? (isAr ? '8 أرقام تبدأ بـ 4 أو 5 أو 6 أو 9' : '8 digits starting with 4, 5, 6 or 9')
+                          : (isAr ? '6 إلى 15 رقماً' : '6 to 15 digits')
+                      }
                       required
                       value={senderPhone}
-                      onChange={(e) => setSenderPhone(sanitizeKuwaitPhone(e.target.value))}
-                      placeholder="5XXXXXXX"
+                      onChange={(e) => setSenderPhone(sanitizeLocalPhone(e.target.value, senderCountry.dial))}
+                      placeholder={senderCountry.dial === '+965' ? '5XXXXXXX' : 'XXXXXXXX'}
                       style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
+                      className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
                     />
                   </div>
                 </div>
@@ -3623,25 +3677,40 @@ export default function GiftVoucherPage() {
                     {isAr ? 'رقم هاتف المستلم (لتسليم القسيمة) *' : "Recipient's Phone Number *"}
                   </label>
                   <div className="flex gap-2" dir="ltr">
-                    <span
+                    <select
+                      aria-label={isAr ? 'رمز دولة المستلم' : 'Recipient country code'}
+                      value={selectedCountry.code}
+                      onChange={(e) => {
+                        const found = COUNTRIES.find((c) => c.code === e.target.value) ?? COUNTRIES[0];
+                        setSelectedCountry(found);
+                        setRecipientPhone((prev) => sanitizeLocalPhone(prev, found.dial));
+                      }}
                       style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
-                      className="px-2.5 py-2.5 rounded-xl border text-xs font-semibold text-[#1A1A1A] flex items-center whitespace-nowrap"
+                      className="px-2.5 py-2.5 rounded-xl border text-xs font-semibold text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30] cursor-pointer max-w-[122px]"
                     >
-                      {selectedCountry.flag} {selectedCountry.dial}
-                    </span>
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.dial} {isAr ? c.name_ar : c.name_en}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       type="tel"
                       inputMode="numeric"
                       autoComplete="off"
-                      maxLength={8}
-                      pattern="[4569][0-9]{7}"
-                      title={isAr ? '8 أرقام تبدأ بـ 4 أو 5 أو 6 أو 9' : '8 digits starting with 4, 5, 6 or 9'}
+                      maxLength={selectedCountry.dial === '+965' ? 8 : 15}
+                      pattern={selectedCountry.dial === '+965' ? '[4569][0-9]{7}' : '[0-9]{6,15}'}
+                      title={
+                        selectedCountry.dial === '+965'
+                          ? (isAr ? '8 أرقام تبدأ بـ 4 أو 5 أو 6 أو 9' : '8 digits starting with 4, 5, 6 or 9')
+                          : (isAr ? '6 إلى 15 رقماً' : '6 to 15 digits')
+                      }
                       required
                       value={recipientPhone}
-                      onChange={(e) => setRecipientPhone(sanitizeKuwaitPhone(e.target.value))}
-                      placeholder="5XXXXXXX"
+                      onChange={(e) => setRecipientPhone(sanitizeLocalPhone(e.target.value, selectedCountry.dial))}
+                      placeholder={selectedCountry.dial === '+965' ? '5XXXXXXX' : 'XXXXXXXX'}
                       style={{ backgroundColor: INPUT_BG, borderColor: BORDER_COLOR }}
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
+                      className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl border text-sm text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-[#543C30]"
                     />
                   </div>
                 </div>
